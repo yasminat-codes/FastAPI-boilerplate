@@ -2787,7 +2787,7 @@
 </span></code></pre></div>
 <h3 id="paginated-responses">Paginated Responses<a class="headerlink" href="#paginated-responses" title="Permanent link">&para;</a></h3>
 <p>For pagination with page numbers, use <code>PaginatedListResponse</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span> <span class="nn">fastcrud.paginated</span> <span class="kn">import</span> <span class="n">PaginatedListResponse</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span> <span class="nn">fastcrud</span> <span class="kn">import</span> <span class="n">PaginatedListResponse</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># In API endpoint - ONLY for paginated list responses</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="nd">@router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/users/&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">PaginatedListResponse</span><span class="p">[</span><span class="n">UserRead</span><span class="p">])</span>

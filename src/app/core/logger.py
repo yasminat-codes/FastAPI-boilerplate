@@ -90,7 +90,7 @@ def get_logging_config() -> dict[str, Any]:
         timestamp = datetime.now(UTC).strftime("%d-%b_%I-%M%p_UTC")
         log_file = log_dir / f"web_{timestamp}.log"
 
-        config["handlers"]["file"] = {
+        config["handlers"]["file"] = {  # type: ignore
             "class": "logging.handlers.RotatingFileHandler",
             "level": log_level,
             "filename": str(log_file),
@@ -98,15 +98,15 @@ def get_logging_config() -> dict[str, Any]:
             "backupCount": 5,
             "formatter": "file",
         }
-        config["root"]["handlers"].append("file")
-        config["loggers"]["uvicorn.access"]["handlers"].append("file")
+        config["root"]["handlers"].append("file")  # type: ignore[index]
+        config["loggers"]["uvicorn.access"]["handlers"].append("file")  # type: ignore[index]
         if settings.LOG_FORMAT_AS_JSON:
-            config["handlers"]["file"]["formatter"] = "json"
+            config["handlers"]["file"]["formatter"] = "json"  # type: ignore[index]
         else:
-            config["handlers"]["file"]["formatter"] = "plain_text"
+            config["handlers"]["file"]["formatter"] = "plain_text"  # type: ignore[index]
 
     if settings.LOG_FORMAT_AS_JSON:
-        config["handlers"]["console"]["formatter"] = "json"
+        config["handlers"]["console"]["formatter"] = "json"  # type: ignore[index]
 
     return config
 

@@ -189,7 +189,6 @@ def create_application(
     for caching, queue, and rate limiting, client-side caching, and customizing the API documentation
     based on the environment settings.
     """
-    # Setup logging first based on the environment, before any other operations
     setup_logging()
 
     if isinstance(settings, AppSettings):

@@ -14,6 +14,7 @@ services:
     volumes:
       - ./src/app:/code/app
       - ./src/.env:/code/.env
+      - ./logs:/code/logs
 
   worker:
     build:

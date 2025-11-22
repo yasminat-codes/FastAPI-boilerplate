@@ -37,10 +37,9 @@ def log_directory() -> Path:
 
 
 def get_logging_config() -> dict[str, Any]:
-    """Get logging configuration based on environment."""
+    """Get logging configuration."""
     log_level = settings.LOG_LEVEL.value
-    # Base configuration
-    config: dict[str, Any] = {
+    config = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
@@ -63,6 +62,7 @@ def get_logging_config() -> dict[str, Any]:
                 "class": "logging.StreamHandler",
                 "level": log_level,
                 "stream": "ext://sys.stdout",
+                "formatter": "colored_text",
             },
         },
         "root": {"level": log_level, "handlers": ["console"]},
@@ -100,15 +100,13 @@ def get_logging_config() -> dict[str, Any]:
         }
         config["root"]["handlers"].append("file")
         config["loggers"]["uvicorn.access"]["handlers"].append("file")
+        if settings.LOG_FORMAT_AS_JSON:
+            config["handlers"]["file"]["formatter"] = "json"
+        else:
+            config["handlers"]["file"]["formatter"] = "plain_text"
 
     if settings.LOG_FORMAT_AS_JSON:
-        # As JSON messages
         config["handlers"]["console"]["formatter"] = "json"
-        config["handlers"]["file"]["formatter"] = "json"
-    else:
-        # Colored text depending on the logging level
-        config["handlers"]["console"]["formatter"] = "colored_text"
-        config["handlers"]["file"]["formatter"] = "plain_text"
 
     return config
 
@@ -120,7 +118,7 @@ def setup_logging() -> None:
 
     # Log startup information
     logger = logging.getLogger(__name__)
-    logger.info(f"Log level set to {settings.LOG_LEVEL.value}")
+    logger.info(f"Log level set to {config['root']['level']}")
     if config["handlers"]["console"]["formatter"] == "json":
         logger.info("Logs will be written in JSON format")
     if "console" in config["root"]["handlers"]:

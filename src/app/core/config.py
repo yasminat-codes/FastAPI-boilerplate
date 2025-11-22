@@ -1,8 +1,12 @@
+import logging
 import os
 from enum import Enum
+from typing import Self
 
-from pydantic import SecretStr, computed_field
+from pydantic import SecretStr, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class AppSettings(BaseSettings):
@@ -24,7 +28,7 @@ class LogLevelOption(str, Enum):
 class LoggingSettings(BaseSettings):
     LOG_LEVEL: LogLevelOption = LogLevelOption.INFO
     LOG_FORMAT_AS_JSON: bool = False
-    LOG_TO_FILE: bool = True
+    LOG_TO_FILE: bool = False
 
 
 class CryptSettings(BaseSettings):
@@ -147,13 +151,18 @@ class CRUDAdminSettings(BaseSettings):
 
 
 class EnvironmentOption(str, Enum):
-    LOCAL = "local"
-    STAGING = "staging"
-    PRODUCTION = "production"
+    LOCAL = "LOCAL"
+    STAGING = "STAGING"
+    PRODUCTION = "PRODUCTION"
 
 
 class EnvironmentSettings(BaseSettings):
     ENVIRONMENT: EnvironmentOption = EnvironmentOption.LOCAL
+
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def normalize_environment(cls, v: str) -> str:
+        return v.upper()
 
 
 class CORSSettings(BaseSettings):
@@ -185,6 +194,27 @@ class Settings(
         case_sensitive=True,
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_environment_settings(self) -> Self:
+        """The validation should not modify any of the settings.
+
+        It should provide feedback to the user if any misconfiguration is detected.
+        """
+        environment = self.ENVIRONMENT.value
+        if environment == EnvironmentOption.PRODUCTION:
+            if self.LOG_LEVEL == LogLevelOption.DEBUG:
+                logger.warning(
+                    f"In a {environment} environment, it's recommended to set LOG_LEVEL to INFO, WARNING, or ERROR. "
+                    "It is currently being set to DEBUG."
+                )
+            if self.LOG_FORMAT_AS_JSON is False:
+                logger.warning(
+                    f"In a {environment} environment, it's recommended to set LOG_FORMAT_AS_JSON to true "
+                    "if you are using log aggregation tools."
+                )
+
+        return self
 
 
 settings = Settings()

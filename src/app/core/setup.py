@@ -13,7 +13,6 @@ from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 
 from ..api.dependencies import get_current_superuser
-from ..core.logger import setup_logging
 from ..core.utils.rate_limit import rate_limiter
 from ..middleware.client_cache_middleware import ClientCacheMiddleware
 from ..models import *  # noqa: F403
@@ -189,8 +188,6 @@ def create_application(
     for caching, queue, and rate limiting, client-side caching, and customizing the API documentation
     based on the environment settings.
     """
-    setup_logging()
-
     if isinstance(settings, AppSettings):
         to_update = {
             "title": settings.APP_NAME,

@@ -11,7 +11,6 @@ from ..app.core.db.database import AsyncSession, async_engine, local_session
 from ..app.core.security import get_password_hash
 from ..app.models.user import User
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

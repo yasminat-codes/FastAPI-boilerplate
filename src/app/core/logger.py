@@ -1,13 +1,12 @@
 import logging
 import logging.config
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from pythonjsonlogger.json import JsonFormatter
 
-from .config import EnvironmentOption, settings
+from .config import settings
 
 
 class ColoredFormatter(logging.Formatter):
@@ -30,17 +29,6 @@ class ColoredFormatter(logging.Formatter):
         return super().format(record_copy)
 
 
-def get_log_level() -> int:
-    """Get log level from environment with validation."""
-    log_level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-
-    level = logging.getLevelNamesMapping().get(log_level_name)
-    if level is None:
-        raise ValueError(f"Invalid log level '{log_level_name}'")
-
-    return level
-
-
 def log_directory() -> Path:
     """Ensure log directory exists and return the path."""
     log_dir = Path(__file__).parent.parent.parent / "logs"
@@ -50,19 +38,18 @@ def log_directory() -> Path:
 
 def get_logging_config() -> dict[str, Any]:
     """Get logging configuration based on environment."""
-    log_level = get_log_level()
-
+    log_level = settings.LOG_LEVEL.value
     # Base configuration
     config: dict[str, Any] = {
         "version": 1,
         "disable_existing_loggers": False,
         "formatters": {
-            "development": {
+            "colored_text": {
                 "()": ColoredFormatter,
                 "format": "%(asctime)s- %(levelname)s - %(name)s - %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             },
-            "file": {
+            "plain_text": {
                 "format": "%(asctime)s- %(levelname)s - %(name)s - %(message)s",
                 "datefmt": "%Y-%m-%d %H:%M:%S",
             },
@@ -72,13 +59,17 @@ def get_logging_config() -> dict[str, Any]:
             },
         },
         "handlers": {
-            "console": {"class": "logging.StreamHandler", "level": log_level, "stream": "ext://sys.stdout"},
+            "console": {
+                "class": "logging.StreamHandler",
+                "level": log_level,
+                "stream": "ext://sys.stdout",
+            },
         },
-        "root": {"level": log_level, "handlers": []},
+        "root": {"level": log_level, "handlers": ["console"]},
         "loggers": {
             "uvicorn.access": {
                 "level": "INFO",
-                "handlers": [],
+                "handlers": ["console"],
                 "propagate": False,  # Don't propagate to root logger to avoid double logging
             },
             "uvicorn.error": {"level": "INFO"},
@@ -89,8 +80,7 @@ def get_logging_config() -> dict[str, Any]:
         },
     }
 
-    # Environment-specific configuration
-    if settings.ENVIRONMENT == EnvironmentOption.LOCAL:
+    if settings.LOG_TO_FILE:
         # Create file handler only when needed
         log_dir = log_directory()
         # Keeping filename timestamp granularity to minutes to avoid too
@@ -108,16 +98,17 @@ def get_logging_config() -> dict[str, Any]:
             "backupCount": 5,
             "formatter": "file",
         }
+        config["root"]["handlers"].append("file")
+        config["loggers"]["uvicorn.access"]["handlers"].append("file")
 
-        # Plain colored text + file logging
-        config["handlers"]["console"]["formatter"] = "development"
-        config["root"]["handlers"] = ["console", "file"]
-        config["loggers"]["uvicorn.access"]["handlers"] = ["console", "file"]
-    else:
-        # As JSON messages to console
+    if settings.LOG_FORMAT_AS_JSON:
+        # As JSON messages
         config["handlers"]["console"]["formatter"] = "json"
-        config["root"]["handlers"] = ["console"]
-        config["loggers"]["uvicorn.access"]["handlers"] = ["console"]
+        config["handlers"]["file"]["formatter"] = "json"
+    else:
+        # Colored text depending on the logging level
+        config["handlers"]["console"]["formatter"] = "colored_text"
+        config["handlers"]["file"]["formatter"] = "plain_text"
 
     return config
 
@@ -129,12 +120,10 @@ def setup_logging() -> None:
 
     # Log startup information
     logger = logging.getLogger(__name__)
-    logger.info(f"Logging configured for {settings.ENVIRONMENT.value} environment")
-    logger.info(f"Log level set to {logging.getLevelName(get_log_level())}")
+    logger.info(f"Log level set to {settings.LOG_LEVEL.value}")
+    if config["handlers"]["console"]["formatter"] == "json":
+        logger.info("Logs will be written in JSON format")
+    if "console" in config["root"]["handlers"]:
+        logger.info("Logs will be written to the console")
     if "file" in config["root"]["handlers"]:
         logger.info(f"Logs will be written to the file {config['handlers']['file']['filename']}")
-    if "console" in config["root"]["handlers"]:
-        extra = ""
-        if config["handlers"]["console"]["formatter"] == "json":
-            extra = " in JSON format"
-        logger.info(f"Logs will be written to the console{extra}")

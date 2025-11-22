@@ -14,6 +14,19 @@ class AppSettings(BaseSettings):
     CONTACT_EMAIL: str | None = None
 
 
+class LogLevelOption(str, Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+class LoggingSettings(BaseSettings):
+    LOG_LEVEL: LogLevelOption = LogLevelOption.INFO
+    LOG_FORMAT_AS_JSON: bool = False
+    LOG_TO_FILE: bool = True
+
+
 class CryptSettings(BaseSettings):
     SECRET_KEY: SecretStr = SecretStr("secret-key")
     ALGORITHM: str = "HS256"
@@ -164,6 +177,7 @@ class Settings(
     CRUDAdminSettings,
     EnvironmentSettings,
     CORSSettings,
+    LoggingSettings,
 ):
     model_config = SettingsConfigDict(
         env_file=os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", ".env"),

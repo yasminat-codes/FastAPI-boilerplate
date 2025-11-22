@@ -436,21 +436,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 ## Logging Configuration
 
-### Basic Logging Setup
-
-Configure logging in `src/app/core/logger.py`:
-
-```python
-import logging
-from logging.handlers import RotatingFileHandler
-
-# Set log level
-LOGGING_LEVEL = logging.INFO
-
-# Configure file rotation
-file_handler = RotatingFileHandler("logs/app.log", maxBytes=10485760, backupCount=5)  # 10MB  # Keep 5 backup files
-```
-
 ### Structured Logging
 
 Use structured logging for better observability:
@@ -467,15 +452,6 @@ structlog.configure(
     ],
     logger_factory=structlog.stdlib.LoggerFactory(),
 )
-```
-
-### Log Levels by Environment
-
-```python
-# Environment-specific log levels
-LOG_LEVELS = {"local": logging.DEBUG, "staging": logging.INFO, "production": logging.WARNING}
-
-LOGGING_LEVEL = LOG_LEVELS.get(settings.ENVIRONMENT, logging.INFO)
 ```
 
 ## Environment-Specific Configurations

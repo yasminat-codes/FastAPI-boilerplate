@@ -33,6 +33,9 @@ COPY --from=builder --chown=app:app /app/.venv /app/.venv
 # Ensure the virtual environment is in the PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
+# Force file watching to use polling, which is more reliable in some Docker environments (like WSL/macOS)
+ENV WATCHFILES_FORCE_POLLING=true
+
 # Switch to the non-root user
 USER app
 

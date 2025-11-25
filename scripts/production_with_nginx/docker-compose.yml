@@ -1,6 +1,6 @@
 services:
   web:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     # -------- Both of the following commands should be commented to run with nginx --------
@@ -9,7 +9,7 @@ services:
     # command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     command: gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000
     env_file:
-      - ./src/.env
+      - .env
     # -------- replace ports with expose if you are using nginx --------
     # ports:
     #    - "8000:8000"
@@ -20,26 +20,26 @@ services:
       - redis
     volumes:
       - ./src/app:/code/app
-      - ./src/.env:/code/.env
+      - .env:/.env
 
   worker:
-    build: 
+    build:
       context: .
       dockerfile: Dockerfile
     command: arq app.core.worker.settings.WorkerSettings
     env_file:
-      - ./src/.env
+      - .env
     depends_on:
       - db
       - redis
     volumes:
       - ./src/app:/code/app
-      - ./src/.env:/code/.env
+      - .env:/.env
 
   db:
     image: postgres:13
     env_file:
-      - ./src/.env
+      - .env
     volumes:
       - postgres-data:/var/lib/postgresql/data
     expose:
@@ -64,11 +64,11 @@ services:
 
   #-------- uncomment to create first superuser --------
   # create_superuser:
-  #   build: 
+  #   build:
   #     context: .
   #     dockerfile: Dockerfile
   #   env_file:
-  #     - ./src/.env
+  #     - .env
   #   depends_on:
   #     - db
   #     - web
@@ -78,11 +78,11 @@ services:
 
   #-------- uncomment to run tests --------
   # pytest:
-  #   build: 
+  #   build:
   #     context: .
-  #     dockerfile: Dockerfile 
+  #     dockerfile: Dockerfile
   #   env_file:
-  #     - ./src/.env
+  #     - .env
   #   depends_on:
   #     - web
   #     - redis
@@ -92,11 +92,11 @@ services:
 
   #-------- uncomment to create first tier --------
   # create_tier:
-  #   build: 
+  #   build:
   #     context: .
   #     dockerfile: Dockerfile
   #   env_file:
-  #     - ./src/.env
+  #     - .env
   #   depends_on:
   #     - create_superuser
   #     - db

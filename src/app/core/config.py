@@ -1,6 +1,5 @@
 import logging
 import os
-import warnings
 from enum import Enum
 from typing import Self
 
@@ -189,16 +188,17 @@ class Settings(
     def validate_environment_settings(self) -> Self:
         """The validation should not modify any of the settings.
 
-        It should provide feedback to the user if any misconfiguration is detected.
+        It should provide feedback to the user if any misconfiguration is detected, or raise and error if the
+        misconfiguration is critical.
         """
         environment = self.ENVIRONMENT.value
         if self.ENVIRONMENT == EnvironmentOption.LOCAL:
             pass
         elif self.ENVIRONMENT == EnvironmentOption.STAGING:
             if "*" in self.CORS_ORIGINS:
-                warnings.warn(
+                logger.warning(
                     f"For security, in a {environment} environment CORS_ORIGINS should not include '*'. "
-                    "It's recommended to specify explicit origins (e.g., ['https://staging.example.com'])."
+                    "It is recommended to specify explicit origins (e.g., ['https://staging.example.com'])."
                 )
         elif self.ENVIRONMENT == EnvironmentOption.PRODUCTION:
             if "*" in self.CORS_ORIGINS:
@@ -213,12 +213,12 @@ class Settings(
                 )
             if self.LOG_LEVEL == LogLevelOption.DEBUG:
                 logger.warning(
-                    f"In a {environment} environment, it's recommended to set LOG_LEVEL to INFO, WARNING, or ERROR. "
+                    f"In a {environment} environment, it is recommended to set LOG_LEVEL to INFO, WARNING, or ERROR. "
                     "It is currently being set to DEBUG."
                 )
             if self.LOG_FORMAT_AS_JSON is False:
                 logger.warning(
-                    f"In a {environment} environment, it's recommended to set LOG_FORMAT_AS_JSON to true "
+                    f"In a {environment} environment, it is recommended to set LOG_FORMAT_AS_JSON to true "
                     "if you are using log aggregation tools."
                 )
         return self

@@ -1,12 +1,11 @@
 import logging
 import logging.config
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from pythonjsonlogger.json import JsonFormatter
-
-from .config import settings
 
 
 class ColoredFormatter(logging.Formatter):
@@ -38,7 +37,14 @@ def log_directory() -> Path:
 
 def get_logging_config() -> dict[str, Any]:
     """Get logging configuration."""
-    log_level = settings.LOG_LEVEL.value
+
+    # We read logging settings from environment variables instead of settings in config.py
+    # to ensure logging is configured as early as possible, before settings are instantiated.
+    # In this way we can also capture any logs during settings validation.
+    log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+    log_to_file = os.environ.get("LOG_TO_FILE", "False").lower() == "true"
+    log_format_as_json = os.environ.get("LOG_FORMAT_AS_JSON", "False").lower() == "true"
+
     config = {
         "version": 1,
         "disable_existing_loggers": False,
@@ -80,7 +86,7 @@ def get_logging_config() -> dict[str, Any]:
         },
     }
 
-    if settings.LOG_TO_FILE:
+    if log_to_file:
         # Create file handler only when needed
         log_dir = log_directory()
         # Keeping filename timestamp granularity to minutes to avoid too
@@ -90,7 +96,7 @@ def get_logging_config() -> dict[str, Any]:
         timestamp = datetime.now(UTC).strftime("%d-%b_%I-%M%p_UTC")
         log_file = log_dir / f"web_{timestamp}.log"
 
-        config["handlers"]["file"] = {  # type: ignore
+        config["handlers"]["file"] = {  # type: ignore[index]
             "class": "logging.handlers.RotatingFileHandler",
             "level": log_level,
             "filename": str(log_file),
@@ -100,12 +106,12 @@ def get_logging_config() -> dict[str, Any]:
         }
         config["root"]["handlers"].append("file")  # type: ignore[index]
         config["loggers"]["uvicorn.access"]["handlers"].append("file")  # type: ignore[index]
-        if settings.LOG_FORMAT_AS_JSON:
+        if log_format_as_json:
             config["handlers"]["file"]["formatter"] = "json"  # type: ignore[index]
         else:
             config["handlers"]["file"]["formatter"] = "plain_text"  # type: ignore[index]
 
-    if settings.LOG_FORMAT_AS_JSON:
+    if log_format_as_json:
         config["handlers"]["console"]["formatter"] = "json"  # type: ignore[index]
 
     return config

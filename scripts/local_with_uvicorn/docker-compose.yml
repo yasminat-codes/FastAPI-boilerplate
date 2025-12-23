@@ -29,6 +29,7 @@ services:
     volumes:
       - ./src/app:/code/app
       - .env:/code/.env
+      - ./logs:/code/logs
 
   db:
     image: postgres:13

@@ -21,7 +21,6 @@ class ColoredFormatter(logging.Formatter):
     RESET = "\033[0m"
 
     def format(self, record: logging.LogRecord) -> str:
-        # Create a copy of the record to avoid modifying the original
         record_copy = logging.makeLogRecord(record.__dict__)
         log_color = self.COLORS.get(record_copy.levelname, "")
         record_copy.levelname = f"{log_color}{record_copy.levelname}{self.RESET}"
@@ -37,10 +36,6 @@ def log_directory() -> Path:
 
 def get_logging_config() -> dict[str, Any]:
     """Get logging configuration."""
-
-    # We read logging settings from environment variables instead of settings in config.py
-    # to ensure logging is configured as early as possible, before settings are instantiated.
-    # In this way we can also capture any logs during settings validation.
     log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
     log_to_file = os.environ.get("LOG_TO_FILE", "False").lower() == "true"
     log_format_as_json = os.environ.get("LOG_FORMAT_AS_JSON", "False").lower() == "true"
@@ -76,23 +71,18 @@ def get_logging_config() -> dict[str, Any]:
             "uvicorn.access": {
                 "level": "INFO",
                 "handlers": ["console"],
-                "propagate": False,  # Don't propagate to root logger to avoid double logging
+                "propagate": False,
             },
             "uvicorn.error": {"level": "INFO"},
-            "sqlalchemy.engine": {"level": "WARNING"},  # Hide SQL queries unless warning/error
+            "sqlalchemy.engine": {"level": "WARNING"},
             "sqlalchemy.pool": {"level": "WARNING"},
-            "httpx": {"level": "WARNING"},  # External HTTP client logs
+            "httpx": {"level": "WARNING"},
             "httpcore": {"level": "WARNING"},
         },
     }
 
     if log_to_file:
-        # Create file handler only when needed
         log_dir = log_directory()
-        # Keeping filename timestamp granularity to minutes to avoid too
-        # many log files during development and reloding. Keeping it human
-        # readable for easier debugging using 3 letter month, in AM/PM format
-        # and without the year. It has to be in UTC as it runs in containers.
         timestamp = datetime.now(UTC).strftime("%d-%b_%I-%M%p_UTC")
         log_file = log_dir / f"web_{timestamp}.log"
 
@@ -100,7 +90,7 @@ def get_logging_config() -> dict[str, Any]:
             "class": "logging.handlers.RotatingFileHandler",
             "level": log_level,
             "filename": str(log_file),
-            "maxBytes": 10485760,  # 10MB
+            "maxBytes": 10485760,
             "backupCount": 5,
             "formatter": "file",
         }
@@ -122,7 +112,6 @@ def setup_logging() -> None:
     config = get_logging_config()
     logging.config.dictConfig(config)
 
-    # Log startup information
     logger = logging.getLogger(__name__)
     logger.info(f"Log level set to {config['root']['level']}")
     if config["handlers"]["console"]["formatter"] == "json":

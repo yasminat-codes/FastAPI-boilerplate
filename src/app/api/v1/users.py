@@ -5,6 +5,7 @@ from fastcrud import PaginatedListResponse, compute_offset, paginated_response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.dependencies import get_current_superuser, get_current_user
+from ...core.config import settings
 from ...core.db.database import async_get_db
 from ...core.exceptions.http_exceptions import DuplicateValueException, ForbiddenException, NotFoundException
 from ...core.security import blacklist_token, get_password_hash, oauth2_scheme
@@ -17,10 +18,17 @@ from ...schemas.user import UserCreate, UserCreateInternal, UserRead, UserTierUp
 router = APIRouter(tags=["users"])
 
 
-@router.post("/user", response_model=UserRead, status_code=201)
-async def write_user(
-    request: Request, user: UserCreate, db: Annotated[AsyncSession, Depends(async_get_db)]
-) -> dict[str, Any]:
+if settings.ENABLE_PASSWORD_AUTH:
+
+    @router.post("/user", response_model=UserRead, status_code=201)
+    async def write_user(
+        request: Request, user: UserCreate, db: Annotated[AsyncSession, Depends(async_get_db)]
+    ) -> dict[str, Any]:
+        created_user = await write_user_internal(user=user, db=db)
+        return created_user
+
+
+async def write_user_internal(user: UserCreate | UserCreateInternal, db: AsyncSession) -> dict[str, Any]:
     email_row = await crud_users.exists(db=db, email=user.email)
     if email_row:
         raise DuplicateValueException("Email is already registered")
@@ -29,13 +37,13 @@ async def write_user(
     if username_row:
         raise DuplicateValueException("Username not available")
 
-    user_internal_dict = user.model_dump()
-    user_internal_dict["hashed_password"] = get_password_hash(password=user_internal_dict["password"])
-    del user_internal_dict["password"]
+    if isinstance(user, UserCreate):
+        user_internal_dict = user.model_dump()
+        user_internal_dict["hashed_password"] = get_password_hash(password=user_internal_dict["password"])
+        del user_internal_dict["password"]
+        user = UserCreateInternal(**user_internal_dict)
 
-    user_internal = UserCreateInternal(**user_internal_dict)
-    created_user = await crud_users.create(db=db, object=user_internal, schema_to_select=UserRead)
-
+    created_user = await crud_users.create(db=db, object=user, schema_to_select=UserRead)
     if created_user is None:
         raise NotFoundException("Failed to create user")
 

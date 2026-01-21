@@ -160,6 +160,17 @@ class CORSSettings(BaseSettings):
     CORS_HEADERS: list[str] = ["*"]
 
 
+class AuthSettings(BaseSettings):
+    ENABLE_PASSWORD_AUTH: bool = True
+    GOOGLE_CLIENT_ID: str | None = None
+    GOOGLE_CLIENT_SECRET: str | None = None
+    MICROSOFT_CLIENT_ID: str | None = None
+    MICROSOFT_CLIENT_SECRET: str | None = None
+    MICROSOFT_TENANT: str | None = None
+    GITHUB_CLIENT_ID: str | None = None
+    GITHUB_CLIENT_SECRET: str | None = None
+
+
 class Settings(
     AppSettings,
     PostgresSettings,
@@ -175,6 +186,7 @@ class Settings(
     EnvironmentSettings,
     CORSSettings,
     LoggingSettings,
+    AuthSettings,
 ):
     model_config = SettingsConfigDict(
         case_sensitive=True,

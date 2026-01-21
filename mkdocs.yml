@@ -75,6 +75,7 @@ nav:
       - Authentication:
           - Overview: user-guide/authentication/index.md
           - JWT Tokens: user-guide/authentication/jwt-tokens.md
+          - OAuth: user-guide/authentication/oauth.md
           - User Management: user-guide/authentication/user-management.md
           - Permissions: user-guide/authentication/permissions.md
       - Admin Panel:

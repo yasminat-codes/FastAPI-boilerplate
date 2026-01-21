@@ -1,10 +1,11 @@
-import os
-import warnings
+import logging
 from enum import Enum
 from typing import Self
 
 from pydantic import SecretStr, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
 
 
 class AppSettings(BaseSettings):
@@ -25,6 +26,19 @@ class AppSettings(BaseSettings):
                 f"HOSTS must define their protocol and start with http:// or https://. Received the host '{host}'."
             )
         return host
+
+
+class LogLevelOption(str, Enum):
+    DEBUG = "DEBUG"
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+
+
+class LoggingSettings(BaseSettings):
+    LOG_LEVEL: LogLevelOption = LogLevelOption.INFO
+    LOG_FORMAT_AS_JSON: bool = False
+    LOG_TO_FILE: bool = False
 
 
 class CryptSettings(BaseSettings):
@@ -126,13 +140,18 @@ class CRUDAdminSettings(BaseSettings):
 
 
 class EnvironmentOption(str, Enum):
-    LOCAL = "local"
-    STAGING = "staging"
-    PRODUCTION = "production"
+    LOCAL = "LOCAL"
+    STAGING = "STAGING"
+    PRODUCTION = "PRODUCTION"
 
 
 class EnvironmentSettings(BaseSettings):
     ENVIRONMENT: EnvironmentOption = EnvironmentOption.LOCAL
+
+    @field_validator("ENVIRONMENT", mode="before")
+    @classmethod
+    def normalize_environment(cls, v: str) -> str:
+        return v.upper()
 
 
 class CORSSettings(BaseSettings):
@@ -166,37 +185,50 @@ class Settings(
     CRUDAdminSettings,
     EnvironmentSettings,
     CORSSettings,
+    LoggingSettings,
     AuthSettings,
 ):
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", ".env"),
-        env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
     )
 
     @model_validator(mode="after")
     def validate_environment_settings(self) -> Self:
-        "The validation should not modify any of the settings. It should provide"
-        "feedback to the user if any misconfiguration is detected."
+        """The validation should not modify any of the settings.
+
+        It should provide feedback to the user if any misconfiguration is detected, or raise and error if the
+        misconfiguration is critical.
+        """
+        environment = self.ENVIRONMENT.value
         if self.ENVIRONMENT == EnvironmentOption.LOCAL:
             pass
         elif self.ENVIRONMENT == EnvironmentOption.STAGING:
             if "*" in self.CORS_ORIGINS:
-                warnings.warn(
-                    "For security, in a staging environment CORS_ORIGINS should not include '*'. "
-                    "It's recommended to specify explicit origins (e.g., ['https://staging.example.com'])."
+                logger.warning(
+                    f"For security, in a {environment} environment CORS_ORIGINS should not include '*'. "
+                    "It is recommended to specify explicit origins (e.g., ['https://staging.example.com'])."
                 )
         elif self.ENVIRONMENT == EnvironmentOption.PRODUCTION:
             if "*" in self.CORS_ORIGINS:
                 raise ValueError(
-                    "For security, in a production environment CORS_ORIGINS cannot include '*'. "
+                    f"For security, in a {environment} environment CORS_ORIGINS cannot include '*'. "
                     "You must specify explicit allowed origins (e.g., ['https://example.com', 'https://www.example.com'])."
                 )
             if self.APP_FRONTEND_HOST and not self.APP_FRONTEND_HOST.startswith("https://"):
                 raise ValueError(
-                    "In production, APP_FRONTEND_HOST must start with the https:// protocol. "
+                    f"In {environment} environment, APP_FRONTEND_HOST must start with the https:// protocol. "
                     f"Received the host '{self.APP_FRONTEND_HOST}'."
+                )
+            if self.LOG_LEVEL == LogLevelOption.DEBUG:
+                logger.warning(
+                    f"In a {environment} environment, it is recommended to set LOG_LEVEL to INFO, WARNING, or ERROR. "
+                    "It is currently being set to DEBUG."
+                )
+            if self.LOG_FORMAT_AS_JSON is False:
+                logger.warning(
+                    f"In a {environment} environment, it is recommended to set LOG_FORMAT_AS_JSON to true "
+                    "if you are using log aggregation tools."
                 )
         return self
 

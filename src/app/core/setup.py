@@ -191,7 +191,6 @@ def create_application(
     for caching, queue, and rate limiting, client-side caching, and customizing the API documentation
     based on the environment settings.
     """
-    # --- before creating application ---
     if isinstance(settings, AppSettings):
         to_update = {
             "title": settings.APP_NAME,

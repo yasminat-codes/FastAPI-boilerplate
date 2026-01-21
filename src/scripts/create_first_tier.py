@@ -7,7 +7,6 @@ from ..app.core.config import config
 from ..app.core.db.database import AsyncSession, local_session
 from ..app.models.tier import Tier
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

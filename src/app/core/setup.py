@@ -27,6 +27,7 @@ from .config import (
     RedisCacheSettings,
     RedisQueueSettings,
     RedisRateLimiterSettings,
+    SentrySettings,
     settings,
 )
 from .db.database import Base
@@ -71,6 +72,31 @@ async def close_redis_rate_limit_pool() -> None:
         await rate_limiter.client.aclose()  # type: ignore
 
 
+# -------------- sentry --------------
+def init_sentry() -> None:
+    if not settings.SENTRY_ENABLE:
+        return
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN.get_secret_value() if settings.SENTRY_DSN else None,
+        environment=settings.SENTRY_ENVIRONMENT,
+        traces_sample_rate=settings.SENTRY_TRACES_SAMPLE_RATE,
+        profiles_sample_rate=settings.SENTRY_PROFILES_SAMPLE_RATE,
+        integrations=[
+            FastApiIntegration(transaction_style="endpoint"),
+        ],
+    )
+
+
+async def shutdown_sentry() -> None:
+    if not settings.SENTRY_ENABLE:
+        return
+    import sentry_sdk
+    await sentry_sdk.flush()
+
+
 # -------------- application --------------
 async def set_threadpool_tokens(number_of_tokens: int = 100) -> None:
     limiter = anyio.to_thread.current_default_thread_limiter()
@@ -87,6 +113,7 @@ def lifespan_factory(
         | RedisQueueSettings
         | RedisRateLimiterSettings
         | EnvironmentSettings
+        | SentrySettings
     ),
     create_tables_on_start: bool = True,
 ) -> Callable[[FastAPI], _AsyncGeneratorContextManager[Any]]:
@@ -111,6 +138,9 @@ def lifespan_factory(
             if isinstance(settings, RedisRateLimiterSettings):
                 await create_redis_rate_limit_pool()
 
+            if isinstance(settings, SentrySettings):
+                init_sentry()
+
             if create_tables_on_start:
                 await create_tables()
 
@@ -128,6 +158,9 @@ def lifespan_factory(
             if isinstance(settings, RedisRateLimiterSettings):
                 await close_redis_rate_limit_pool()
 
+            if isinstance(settings, SentrySettings):
+                await shutdown_sentry()
+
     return lifespan
 
 
@@ -143,6 +176,7 @@ def create_application(
         | RedisQueueSettings
         | RedisRateLimiterSettings
         | EnvironmentSettings
+        | SentrySettings
     ),
     create_tables_on_start: bool = True,
     lifespan: Callable[[FastAPI], _AsyncGeneratorContextManager[Any]] | None = None,

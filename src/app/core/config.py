@@ -169,6 +169,14 @@ class EnvironmentSettings(BaseSettings):
     ENVIRONMENT: EnvironmentOption = EnvironmentOption.LOCAL
 
 
+class SentrySettings(BaseSettings):
+    SENTRY_DSN: SecretStr | None = None
+    SENTRY_ENVIRONMENT: str = "local"
+    SENTRY_TRACES_SAMPLE_RATE: float = 1.0
+    SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
+    SENTRY_ENABLE: bool = False
+
+
 class CORSSettings(BaseSettings):
     CORS_ORIGINS: list[str] = ["*"]
     CORS_METHODS: list[str] = ["*"]
@@ -189,6 +197,7 @@ class Settings(
     DefaultRateLimitSettings,
     CRUDAdminSettings,
     EnvironmentSettings,
+    SentrySettings,
     CORSSettings,
     FileLoggerSettings,
     ConsoleLoggerSettings,

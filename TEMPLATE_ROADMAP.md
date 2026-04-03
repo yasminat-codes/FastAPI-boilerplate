@@ -209,13 +209,40 @@ The finished template should provide:
 ### Wave 2.3: Persistence Patterns For Automation Systems
 
 - [x] Add a table pattern for inbound webhook events.
-- [ ] Add a table pattern for idempotency keys.
+- [x] Add a table pattern for idempotency keys.
 - [ ] Add a table pattern for workflow executions or process runs.
 - [ ] Add a table pattern for job state history where needed.
 - [ ] Add a table pattern for integration sync checkpoints.
 - [ ] Add a table pattern for audit logs or operational events.
 - [ ] Add a table pattern for dead-letter or failed message records.
 - [ ] Add retention and cleanup guidance for high-volume event tables.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added a reusable platform-owned `IdempotencyKey` table pattern with scoped uniqueness, request fingerprint tracking, replay hit counting, lease expiry, and lightweight execution state fields.
+- Added an Alembic migration for the new idempotency ledger plus regression tests covering metadata registration, lookup indexes, unique constraint posture, and migration-config primary-key checks.
+- Expanded the database automation-patterns documentation and refreshed the database index/models guides so the new shared persistence primitive is documented alongside the webhook-event ledger.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run db-migrate-verify` initially failed because no local PostgreSQL server was listening on `localhost:5432`. | Started a temporary local PostgreSQL container using the template's default credentials, re-ran migration verification successfully, and then stopped the container to return the environment to its prior state. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 143 passed, 0 failed
+
+### Current state of the template
+The template now includes two shared automation persistence ledgers: inbound webhook events and idempotency keys. Both are migration-backed, re-exported through the canonical platform database surface, documented for template users, and covered by focused regression tests. The automation persistence layer is still incomplete overall, because workflow executions, job-history records, integration checkpoints, audit logs, dead-letter records, and retention guidance have not been scaffolded yet.
+
+### What remains
+- [ ] Add a table pattern for workflow executions or process runs.
+- [ ] Add a table pattern for job state history where needed.
+- [ ] Add a table pattern for integration sync checkpoints.
 
 ## Phase 3: API Platform And Request Pipeline
 

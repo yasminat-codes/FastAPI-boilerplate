@@ -26,6 +26,7 @@ from ..core.db.database import (
     open_database_session,
     retry_database_operation,
 )
+from ..core.db.idempotency_key import IdempotencyKey, IdempotencyKeyStatus
 from ..core.db.models import SoftDeleteMixin, TimestampMixin, UUIDMixin
 from ..core.db.token_blacklist import TokenBlacklist
 from ..core.db.webhook_event import WebhookEvent, WebhookEventStatus
@@ -40,6 +41,8 @@ __all__ = [
     "DATABASE_SYNC_URL",
     "DatabaseSessionPolicy",
     "DatabaseSessionScope",
+    "IdempotencyKey",
+    "IdempotencyKeyStatus",
     "SoftDeleteMixin",
     "TimestampMixin",
     "TokenBlacklist",

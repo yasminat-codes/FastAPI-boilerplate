@@ -4,6 +4,7 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+from src.app.core.db.idempotency_key import IdempotencyKey
 from src.app.core.db.token_blacklist import TokenBlacklist
 from src.app.core.db.webhook_event import WebhookEvent
 from src.app.models.post import Post
@@ -111,6 +112,7 @@ def test_primary_key_columns_do_not_duplicate_unique_constraints() -> None:
         TokenBlacklist.__table__.c.id,
         RateLimit.__table__.c.id,
         Post.__table__.c.id,
+        IdempotencyKey.__table__.c.id,
         WebhookEvent.__table__.c.id,
     ):
         assert column.unique is not True

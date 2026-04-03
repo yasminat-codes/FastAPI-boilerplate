@@ -37,6 +37,7 @@ Platform persistence primitives can live alongside the database layer when they 
 ```text
 src/app/core/db/
 ├── idempotency_key.py   # Shared idempotency ledger pattern
+├── job_state_history.py # Shared background-job execution ledger pattern
 ├── token_blacklist.py   # Shared auth persistence primitive
 ├── webhook_event.py     # Shared inbound webhook event ledger pattern
 └── workflow_execution.py # Shared workflow execution ledger pattern

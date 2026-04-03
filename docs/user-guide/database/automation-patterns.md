@@ -240,4 +240,98 @@ Avoid using this table as an append-only event log. Keep it as the durable execu
 - Use `status_metadata` for compact operational context such as wait reasons, queue references, or retry notes, not unbounded logs.
 - If a cloned project needs long-term compliance retention, archive completed runs separately from the hot operational table used for current workflow management.
 
-Future roadmap items will layer job-history, integration-checkpoint, dead-letter, and audit-log patterns on top of these shared webhook, idempotency, and workflow ledgers.
+Future roadmap items will layer integration-checkpoint, dead-letter, and audit-log patterns on top of these shared webhook, idempotency, workflow, and job ledgers.
+
+## Job State History Ledger
+
+The template also supports a generic job-state-history table pattern for durable worker execution tracking in `src/app/core/db/job_state_history.py`.
+
+Use this pattern when you need to:
+
+- retain an auditable history of background job runs beyond ARQ's transient queue/result lifecycle
+- inspect job attempts, retries, and terminal outcomes after the worker process restarts
+- correlate a worker execution with the original `JobEnvelope` inputs, tenant context, and correlation identifiers
+- store compact runtime metadata for operational triage without hardcoding a domain-specific job schema
+- give future dead-letter, audit, or reconciliation tables a stable job-execution record to reference
+
+### Why this lives in the platform layer
+
+Job execution history is a platform concern for any cloned project that uses background jobs. The shared table gives every project a consistent place to record job lifecycle state, while leaving queue-specific details, domain results, and downstream follow-up work open for extension.
+
+### Included fields
+
+The baseline table stores:
+
+- `job_name`: the reusable worker job identifier, usually matching the `WorkerJob.job_name`
+- `queue_name`: the queue or channel the job was routed through
+- `status`: a lightweight lifecycle state from pending through queued, running, retrying, succeeded, failed, or canceled
+- `correlation_id`: the shared request or workflow correlation handle used in logs and traces
+- `run_key`: an optional natural key for correlating logically identical job runs
+- `attempt_count` and `max_attempts`: the worker retry posture for the run
+- `scheduled_at`, `queued_at`, `started_at`, `completed_at`, and `last_transition_at`: timestamps for operational visibility
+- `input_payload`, `execution_context`, `output_payload`, and `status_metadata`: room for structured inputs, runtime context, and compact results
+- `error_code` and `error_detail`: minimal failure detail without assuming a client-specific error schema
+- `queue_backend`, `queue_job_id`, `worker_name`, `worker_version`, `trigger_source`, and `trigger_reference`: optional queue/runtime metadata for operator visibility and upstream correlation
+
+### Lookup posture
+
+The table includes indexes for the most common job-operations queries:
+
+- by `job_name`
+- by `queue_name`
+- by `status`
+- by `correlation_id`
+- by `last_transition_at`
+- by `(job_name, run_key)`
+- by `(status, scheduled_at)`
+- by `(status, last_transition_at)`
+- by `(queue_name, queue_job_id)`
+
+These indexes intentionally support operator dashboards, stuck-job detection, retry review, and cleanup flows without assuming a single queue backend or business domain.
+
+### Example model
+
+```python
+class JobStateHistory(Base):
+    __tablename__ = "job_state_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
+    job_name: Mapped[str] = mapped_column(String(150), index=True)
+    queue_name: Mapped[str] = mapped_column(String(100), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
+    run_key: Mapped[str | None] = mapped_column(String(255), default=None)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    input_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    execution_context: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    output_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+```
+
+### How this complements `workflow_execution`
+
+Use `workflow_execution` when the durable record represents a multi-step orchestration or business process. Use `job_state_history` when the durable record represents a worker job run, retry loop, or queue-level execution history.
+
+In practice:
+
+- `workflow_execution` is the durable header for the larger process
+- `job_state_history` is the durable ledger for one background job execution, including retries and final status
+- cloned projects can link them later through correlation fields once a specific orchestration design exists
+
+This separation keeps the template flexible for projects that run jobs without workflows, workflows without jobs, or both together.
+
+### Extending this pattern in a cloned project
+
+Keep the shared fields above, then add project-specific columns only if the cloned system truly needs them. Common extensions include:
+
+- tenant or organization scoping columns when job history must be isolated per customer
+- foreign keys to workflow-execution or domain task records once those relationships are real
+- queue provider metadata if the cloned project needs to reconcile with a specific broker or scheduler
+- compact operator-summary columns for dashboards that need a read-optimized job status view
+
+Avoid encoding business-specific payload schemas, provider-specific retry state, or long-form execution logs directly into the base template model.
+
+### Retention and safety notes
+
+- Keep `input_payload` and `output_payload` intentionally small, and do not use them to retain secrets or full provider payload archives by default.
+- Use `status_metadata` for compact operational context such as wait reasons, queue references, or retry notes, not unbounded logs.
+- If a cloned project needs long-term compliance retention, archive completed runs separately from the hot operational table used for current job management.

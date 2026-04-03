@@ -5,6 +5,7 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 from src.app.core.db.idempotency_key import IdempotencyKey
+from src.app.core.db.job_state_history import JobStateHistory
 from src.app.core.db.token_blacklist import TokenBlacklist
 from src.app.core.db.webhook_event import WebhookEvent
 from src.app.core.db.workflow_execution import WorkflowExecution
@@ -114,6 +115,7 @@ def test_primary_key_columns_do_not_duplicate_unique_constraints() -> None:
         RateLimit.__table__.c.id,
         Post.__table__.c.id,
         IdempotencyKey.__table__.c.id,
+        JobStateHistory.__table__.c.id,
         WebhookEvent.__table__.c.id,
         WorkflowExecution.__table__.c.id,
     ):

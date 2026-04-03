@@ -211,7 +211,7 @@ The finished template should provide:
 - [x] Add a table pattern for inbound webhook events.
 - [x] Add a table pattern for idempotency keys.
 - [x] Add a table pattern for workflow executions or process runs.
-- [ ] Add a table pattern for job state history where needed.
+- [x] Add a table pattern for job state history where needed.
 - [ ] Add a table pattern for integration sync checkpoints.
 - [ ] Add a table pattern for audit logs or operational events.
 - [ ] Add a table pattern for dead-letter or failed message records.
@@ -725,3 +725,31 @@ The template now includes three reusable automation persistence ledgers in the s
 - [ ] Add a table pattern for job state history where needed.
 - [ ] Add a table pattern for integration sync checkpoints.
 - [ ] Add a table pattern for audit logs or operational events.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added a reusable platform-owned `JobStateHistory` table pattern for durable background-job execution tracking, including queue/runtime metadata, lifecycle timestamps, retry posture, payload/context fields, and lightweight error detail.
+- Added an Alembic migration plus regression tests covering metadata registration, lookup indexes, payload column types, status defaults, and primary-key uniqueness posture for the new job-history ledger.
+- Expanded the automation-persistence, database overview/models, and background-task docs so template users can understand when to use `job_state_history` versus `workflow_execution`.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The initial `JobStateHistory` model shape had a required field ordered after defaulted fields, which caused SQLAlchemy's dataclass integration to fail during test collection. | Reordered the required fields and normalized the model, migration, tests, and docs around one final schema contract before rerunning the quality gates. |
+| `uv run db-migrate-verify` initially failed because no local PostgreSQL server was listening on `localhost:5432`. | Started a temporary local PostgreSQL container, reran migration verification successfully, and then stopped the container to return the environment to its prior state. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 149 passed, 0 failed
+
+### Current state of the template
+The template now includes four reusable automation persistence ledgers in the shared platform layer: webhook events, idempotency keys, workflow executions, and job state history. Those patterns are migration-backed, exported through the canonical database surface, documented for template adopters, and covered by focused regression tests. The automation persistence story is still incomplete overall, because integration sync checkpoints, audit or operational event ledgers, dead-letter records, and retention guidance for high-volume tables remain to be scaffolded.
+
+### What remains
+- [ ] Add a table pattern for integration sync checkpoints.
+- [ ] Add a table pattern for audit logs or operational events.
+- [ ] Add a table pattern for dead-letter or failed message records.

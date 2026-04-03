@@ -80,6 +80,7 @@ async def create_user(user_data: UserCreate):
 - Raise `RetryableJobError` for failures that should be retried with the job's configured retry policy.
 - Use `JobRetryPolicy` to override per-job retry limits when a job should differ from the template-wide `WORKER_*` defaults.
 - Worker startup and shutdown are wired through a shared resource stack so the template can prime the database engine, worker-side Redis aliases, optional cache and rate-limit clients, and Sentry without duplicating lifecycle logic in each project.
+- If a cloned project needs a durable audit trail for worker executions, pair `WorkerJob` with the shared `Job State History` ledger from [Automation Persistence Patterns](../database/automation-patterns.md). Use `workflow_execution` for larger multi-step orchestration records and `job_state_history` for per-job run history, retry tracking, and operator visibility.
 - The template does not expose a generic `/tasks` submission endpoint by default; queue-producing routes should belong to project-specific APIs.
 
 ## Key Features

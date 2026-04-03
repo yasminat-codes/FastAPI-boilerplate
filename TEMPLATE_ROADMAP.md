@@ -836,3 +836,30 @@ Phase 2 is now complete. The template includes reusable persistence ledgers for 
 - [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
 - [ ] Define versioning rules for the API.
 - [ ] Add standard request and response envelope guidance where appropriate.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Re-verified the existing Phase 2 Wave 2.3 persistence work across models, Alembic revisions, canonical exports, focused regression tests, and database documentation.
+- Confirmed that the roadmap checklist was already aligned with the repository state for audit-log events, dead-letter records, and retention guidance, so no implementation or checkbox corrections were needed.
+- Re-ran the full verification stack for this scope, including migration drift detection against PostgreSQL and a strict documentation build, to keep the verified template state current.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run db-migrate-verify` initially failed because no local PostgreSQL server was listening on `localhost:5432`. | Started a temporary local PostgreSQL 16 container using the template defaults, reran migration verification successfully, and then stopped the container to return the environment to its prior state. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 158 passed, 0 failed
+
+### Current state of the template
+Phase 2 remains complete and verified. The template includes reusable persistence ledgers for webhook events, idempotency keys, workflow executions, job state history, integration sync checkpoints, audit or operational events, and dead-letter records, all backed by Alembic revisions, canonical exports, focused regression tests, and database documentation. The next major gaps now sit in Phase 3, where API-platform conventions and request-pipeline standards still need to be formalized.
+
+### What remains
+- [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
+- [ ] Define versioning rules for the API.
+- [ ] Add standard request and response envelope guidance where appropriate.

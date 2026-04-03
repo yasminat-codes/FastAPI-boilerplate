@@ -60,6 +60,7 @@ nav:
           - Models: user-guide/database/models.md
           - Schemas: user-guide/database/schemas.md
           - Reliability: user-guide/database/reliability.md
+          - Automation Patterns: user-guide/database/automation-patterns.md
           - CRUD Operations: user-guide/database/crud.md
           - Migrations: user-guide/database/migrations.md
       - API:

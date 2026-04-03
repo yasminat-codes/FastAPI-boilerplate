@@ -7,6 +7,7 @@ Learn how to work with the database layer in the FastAPI Boilerplate. This secti
 - **[Models](models.md)** - Define database tables with SQLAlchemy models
 - **[Schemas](schemas.md)** - Validate and serialize data with Pydantic schemas  
 - **[Database Reliability](reliability.md)** - Understand engine tuning, session scoping, timeouts, retries, and SSL
+- **[Automation Persistence Patterns](automation-patterns.md)** - Reusable storage primitives for webhook-driven and workflow-driven systems
 - **[CRUD Operations](crud.md)** - Perform database operations with FastCRUD
 - **[Migrations](migrations.md)** - Manage schema changes with Alembic, rollback planning, backfills, and phased contract changes
 
@@ -132,7 +133,7 @@ async def get_users(db: Annotated[AsyncSession, Depends(async_get_db)]):
 
 For a deeper operational view of engine tuning, session scope, retry posture, and SSL settings, see [Database Reliability](reliability.md).
 
-## Included Models
+## Included Models And Platform Patterns
 
 The boilerplate includes four example models:
 
@@ -153,6 +154,8 @@ The boilerplate includes four example models:
 ### **Rate Limit Model** - API access control
 - Path-specific rate limits per tier
 - Configurable limits and time periods
+
+The shared platform layer also now includes a reusable **Webhook Event** persistence pattern for future inbound webhook adapters. See [Automation Persistence Patterns](automation-patterns.md) for the table contract and extension guidance.
 
 ## Directory Structure
 

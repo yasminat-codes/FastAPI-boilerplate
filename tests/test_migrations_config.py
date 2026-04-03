@@ -5,6 +5,7 @@ from alembic.config import Config
 from alembic.script import ScriptDirectory
 
 from src.app.core.db.token_blacklist import TokenBlacklist
+from src.app.core.db.webhook_event import WebhookEvent
 from src.app.models.post import Post
 from src.app.models.rate_limit import RateLimit
 from src.app.models.tier import Tier
@@ -110,5 +111,6 @@ def test_primary_key_columns_do_not_duplicate_unique_constraints() -> None:
         TokenBlacklist.__table__.c.id,
         RateLimit.__table__.c.id,
         Post.__table__.c.id,
+        WebhookEvent.__table__.c.id,
     ):
         assert column.unique is not True

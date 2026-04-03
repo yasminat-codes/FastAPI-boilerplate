@@ -208,7 +208,7 @@ The finished template should provide:
 
 ### Wave 2.3: Persistence Patterns For Automation Systems
 
-- [ ] Add a table pattern for inbound webhook events.
+- [x] Add a table pattern for inbound webhook events.
 - [ ] Add a table pattern for idempotency keys.
 - [ ] Add a table pattern for workflow executions or process runs.
 - [ ] Add a table pattern for job state history where needed.
@@ -644,3 +644,30 @@ Phase 2 Wave 2.2 is now fully documented end to end: the template has a canonica
 - [ ] Add a table pattern for inbound webhook events.
 - [ ] Add a table pattern for idempotency keys.
 - [ ] Add a table pattern for workflow executions or process runs.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added a reusable platform-owned `WebhookEvent` table pattern for inbound webhook deliveries, including lifecycle fields, payload storage, and operational lookup indexes.
+- Added an Alembic migration for the new webhook-event ledger and regression tests covering metadata registration, index posture, payload column types, and primary-key uniqueness behavior.
+- Added database documentation for automation persistence patterns and updated the database model docs so platform-owned tables are documented separately from domain models.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run db-migrate-verify` initially failed because no local PostgreSQL server was listening on `localhost:5432`. | Started a temporary local PostgreSQL container, re-ran migration verification successfully, and then stopped the container to return the environment to its prior state. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 140 passed, 0 failed
+
+### Current state of the template
+The template now includes a reusable inbound webhook-event ledger as a shared platform primitive instead of leaving webhook persistence to ad hoc project code. That pattern is migration-backed, documented, and covered by focused regression tests, so cloned projects have a stable starting point for durable webhook intake. The broader automation persistence layer is still incomplete: idempotency keys, workflow execution records, job-history records, and other high-volume operational tables have not been scaffolded yet.
+
+### What remains
+- [ ] Add a table pattern for idempotency keys.
+- [ ] Add a table pattern for workflow executions or process runs.
+- [ ] Add a table pattern for job state history where needed.

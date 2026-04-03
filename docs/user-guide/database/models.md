@@ -4,7 +4,7 @@ This section explains how SQLAlchemy models are implemented in the boilerplate, 
 
 ## Model Structure
 
-Models are defined in `src/app/models/` using SQLAlchemy 2.0's declarative syntax with `Mapped` type annotations.
+Domain models are defined in `src/app/models/`, while shared platform-owned persistence primitives can live in `src/app/core/db/` and be re-exported through `src/app/platform/database.py`. Both use SQLAlchemy 2.0's declarative syntax with `Mapped` type annotations.
 
 ### Base Model
 
@@ -21,7 +21,7 @@ class Base(DeclarativeBase):
 
 ### Model File Structure
 
-Each model is in its own file:
+Domain models keep one file per table:
 
 ```text
 src/app/models/
@@ -32,7 +32,15 @@ src/app/models/
 └── rate_limit.py       # API rate limiting configuration
 ```
 
-**Import Requirement**: Models must be imported in `__init__.py` for Alembic to detect them during migration generation.
+Platform persistence primitives can live alongside the database layer when they are owned by the template itself:
+
+```text
+src/app/core/db/
+├── token_blacklist.py   # Shared auth persistence primitive
+└── webhook_event.py     # Shared inbound webhook event ledger pattern
+```
+
+**Import Requirement**: Domain models must be imported in `src/app/models/__init__.py`, and platform-owned models must be exported through `src/app/platform/database.py`, so Alembic can detect them during migration generation.
 
 ## Design Decision: No SQLAlchemy Relationships
 

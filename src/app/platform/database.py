@@ -28,6 +28,7 @@ from ..core.db.database import (
 )
 from ..core.db.models import SoftDeleteMixin, TimestampMixin, UUIDMixin
 from ..core.db.token_blacklist import TokenBlacklist
+from ..core.db.webhook_event import WebhookEvent, WebhookEventStatus
 
 __all__ = [
     "Base",
@@ -43,6 +44,8 @@ __all__ = [
     "TimestampMixin",
     "TokenBlacklist",
     "UUIDMixin",
+    "WebhookEvent",
+    "WebhookEventStatus",
     "async_engine",
     "async_get_db",
     "async_get_job_db",

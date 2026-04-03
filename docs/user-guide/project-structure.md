@@ -63,6 +63,7 @@ The `platform`, `shared`, `domain`, `workers`, `integrations`, and `workflows` p
 
 - Reserved for provider-specific clients, adapters, and outbound integration surfaces.
 - The template keeps this empty until adopters add generic provider implementations.
+- Until a shared outbound HTTP client layer lands, provider clients can reuse `src.app.platform.request_context.build_correlation_headers(...)` or `merge_correlation_headers(...)` to forward correlation metadata without re-implementing request-context plumbing.
 
 ### `workflows/`
 

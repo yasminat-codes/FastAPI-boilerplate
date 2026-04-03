@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock
 import pytest
 from arq.worker import Retry
 from pydantic import ValidationError
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 import src.app.core.worker.jobs as core_worker_jobs_module
 from src.app.core.worker.jobs import JobEnvelope, JobRetryPolicy, RetryableJobError, WorkerJob
@@ -37,6 +38,18 @@ def test_job_envelope_tracks_context_and_rejects_negative_retry_count() -> None:
 
     with pytest.raises(ValidationError, match="retry_count cannot be negative"):
         JobEnvelope(payload={}, retry_count=-1)
+
+
+def test_job_envelope_defaults_correlation_id_from_current_context() -> None:
+    clear_contextvars()
+    bind_contextvars(request_id="req-123", correlation_id="corr-456")
+
+    try:
+        envelope = WorkerProbeJob.build_envelope(payload={"purpose": "smoke-test"})
+    finally:
+        clear_contextvars()
+
+    assert envelope.correlation_id == "corr-456"
 
 
 @pytest.mark.asyncio
@@ -164,6 +177,32 @@ async def test_worker_probe_job_enqueue_uses_registered_name() -> None:
             "tenant_context": {"tenant_id": "tenant-123", "organization_id": "org-123"},
             "retry_count": 0,
             "metadata": {"source": "tests"},
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_worker_probe_job_enqueue_defaults_correlation_id_from_current_context() -> None:
+    queue_pool = AsyncMock()
+    clear_contextvars()
+    bind_contextvars(request_id="req-123", correlation_id="corr-456")
+
+    try:
+        await WorkerProbeJob.enqueue(
+            queue_pool,
+            payload={"purpose": "smoke-test"},
+        )
+    finally:
+        clear_contextvars()
+
+    queue_pool.enqueue_job.assert_awaited_once_with(
+        WorkerProbeJob.job_name,
+        {
+            "payload": {"purpose": "smoke-test"},
+            "correlation_id": "corr-456",
+            "tenant_context": {"tenant_id": None, "organization_id": None},
+            "retry_count": 0,
+            "metadata": {},
         },
     )
 

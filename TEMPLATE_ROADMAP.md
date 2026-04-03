@@ -259,7 +259,7 @@ The template now includes two shared automation persistence ledgers: inbound web
 ### Wave 3.2: Request Context And Safety
 
 - [x] Standardize request IDs and correlation IDs across all requests.
-- [ ] Propagate correlation context into background jobs and outbound integrations.
+- [x] Propagate correlation context into background jobs and outbound integrations.
 - [ ] Add trusted proxy handling.
 - [ ] Add request size limits for large or malicious bodies.
 - [ ] Add body parsing guidance for raw-body webhook verification.
@@ -864,6 +864,34 @@ Phase 3 Wave 3.2 is now started with a verified request-context contract. Every 
 - [ ] Propagate correlation context into background jobs and outbound integrations.
 - [ ] Add trusted proxy handling.
 - [ ] Add request size limits for large or malicious bodies.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added reusable correlation-propagation helpers to the canonical request-context surface so template code can build or merge outbound `X-Request-ID` and `X-Correlation-ID` headers from the active structured-log context.
+- Updated `WorkerJob` so background jobs automatically inherit the currently bound `correlation_id` when callers enqueue work without threading that value through manually.
+- Expanded regression coverage and docs for the new propagation contract across request-context helpers, worker enqueue behavior, API architecture guidance, background-task usage, and integration extension-point notes.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `ruff` surfaced one formatting/import-order issue after the new propagation helpers were added. | Let Ruff apply its auto-fix, then re-ran the full verification stack on the updated tree. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 181 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 3 Wave 3.2 now has a verified correlation handoff contract across HTTP requests, background jobs, and future outbound integrations. Incoming requests still establish canonical request and correlation IDs, queued jobs now inherit correlation automatically, and future provider clients have a shared header helper instead of re-implementing propagation logic ad hoc. The broader request-safety work in Wave 3.2 remains incomplete, and the template still does not ship a full outbound HTTP client layer yet.
+
+### What remains
+- [ ] Add trusted proxy handling.
+- [ ] Add request size limits for large or malicious bodies.
+- [ ] Add body parsing guidance for raw-body webhook verification.
 
 ---
 

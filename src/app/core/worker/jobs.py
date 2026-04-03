@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, model_validator
 from structlog.stdlib import BoundLogger
 
 from ..config import SettingsProfile, settings
+from ..request_context import resolve_correlation_id
 from .logging import bind_job_log_context, build_job_log_context, get_job_logger
 
 WorkerContext: TypeAlias = dict[str, Any]
@@ -157,7 +158,7 @@ class WorkerJob(ABC):
     ) -> JobEnvelope:
         return JobEnvelope(
             payload=dict(payload),
-            correlation_id=correlation_id,
+            correlation_id=resolve_correlation_id(correlation_id),
             tenant_context=JobTenantContext(tenant_id=tenant_id, organization_id=organization_id),
             retry_count=retry_count,
             metadata=dict(metadata or {}),

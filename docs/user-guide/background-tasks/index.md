@@ -14,8 +14,6 @@ Background tasks are essential for operations that:
 ## Quick Example
 
 ```python
-from structlog.contextvars import get_contextvars
-
 from src.app.platform import queue
 from src.app.workers.jobs import JobEnvelope, JobRetryPolicy, RetryableJobError, WorkerJob
 
@@ -48,7 +46,6 @@ async def create_user(user_data: UserCreate):
         await SendWelcomeEmailJob.enqueue(
             queue.pool,
             payload={"user_id": user["id"], "email": user["email"]},
-            correlation_id=get_contextvars().get("correlation_id"),
             tenant_id=current_tenant_id,
             organization_id=current_organization_id,
             metadata={"source": "api.users.create"},
@@ -75,6 +72,7 @@ async def create_user(user_data: UserCreate):
 
 - Define jobs as subclasses of `WorkerJob` so queue names, retry policy, and runtime settings live with the job itself.
 - Every worker job receives a `JobEnvelope` containing `payload`, `correlation_id`, `tenant_context`, `retry_count`, and free-form `metadata`.
+- `WorkerJob.enqueue(...)` automatically adopts the currently bound `correlation_id` when the caller omits it, so request-triggered jobs preserve correlation context by default.
 - Use `WorkerJob.get_logger(...)` or `src.app.workers.logging.get_job_logger(...)` for structured logs that automatically carry shared job context.
 - Register worker jobs through `src.app.workers.settings.WorkerSettings`.
 - Raise `RetryableJobError` for failures that should be retried with the job's configured retry policy.

@@ -126,4 +126,9 @@ The middleware also:
 - binds both IDs into structured log context alongside `method`, `path`, `client_host`, and `status_code`
 - echoes both headers on every HTTP response so browsers, API clients, and operators can correlate failures
 
-Treat `request_id` as request-local and use `correlation_id` as the durable hand-off value when later phases add cross-request propagation into jobs and outbound integrations.
+Treat `request_id` as request-local and use `correlation_id` as the durable hand-off value across async work and outbound traffic.
+
+The current template now exposes two reusable propagation hooks through `src.app.platform.request_context`:
+
+- `WorkerJob.enqueue(...)` automatically falls back to the currently bound `correlation_id` when the caller does not pass one explicitly.
+- `build_correlation_headers(...)` and `merge_correlation_headers(...)` build outbound `X-Request-ID` / `X-Correlation-ID` headers from the active structured-log context so future provider clients can preserve correlation without copying request-state logic.

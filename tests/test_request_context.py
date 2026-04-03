@@ -3,15 +3,17 @@ from contextlib import asynccontextmanager
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
-from structlog.contextvars import get_contextvars
+from structlog.contextvars import bind_contextvars, clear_contextvars, get_contextvars
 
 from src.app.platform.application import create_application
 from src.app.platform.config import load_settings
 from src.app.platform.request_context import (
     CORRELATION_ID_HEADER,
     REQUEST_ID_HEADER,
+    build_correlation_headers,
     build_request_context,
     get_request_context,
+    merge_correlation_headers,
 )
 
 
@@ -51,6 +53,37 @@ def test_build_request_context_defaults_correlation_id_to_request_id() -> None:
 
     assert context.request_id
     assert context.correlation_id == context.request_id
+
+
+def test_build_correlation_headers_uses_bound_log_context() -> None:
+    clear_contextvars()
+    bind_contextvars(request_id="req-123", correlation_id="corr-456")
+
+    try:
+        headers = build_correlation_headers()
+    finally:
+        clear_contextvars()
+
+    assert headers == {
+        REQUEST_ID_HEADER: "req-123",
+        CORRELATION_ID_HEADER: "corr-456",
+    }
+
+
+def test_merge_correlation_headers_preserves_other_header_values() -> None:
+    clear_contextvars()
+    bind_contextvars(request_id="req-123", correlation_id="corr-456")
+
+    try:
+        headers = merge_correlation_headers({"Authorization": "Bearer token"})
+    finally:
+        clear_contextvars()
+
+    assert headers == {
+        "Authorization": "Bearer token",
+        REQUEST_ID_HEADER: "req-123",
+        CORRELATION_ID_HEADER: "corr-456",
+    }
 
 
 def test_request_context_middleware_generates_headers_and_binds_context() -> None:

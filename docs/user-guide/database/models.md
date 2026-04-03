@@ -38,7 +38,8 @@ Platform persistence primitives can live alongside the database layer when they 
 src/app/core/db/
 ├── idempotency_key.py   # Shared idempotency ledger pattern
 ├── token_blacklist.py   # Shared auth persistence primitive
-└── webhook_event.py     # Shared inbound webhook event ledger pattern
+├── webhook_event.py     # Shared inbound webhook event ledger pattern
+└── workflow_execution.py # Shared workflow execution ledger pattern
 ```
 
 **Import Requirement**: Domain models must be imported in `src/app/models/__init__.py`, and platform-owned models must be exported through `src/app/platform/database.py`, so Alembic can detect them during migration generation.

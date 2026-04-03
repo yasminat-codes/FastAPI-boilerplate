@@ -30,6 +30,7 @@ from ..core.db.idempotency_key import IdempotencyKey, IdempotencyKeyStatus
 from ..core.db.models import SoftDeleteMixin, TimestampMixin, UUIDMixin
 from ..core.db.token_blacklist import TokenBlacklist
 from ..core.db.webhook_event import WebhookEvent, WebhookEventStatus
+from ..core.db.workflow_execution import WorkflowExecution, WorkflowExecutionStatus
 
 __all__ = [
     "Base",
@@ -49,6 +50,8 @@ __all__ = [
     "UUIDMixin",
     "WebhookEvent",
     "WebhookEventStatus",
+    "WorkflowExecution",
+    "WorkflowExecutionStatus",
     "async_engine",
     "async_get_db",
     "async_get_job_db",

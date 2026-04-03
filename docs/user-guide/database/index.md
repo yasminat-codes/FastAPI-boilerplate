@@ -155,7 +155,7 @@ The boilerplate includes four example models:
 - Path-specific rate limits per tier
 - Configurable limits and time periods
 
-The shared platform layer also now includes reusable **Webhook Event** and **Idempotency Key** persistence patterns for future inbound adapters, deduplication, and workflow orchestration. See [Automation Persistence Patterns](automation-patterns.md) for the table contracts and extension guidance.
+The shared platform layer also now includes reusable **Webhook Event**, **Idempotency Key**, and **Workflow Execution** persistence patterns for future inbound adapters, deduplication, and workflow orchestration. See [Automation Persistence Patterns](automation-patterns.md) for the table contracts and extension guidance.
 
 ## Directory Structure
 

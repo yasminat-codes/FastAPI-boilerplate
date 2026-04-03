@@ -210,7 +210,7 @@ The finished template should provide:
 
 - [x] Add a table pattern for inbound webhook events.
 - [x] Add a table pattern for idempotency keys.
-- [ ] Add a table pattern for workflow executions or process runs.
+- [x] Add a table pattern for workflow executions or process runs.
 - [ ] Add a table pattern for job state history where needed.
 - [ ] Add a table pattern for integration sync checkpoints.
 - [ ] Add a table pattern for audit logs or operational events.
@@ -698,3 +698,30 @@ The template now includes a reusable inbound webhook-event ledger as a shared pl
 - [ ] Add a table pattern for idempotency keys.
 - [ ] Add a table pattern for workflow executions or process runs.
 - [ ] Add a table pattern for job state history where needed.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added a reusable platform-owned `WorkflowExecution` table pattern with trigger correlation, lifecycle timestamps, retry posture, and structured input/output context fields.
+- Added an Alembic migration plus regression tests covering metadata registration, lookup indexes, payload/status columns, and primary-key uniqueness posture for the new workflow-execution ledger.
+- Expanded the automation-persistence documentation and database overview/model guides so the workflow-execution pattern is documented alongside the webhook-event and idempotency ledgers.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run db-migrate-verify` initially failed because no local PostgreSQL server was listening on `localhost:5432`. | Started a temporary local PostgreSQL container using the template defaults, reran migration verification successfully, and then stopped the container to return the environment to its prior state. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 146 passed, 0 failed
+
+### Current state of the template
+The template now includes three reusable automation persistence ledgers in the shared platform layer: webhook events, idempotency keys, and workflow executions. Those patterns are migration-backed, exported through the canonical database surface, documented for template adopters, and covered by focused regression tests. The broader automation persistence story is still incomplete, because job-state history, integration sync checkpoints, audit/operational event ledgers, dead-letter records, and retention guidance for high-volume tables are not scaffolded yet.
+
+### What remains
+- [ ] Add a table pattern for job state history where needed.
+- [ ] Add a table pattern for integration sync checkpoints.
+- [ ] Add a table pattern for audit logs or operational events.

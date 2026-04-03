@@ -1,125 +1,68 @@
 # API Development
 
-Learn how to build REST APIs with the FastAPI Boilerplate. This section covers everything you need to create robust, production-ready APIs.
+The template's API boundary is now organized around a small set of reusable platform contracts:
 
-## What You'll Learn
+- versioned routers rooted at `/api/<version>`
+- explicit route groups for `public`, `ops`, `admin`, `internal`, and `webhooks`
+- thin routers that delegate reusable orchestration to domain services
+- typed pagination, filtering, and sorting query models
+- consistent machine-readable error payloads
 
-- **[Endpoints](endpoints.md)** - Create CRUD endpoints with authentication and validation
-- **[Pagination](pagination.md)** - Add pagination to handle large datasets
-- **[Exception Handling](exceptions.md)** - Handle errors properly with built-in exceptions
-- **[API Versioning](versioning.md)** - Version your APIs and maintain backward compatibility
-- **Database Integration** - Use the boilerplate's CRUD layer and schemas
+## Canonical API Surface
 
-## Quick Overview
-
-The boilerplate provides everything you need for API development:
-
-```python
-from fastapi import APIRouter, Depends
-from app.crud.crud_users import crud_users
-from app.schemas.user import UserRead, UserCreate
-from app.core.db.database import async_get_db
-
-router = APIRouter(prefix="/users", tags=["users"])
-
-@router.get("/", response_model=list[UserRead])
-async def get_users(db: Annotated[AsyncSession, Depends(async_get_db)]):
-    users = await crud_users.get_multi(db=db, schema_to_select=UserRead)
-    return users["data"]
-
-@router.post("/", response_model=UserRead, status_code=201)
-async def create_user(
-    user_data: UserCreate,
-    db: Annotated[AsyncSession, Depends(async_get_db)]
-        ):
-    return await crud_users.create(db=db, object=user_data)
-```
-
-## Key Features
-
-### 🔐 **Built-in Authentication**
-Add authentication to any endpoint:
-```python
-from app.api.dependencies import get_current_user
-
-@router.get("/me", response_model=UserRead)
-async def get_profile(current_user: Annotated[dict, Depends(get_current_user)]):
-    return current_user
-```
-
-### 📊 **Easy Pagination**
-Paginate any endpoint with one line:
-```python
-from fastcrud import PaginatedListResponse
-
-@router.get("/", response_model=PaginatedListResponse[UserRead])
-async def get_users(page: int = 1, items_per_page: int = 10):
-    # Add pagination to any endpoint
-```
-
-### ✅ **Automatic Validation**
-Request and response validation is handled automatically:
-```python
-@router.post("/", response_model=UserRead)
-async def create_user(user_data: UserCreate):  # ← Validates input
-    return await crud_users.create(object=user_data)  # ← Validates output
-```
-
-### 🛡️ **Error Handling**
-Use built-in exceptions for consistent error responses:
-```python
-from app.core.exceptions.http_exceptions import NotFoundException
-
-@router.get("/{user_id}")
-async def get_user(user_id: int):
-    user = await crud_users.get(id=user_id)
-    if not user:
-        raise NotFoundException("User not found")  # Returns proper 404
-    return user
-```
-
-## Architecture
-
-The boilerplate follows a layered architecture:
-
-```
-API Endpoint
-    ↓
-Pydantic Schema (validation)
-    ↓
-CRUD Layer (database operations)
-    ↓
-SQLAlchemy Model (database)
-```
-
-This separation makes your code:
-- **Testable** - Mock any layer easily
-- **Maintainable** - Clear separation of concerns  
-- **Scalable** - Add features without breaking existing code
-
-## Directory Structure
+The current API boundary lives in `src/app/api/`:
 
 ```text
 src/app/api/
-├── dependencies.py          # Shared dependencies (auth, rate limiting)
-└── v1/                     # API version 1
-    ├── users.py           # User endpoints
-    ├── posts.py           # Post endpoints
-    ├── login.py           # Authentication
-    └── ...                # Other endpoints
+├── __init__.py          # API root router + version registry
+├── routing.py           # Version + route-group helpers
+├── query_params.py      # Pagination, filter, and sort contracts
+├── contracts.py         # Reusable response envelopes
+├── errors.py            # Exception-to-response mapping
+├── dependencies.py      # Shared request dependencies
+└── v1/                  # Version 1 routers
 ```
 
-## What's Next
+At runtime the default template mounts:
 
-Start with the basics:
+- `/api/v1/...` for version 1 endpoints
+- `/api/v1/health` and `/api/v1/ready` as ops endpoints
+- public resource routes such as `/api/v1/users` and `/api/v1/{username}/posts`
 
-1. **[Endpoints](endpoints.md)** - Learn the common patterns for creating API endpoints
-2. **[Pagination](pagination.md)** - Add pagination to handle large datasets
-3. **[Exception Handling](exceptions.md)** - Handle errors properly with built-in exceptions
-4. **[API Versioning](versioning.md)** - Version your APIs and maintain backward compatibility
+Dedicated `/admin`, `/internal`, and `/webhooks` route-group prefixes are reserved inside each version so cloned projects can grow into those surfaces without inventing a second routing pattern later.
 
-Then dive deeper into the foundation:
-5. **[Database Schemas](../database/schemas.md)** - Create schemas for your data
-6. **[CRUD Operations](../database/crud.md)** - Understand the database layer
+## How Routers Should Work
 
-Each guide builds on the previous one with practical examples you can use immediately. 
+Routers in this template should stay thin:
+
+1. Parse request bodies and query parameters.
+2. Resolve auth and infrastructure dependencies.
+3. Delegate reusable orchestration to domain services.
+4. Return resource models, paginated responses, or message envelopes.
+
+The intended flow is:
+
+```text
+Request -> API router -> domain service -> repository -> model/database
+```
+
+That keeps reusable business and orchestration logic out of the HTTP layer while still letting the API boundary own HTTP-specific concerns like pagination response formatting and cache decorators.
+
+## Response And Error Contracts
+
+Use these response patterns:
+
+- raw resource models for straightforward reads and creates
+- `ApiMessageResponse` for command-style endpoints that primarily confirm an action
+- `ApiDataResponse[T]` when a response needs a stable `data` envelope plus optional metadata
+- `ApiErrorResponse` for all handled error cases
+
+The application factory registers the template's exception handlers automatically, so `NotFoundException`, `ForbiddenException`, `BadRequestException`, validation failures, and unhandled errors now all return a consistent machine-readable payload.
+
+## Next Guides
+
+- [Architecture](architecture.md): route groups, versioning rules, services, repositories, and list-endpoint conventions
+- [Endpoints](endpoints.md): endpoint examples and resource patterns
+- [Pagination](pagination.md): typed pagination, filtering, and sorting helpers
+- [Exceptions](exceptions.md): standardized error payloads and custom exceptions
+- [Versioning](versioning.md): how to add a new API version without breaking the template pattern

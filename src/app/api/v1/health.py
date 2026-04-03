@@ -7,13 +7,15 @@ from fastapi.responses import JSONResponse
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.config import settings
-from ...core.db.database import async_get_db
-from ...core.health import STATUS_HEALTHY, build_readiness_contract
 from ...core.schemas import HealthCheck, ReadyCheck
-from ...core.utils.cache import async_get_redis
+from ...platform.cache import async_get_redis
+from ...platform.config import settings
+from ...platform.database import async_get_db
+from ...platform.health import build_readiness_contract
 
-router = APIRouter(tags=["health"])
+STATUS_HEALTHY = "healthy"
+
+router = APIRouter(tags=["ops"])
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_APP_VERSION = "0.1.0"

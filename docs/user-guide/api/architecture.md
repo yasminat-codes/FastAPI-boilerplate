@@ -1,0 +1,114 @@
+# API Architecture
+
+Phase 3 establishes one reusable API contract for the template instead of leaving each cloned project to invent its own router layout.
+
+## Router Structure
+
+The default API root is still `/api`, and each supported version is mounted underneath it:
+
+```text
+/api
+└── /v1
+```
+
+Inside a version, the template now reserves these route groups:
+
+| Group | Prefix inside `/api/<version>` | Purpose |
+|------|-------------------------------|---------|
+| `public` | none | External application APIs such as users, posts, tiers, auth, and similar resource routes |
+| `ops` | none | Lightweight liveness and readiness endpoints |
+| `admin` | `/admin` | Future admin-only HTTP surfaces |
+| `internal` | `/internal` | Future service-to-service or trusted internal endpoints |
+| `webhooks` | `/webhooks` | Future inbound webhook receivers |
+
+The current code wires this through:
+
+- `src/app/api/routing.py`
+- `src/app/api/__init__.py`
+- `src/app/api/v1/__init__.py`
+
+## Versioning Rules
+
+The template currently supports `v1` through:
+
+- `ApiVersion`
+- `SUPPORTED_API_VERSIONS`
+- `build_version_router(...)`
+- `build_api_router(...)`
+
+When a cloned project needs `v2`, follow this pattern:
+
+1. Create `src/app/api/v2/`.
+2. Add a `build_v2_router(...)` function.
+3. Register `ApiVersion.V2` in the version registry.
+4. Keep `v1` stable for existing clients.
+5. Move only breaking changes into `v2`.
+
+Additive changes such as new optional fields, new endpoints, or new filter parameters should stay in the existing version when they do not break clients.
+
+## Thin Router Pattern
+
+Routers should own HTTP concerns, not reusable orchestration. In practice that means:
+
+- request parsing and dependency injection stay in the router
+- service orchestration moves to `src/app/domain/*_service.py`
+- repositories remain behind `src/app/domain/repositories.py`
+- persistence details stay out of route handlers
+
+The current template ships canonical services for auth, users, posts, tiers, and rate limits, all re-exported through `src/app/domain/services.py`.
+
+## Repository Pattern
+
+Canonical data-access imports go through `src.app.domain.repositories`:
+
+```python
+from src.app.domain.repositories import user_repository
+```
+
+Services, not routers, should normally depend on repositories directly. This keeps the API surface resilient if the template later swaps CRUD helpers, adds richer repository types, or introduces workflow-level orchestration around the same data.
+
+## Response Envelopes
+
+Use these rules by default:
+
+- Return resource models directly for normal reads and creates when no wrapper adds useful value.
+- Use `ApiMessageResponse` for command-style endpoints like update, delete, or logout.
+- Use `ApiDataResponse[T]` when the response needs a stable top-level `data` envelope plus metadata.
+- Let the registered exception handlers produce `ApiErrorResponse` for handled failures.
+
+That is why the template currently uses direct resource responses for reads and create endpoints, but command endpoints now declare `ApiMessageResponse`.
+
+## Pagination, Filtering, And Sorting
+
+List endpoints should use the shared query-param models in `src/app/api/query_params.py`:
+
+- `PaginationParams`
+- `SortParams`
+- typed resource filters such as `UserListFilters` or `PostListFilters`
+- `build_paginated_api_response(...)`
+
+The router should:
+
+1. resolve typed pagination/filter/sort params
+2. validate `sort_by` against the owning service's allowed fields
+3. pass plain filter/sort kwargs into the service
+4. format the final paginated payload at the API boundary
+
+That keeps list-endpoint conventions stable across resource types without forcing every domain service to understand FastAPI-specific query models.
+
+## Error Mapping
+
+`create_application(...)` now registers the template's canonical error handlers automatically.
+
+Handled errors return:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "message": "User not found"
+  }
+}
+```
+
+Validation errors add `details`, and unhandled exceptions are normalized to `internal_server_error` without leaking raw stack traces in the response body.

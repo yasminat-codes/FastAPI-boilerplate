@@ -18,6 +18,7 @@ from starlette.responses import JSONResponse, Response
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from ..api.dependencies import get_current_superuser
+from ..api.errors import register_api_exception_handlers
 from ..core.logger import logging
 from ..core.utils.rate_limit import rate_limiter
 from ..middleware.client_cache_middleware import ClientCacheMiddleware
@@ -452,6 +453,7 @@ def create_application(
         lifespan = lifespan_factory(settings)
 
     application = FastAPI(lifespan=lifespan, **kwargs)
+    register_api_exception_handlers(application)
     application.include_router(router)
 
     if isinstance(settings, ClientSideCacheSettings) and (

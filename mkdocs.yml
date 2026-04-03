@@ -65,6 +65,7 @@ nav:
           - Migrations: user-guide/database/migrations.md
       - API:
           - Overview: user-guide/api/index.md
+          - Architecture: user-guide/api/architecture.md
           - Endpoints: user-guide/api/endpoints.md
           - Pagination: user-guide/api/pagination.md
           - Exceptions: user-guide/api/exceptions.md

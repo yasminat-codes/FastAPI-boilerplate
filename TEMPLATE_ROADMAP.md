@@ -248,13 +248,13 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 3.1: API Architecture
 
-- [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
-- [ ] Define versioning rules for the API.
-- [ ] Add standard request and response envelope guidance where appropriate.
-- [ ] Add pagination, filtering, and sorting conventions for reusable resources.
-- [ ] Add consistent exception-to-response mapping across the app.
-- [ ] Add a reusable service layer pattern so business logic does not live in routers.
-- [ ] Add repository or data-access patterns where useful.
+- [x] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
+- [x] Define versioning rules for the API.
+- [x] Add standard request and response envelope guidance where appropriate.
+- [x] Add pagination, filtering, and sorting conventions for reusable resources.
+- [x] Add consistent exception-to-response mapping across the app.
+- [x] Add a reusable service layer pattern so business logic does not live in routers.
+- [x] Add repository or data-access patterns where useful.
 
 ### Wave 3.2: Request Context And Safety
 
@@ -836,6 +836,34 @@ Phase 2 is now complete. The template includes reusable persistence ledgers for 
 - [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
 - [ ] Define versioning rules for the API.
 - [ ] Add standard request and response envelope guidance where appropriate.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added reusable API architecture primitives for version registries, route-group builders, typed pagination/filter/sort query models, response envelopes, and centralized exception-to-response mapping.
+- Refactored the existing v1 routers to delegate reusable orchestration to canonical domain services for auth, users, posts, tiers, and rate limits instead of embedding that logic directly in route handlers.
+- Rewrote the API documentation around the new template contract, including an architecture guide, updated pagination/exception/versioning guidance, and project-structure notes for the new `domain.services` surface.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The first pagination helper test assumed FastCRUD would derive `total_count` from a `count` key, but `fastcrud.paginated_response` only honors `total_count`. | Normalized `build_paginated_api_response(...)` so it upgrades legacy `count` inputs into `total_count` before calling the FastCRUD helper, then reran the full verification stack. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 171 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 3 Wave 3.1 is now in place. The API boundary has explicit version and route-group builders, typed list-endpoint contracts, standardized machine-readable error payloads, and a reusable domain service layer so the routers stay thin and template-friendly. Request IDs, cross-request correlation propagation, and the broader request-safety work planned for Wave 3.2 are still outstanding.
+
+### What remains
+- [ ] Standardize request IDs and correlation IDs across all requests.
+- [ ] Propagate correlation context into background jobs and outbound integrations.
+- [ ] Add trusted proxy handling.
 
 ---
 

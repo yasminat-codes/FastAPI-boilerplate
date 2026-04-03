@@ -1,25 +1,15 @@
-from datetime import timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.config import settings
-from ...core.db.database import async_get_db
-from ...core.exceptions.http_exceptions import UnauthorizedException
 from ...core.schemas import Token
-from ...core.security import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    TokenType,
-    authenticate_user,
-    create_access_token,
-    create_refresh_token,
-    set_refresh_token_cookie,
-    verify_token,
-)
+from ...domain.services import auth_service
+from ...platform.config import settings
+from ...platform.database import async_get_db
 
-router = APIRouter(tags=["login"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/login", response_model=Token)
@@ -28,35 +18,15 @@ async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[AsyncSession, Depends(async_get_db)],
 ) -> dict[str, str]:
-    user = await authenticate_user(username_or_email=form_data.username, password=form_data.password, db=db)
-    if not user:
-        raise UnauthorizedException("Wrong username, email or password.")
-
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = await create_access_token(data={"sub": user["username"]}, expires_delta=access_token_expires)
-
-    refresh_token = await create_refresh_token(data={"sub": user["username"]})
-    max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
-
-    set_refresh_token_cookie(
-        response,
-        refresh_token=refresh_token,
-        max_age=max_age,
-        cookie_settings=settings,
+    return await auth_service.login(
+        response=response,
+        username_or_email=form_data.username,
+        password=form_data.password,
+        db=db,
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
 
-
-@router.post("/refresh")
+@router.post("/refresh", response_model=Token)
 async def refresh_access_token(request: Request, db: AsyncSession = Depends(async_get_db)) -> dict[str, str]:
     refresh_token = request.cookies.get(settings.REFRESH_TOKEN_COOKIE_NAME)
-    if not refresh_token:
-        raise UnauthorizedException("Refresh token missing.")
-
-    user_data = await verify_token(refresh_token, TokenType.REFRESH, db)
-    if not user_data:
-        raise UnauthorizedException("Invalid refresh token.")
-
-    new_access_token = await create_access_token(data={"sub": user_data.username_or_email})
-    return {"access_token": new_access_token, "token_type": "bearer"}
+    return await auth_service.refresh_access_token(refresh_token=refresh_token, db=db)

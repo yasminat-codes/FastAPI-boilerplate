@@ -42,6 +42,7 @@ The `platform`, `shared`, `domain`, `workers`, `integrations`, and `workflows` p
 - `domain.models` exposes SQLAlchemy models.
 - `domain.schemas` exposes Pydantic request and response models.
 - `domain.repositories` exposes reusable data-access primitives.
+- `domain.services` exposes reusable orchestration that routers can call without reaching into `crud_*` modules directly.
 
 ### `platform/`
 
@@ -110,8 +111,8 @@ Use these conventions for new template work so the repo reads consistently even 
 
 ### Services
 
-- The template does not ship a dedicated `services/` package yet.
-- When a reusable service layer is needed, place it inside the owning boundary and name modules `<capability>_service.py`, classes `<Capability>Service`, and singleton helpers `capability_service`.
+- The template now exposes a canonical `src.app.domain.services` surface.
+- Service modules live in the owning boundary and use the `<capability>_service.py` pattern, classes `<Capability>Service`, and singleton helpers `capability_service`.
 - Keep routers thin by delegating reusable orchestration to services, workflows, or repositories instead of embedding business logic directly in endpoints.
 
 ### Repositories
@@ -139,6 +140,7 @@ from src.app.platform.rate_limit import rate_limiter
 from src.app.domain.models import User
 from src.app.domain.schemas import UserRead
 from src.app.domain.repositories import user_repository
+from src.app.domain.services import user_service
 from src.app.workers.settings import WorkerSettings
 ```
 
@@ -200,7 +202,7 @@ The `tests/` directory verifies both behavior and structure:
 3. **Repository** → Add or extend `src/app/crud/crud_<resources>.py`, then expose the canonical alias from `src/app/domain/repositories.py`
 4. **Shared Utility** → Add `src/app/shared/<capability>.py` only if the helper stays framework-agnostic and side-effect free
 5. **Platform Primitive** → Add `src/app/platform/<capability>.py` if the helper owns runtime wiring, state, or infrastructure access
-6. **Service or Workflow** → If reusable orchestration is needed, add `<capability>_service.py` in the owning boundary or place multi-step coordination in `src/app/workflows/`
+6. **Service or Workflow** → If reusable orchestration is needed, add `<capability>_service.py` in the owning boundary, export it through `src/app/domain/services.py`, or place multi-step coordination in `src/app/workflows/`
 7. **API** → Add endpoints in `src/app/api/v1/<resources>.py` and export `router`
 8. **Migration** → Generate with Alembic
 

@@ -1,31 +1,21 @@
 from fastapi import APIRouter, Depends, Request, Response
-from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.config import settings
-from ...core.db.database import async_get_db
-from ...core.exceptions.http_exceptions import UnauthorizedException
-from ...core.security import blacklist_tokens, clear_refresh_token_cookie, oauth2_scheme
+from ...api.contracts import ApiMessageResponse
+from ...domain.services import auth_service
+from ...platform.config import settings
+from ...platform.database import async_get_db
+from ...platform.security import oauth2_scheme
 
-router = APIRouter(tags=["login"])
+router = APIRouter(tags=["auth"])
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=ApiMessageResponse)
 async def logout(
     request: Request,
     response: Response,
     access_token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(async_get_db),
 ) -> dict[str, str]:
-    try:
-        refresh_token = request.cookies.get(settings.REFRESH_TOKEN_COOKIE_NAME)
-        if not refresh_token:
-            raise UnauthorizedException("Refresh token not found")
-
-        await blacklist_tokens(access_token=access_token, refresh_token=refresh_token, db=db)
-        clear_refresh_token_cookie(response, cookie_settings=settings)
-
-        return {"message": "Logged out successfully"}
-
-    except JWTError:
-        raise UnauthorizedException("Invalid token.")
+    refresh_token = request.cookies.get(settings.REFRESH_TOKEN_COOKIE_NAME)
+    return await auth_service.logout(response=response, refresh_token=refresh_token, access_token=access_token, db=db)

@@ -3,17 +3,14 @@ from typing import Annotated, Any
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.config import settings
-from ..core.db.database import async_get_db
-from ..core.exceptions.http_exceptions import ForbiddenException, RateLimitException, UnauthorizedException
-from ..core.logger import logging
-from ..core.security import TokenType, oauth2_scheme, verify_token
-from ..core.utils.rate_limit import rate_limiter
-from ..crud.crud_rate_limit import crud_rate_limits
-from ..crud.crud_tier import crud_tiers
-from ..crud.crud_users import crud_users
-from ..schemas.rate_limit import RateLimitRead, sanitize_path
-from ..schemas.tier import TierRead
+from ..domain.repositories import rate_limit_repository, tier_repository, user_repository
+from ..domain.schemas import RateLimitRead, TierRead, sanitize_path
+from ..platform.config import settings
+from ..platform.database import async_get_db
+from ..platform.exceptions import ForbiddenException, RateLimitException, UnauthorizedException
+from ..platform.logger import logging
+from ..platform.rate_limit import rate_limiter
+from ..platform.security import TokenType, oauth2_scheme, verify_token
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +26,9 @@ async def get_current_user(
         raise UnauthorizedException("User not authenticated.")
 
     if "@" in token_data.username_or_email:
-        user = await crud_users.get(db=db, email=token_data.username_or_email, is_deleted=False)
+        user = await user_repository.get(db=db, email=token_data.username_or_email, is_deleted=False)
     else:
-        user = await crud_users.get(db=db, username=token_data.username_or_email, is_deleted=False)
+        user = await user_repository.get(db=db, username=token_data.username_or_email, is_deleted=False)
 
     if user:
         return user
@@ -81,9 +78,9 @@ async def rate_limiter_dependency(
     path = sanitize_path(request.url.path)
     if user:
         user_id = user["id"]
-        tier = await crud_tiers.get(db, id=user["tier_id"], schema_to_select=TierRead)
+        tier = await tier_repository.get(db=db, id=user["tier_id"], schema_to_select=TierRead)
         if tier:
-            rate_limit = await crud_rate_limits.get(
+            rate_limit = await rate_limit_repository.get(
                 db=db, tier_id=tier["id"], path=path, schema_to_select=RateLimitRead
             )
             if rate_limit:

@@ -24,6 +24,7 @@ from src.app.domain.repositories import (
     user_repository,
 )
 from src.app.domain.schemas import UserRead
+from src.app.domain.services import auth_service, post_service, rate_limit_service, tier_service, user_service
 from src.app.main import create_app
 from src.app.platform import create_application, lifespan_factory, settings
 from src.app.platform.database import Base, async_get_db
@@ -38,6 +39,11 @@ def test_canonical_boundaries_expose_template_primitives() -> None:
     assert UserRead.__name__ == "UserRead"
     assert crud_users is not None
     assert user_repository is crud_users
+    assert auth_service is not None
+    assert user_service is not None
+    assert post_service is not None
+    assert tier_service is not None
+    assert rate_limit_service is not None
     assert callable(create_app)
     assert callable(create_application)
     assert callable(lifespan_factory)
@@ -62,6 +68,14 @@ def test_canonical_repository_aliases_preserve_legacy_instances() -> None:
     assert rate_limit_repository is crud_rate_limits
     assert tier_repository is crud_tiers
     assert user_repository is crud_users
+
+
+def test_canonical_service_aliases_are_available() -> None:
+    assert auth_service.__class__.__name__ == "AuthService"
+    assert post_service.__class__.__name__ == "PostService"
+    assert rate_limit_service.__class__.__name__ == "RateLimitService"
+    assert tier_service.__class__.__name__ == "TierService"
+    assert user_service.__class__.__name__ == "UserService"
 
 
 def test_api_route_modules_export_router_by_convention() -> None:

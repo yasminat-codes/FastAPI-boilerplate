@@ -4,7 +4,7 @@ Learn how Python settings classes validate, structure, and organize your applica
 
 ## Settings Architecture
 
-The main `Settings` class inherits from multiple specialized setting groups:
+The template keeps a compatibility `Settings` base class, then layers environment-specific profiles on top:
 
 ```python
 # src/app/core/config.py
@@ -20,13 +20,29 @@ class Settings(
     DefaultRateLimitSettings,
     EnvironmentSettings,
     CORSSettings,
+    TrustedHostSettings,
+    ProxyHeadersSettings,
 ):
     pass
 
 
+class LocalSettings(Settings):
+    ENVIRONMENT = "local"
+
+
+class StagingSettings(Settings):
+    ENVIRONMENT = "staging"
+
+
+class ProductionSettings(Settings):
+    ENVIRONMENT = "production"
+
+
 # Single instance used throughout the app
-settings = Settings()
+settings = load_settings()
 ```
+
+The template also uses environment-specific settings profiles. `load_settings()` selects `LocalSettings`, `StagingSettings`, or `ProductionSettings` from `ENVIRONMENT`, and the staging/production profiles reject unsafe placeholder values before the app boots.
 
 ## Built-in Settings Groups
 
@@ -50,6 +66,18 @@ PostgreSQL connection configuration:
 
 ```python
 class PostgresSettings(BaseSettings):
+    DATABASE_URL_INPUT: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("DATABASE_URL", "POSTGRES_URL"),
+    )
+    DATABASE_POOL_SIZE: int = Field(default=10, ge=1)
+    DATABASE_MAX_OVERFLOW: int = Field(default=20, ge=0)
+    DATABASE_POOL_PRE_PING: bool = True
+    DATABASE_POOL_RECYCLE: int = Field(default=1800, ge=-1)
+    DATABASE_POOL_TIMEOUT: int = Field(default=30, ge=1)
+    DATABASE_CONNECT_TIMEOUT: float = Field(default=10.0, gt=0)
+    DATABASE_COMMAND_TIMEOUT: float = Field(default=60.0, gt=0)
+    DATABASE_STATEMENT_TIMEOUT_MS: int | None = Field(default=None, ge=1)
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_SERVER: str = "localhost"
@@ -59,12 +87,19 @@ class PostgresSettings(BaseSettings):
     @computed_field
     @property
     def DATABASE_URL(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:"
-            f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:"
-            f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+        # Prefer DATABASE_URL/POSTGRES_URL when provided, otherwise compose
+        # from POSTGRES_* settings and normalize to the async runtime driver.
+        ...
+
+    @computed_field
+    @property
+    def DATABASE_SYNC_URL(self) -> str:
+        # Derived sync URL for migrations and sync tooling.
+        ...
 ```
+
+`DATABASE_URL` is the first-class input for the template. When it is absent, the template composes an equivalent PostgreSQL connection from `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_SERVER`, `POSTGRES_PORT`, and `POSTGRES_DB`.
+The same settings block also carries pool sizing, pre-ping, recycle, connect timeout, command timeout, statement timeout, and SSL options so the async engine can be tuned without editing runtime code.
 
 ### Security Settings
 
@@ -93,17 +128,231 @@ Separate Redis instances for different services:
 class RedisCacheSettings(BaseSettings):
     REDIS_CACHE_HOST: str = "localhost"
     REDIS_CACHE_PORT: int = 6379
+    REDIS_CACHE_DB: int = 0
+    REDIS_CACHE_CONNECT_TIMEOUT: float = 5.0
+    REDIS_CACHE_SOCKET_TIMEOUT: float = 5.0
+    REDIS_CACHE_RETRY_ATTEMPTS: int = 3
+    REDIS_CACHE_SSL: bool = False
 
 
 class RedisQueueSettings(BaseSettings):
     REDIS_QUEUE_HOST: str = "localhost"
     REDIS_QUEUE_PORT: int = 6379
+    REDIS_QUEUE_DB: int = 0
+    REDIS_QUEUE_CONNECT_TIMEOUT: int = 5
+    REDIS_QUEUE_CONNECT_RETRIES: int = 5
+    REDIS_QUEUE_SSL: bool = False
 
 
 class RedisRateLimiterSettings(BaseSettings):
     REDIS_RATE_LIMIT_HOST: str = "localhost"
     REDIS_RATE_LIMIT_PORT: int = 6379
+    REDIS_RATE_LIMIT_DB: int = 0
+    REDIS_RATE_LIMIT_CONNECT_TIMEOUT: float = 5.0
+    REDIS_RATE_LIMIT_SOCKET_TIMEOUT: float = 5.0
+    REDIS_RATE_LIMIT_RETRY_ATTEMPTS: int = 3
+    REDIS_RATE_LIMIT_SSL: bool = False
 ```
+
+Each Redis settings block also carries optional username/password fields, retry backoff settings, max connection limits, and TLS certificate controls. The template uses those settings to build the cache connection pool, ARQ queue connection, and rate-limiter pool without requiring runtime code edits.
+
+### Feature Flag Settings
+
+High-level toggles for optional template modules:
+
+```python
+class FeatureFlagsSettings(BaseSettings):
+    FEATURE_ADMIN_ENABLED: bool = True
+    FEATURE_CLIENT_CACHE_ENABLED: bool = True
+    FEATURE_API_AUTH_ROUTES_ENABLED: bool = True
+    FEATURE_API_USERS_ENABLED: bool = True
+    FEATURE_API_POSTS_ENABLED: bool = True
+    FEATURE_API_TIERS_ENABLED: bool = True
+    FEATURE_API_RATE_LIMITS_ENABLED: bool = True
+```
+
+These settings let adopters keep the shared platform code while disabling starter route groups or template-owned modules such as CRUD admin and client cache middleware.
+
+### Worker Runtime Settings
+
+Template-wide ARQ worker defaults:
+
+```python
+class WorkerRuntimeSettings(BaseSettings):
+    WORKER_QUEUE_NAME: str = "arq:queue"
+    WORKER_MAX_JOBS: int = 10
+    WORKER_JOB_MAX_TRIES: int = 3
+    WORKER_JOB_RETRY_DELAY_SECONDS: float = 5.0
+    WORKER_KEEP_RESULT_SECONDS: float = 3600.0
+    WORKER_KEEP_RESULT_FOREVER: bool = False
+    WORKER_JOB_EXPIRES_EXTRA_MS: int = 86_400_000
+```
+
+These values feed both the canonical `WorkerSettings` entrypoint and the `WorkerJob` base class. That means cloned projects can change queue names, concurrency, retry defaults, and result retention without editing worker code.
+
+### Webhook Runtime Settings
+
+Template-wide defaults for future webhook ingestion modules:
+
+```python
+class WebhookRuntimeSettings(BaseSettings):
+    WEBHOOK_SIGNATURE_VERIFICATION_ENABLED: bool = True
+    WEBHOOK_SIGNATURE_MAX_AGE_SECONDS: int = 300
+    WEBHOOK_REPLAY_PROTECTION_ENABLED: bool = True
+    WEBHOOK_REPLAY_WINDOW_SECONDS: int = 300
+    WEBHOOK_STORE_RAW_PAYLOADS: bool = True
+    WEBHOOK_PAYLOAD_RETENTION_DAYS: int = 7
+```
+
+These settings give cloned projects a generic contract for provider verification requirements, replay acceptance windows, and raw payload retention before any provider-specific webhook adapters are added.
+
+### CORS Settings
+
+Template-wide cross-origin defaults:
+
+```python
+class CORSSettings(BaseSettings):
+    CORS_ORIGINS: list[str] = []
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_METHODS: list[str] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    CORS_HEADERS: list[str] = ["Accept", "Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"]
+    CORS_EXPOSE_HEADERS: list[str] = ["X-Request-ID"]
+    CORS_MAX_AGE: int = 600
+```
+
+The base settings now fail closed by default: if a secure environment does not specify `CORS_ORIGINS`, the template does not allow cross-origin browser access. The `LocalSettings` profile overrides `CORS_ORIGINS` with a small set of common localhost frontend ports so development stays easy without using `*`.
+
+### Security Header Settings
+
+Reusable response-header hardening controls:
+
+```python
+class SecurityHeadersSettings(BaseSettings):
+    SECURITY_HEADERS_ENABLED: bool = True
+    SECURITY_HEADERS_FRAME_OPTIONS: FrameOptions | None = FrameOptions.DENY
+    SECURITY_HEADERS_CONTENT_TYPE_OPTIONS: bool = True
+    SECURITY_HEADERS_REFERRER_POLICY: ReferrerPolicy | None = ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN
+    SECURITY_HEADERS_CONTENT_SECURITY_POLICY: str | None = None
+    SECURITY_HEADERS_PERMISSIONS_POLICY: str | None = None
+    SECURITY_HEADERS_CROSS_ORIGIN_OPENER_POLICY: CrossOriginOpenerPolicy | None = (
+        CrossOriginOpenerPolicy.SAME_ORIGIN
+    )
+    SECURITY_HEADERS_CROSS_ORIGIN_RESOURCE_POLICY: CrossOriginResourcePolicy | None = (
+        CrossOriginResourcePolicy.SAME_ORIGIN
+    )
+    SECURITY_HEADERS_HSTS_ENABLED: bool = False
+```
+
+These values feed the template’s `SecurityHeadersMiddleware`, which adds baseline headers without forcing adopters into one CSP or deployment-specific HSTS posture.
+
+### Refresh Token Cookie Settings
+
+Cookie controls for the built-in auth refresh flow:
+
+```python
+class RefreshTokenCookieSettings(BaseSettings):
+    REFRESH_TOKEN_COOKIE_NAME: str = "refresh_token"
+    REFRESH_TOKEN_COOKIE_PATH: str = "/"
+    REFRESH_TOKEN_COOKIE_DOMAIN: str | None = None
+    REFRESH_TOKEN_COOKIE_SECURE: bool = True
+    REFRESH_TOKEN_COOKIE_HTTPONLY: bool = True
+    REFRESH_TOKEN_COOKIE_SAMESITE: CookieSameSite = CookieSameSite.LAX
+```
+
+The `LocalSettings` profile overrides `REFRESH_TOKEN_COOKIE_SECURE` to `False` so the built-in auth flow still works over local HTTP. Staging and production profiles reject insecure refresh-cookie transport before the app boots.
+
+### Trusted Host Settings
+
+Optional host-header allowlist controls:
+
+```python
+class TrustedHostSettings(BaseSettings):
+    TRUSTED_HOSTS: list[str] = []
+    TRUSTED_HOSTS_WWW_REDIRECT: bool = True
+```
+
+When `TRUSTED_HOSTS` is non-empty, the template adds Starlette's `TrustedHostMiddleware`. Exact hostnames and `*.` subdomain patterns are allowed, while secure environments reject the catch-all `"*"` value.
+
+### Proxy Header Settings
+
+Optional forwarded-header trust controls:
+
+```python
+class ProxyHeadersSettings(BaseSettings):
+    PROXY_HEADERS_ENABLED: bool = False
+    PROXY_HEADERS_TRUSTED_PROXIES: list[str] = []
+```
+
+These settings feed Uvicorn's `ProxyHeadersMiddleware`. Template adopters can opt in to forwarded client IP and scheme handling only after supplying the proxy IPs, CIDRs, or literals they explicitly trust.
+
+### Sentry Settings
+
+Current Sentry runtime settings:
+
+```python
+class SentrySettings(BaseSettings):
+    SENTRY_ENABLE: bool = False
+    SENTRY_DSN: SecretStr | None = None
+    SENTRY_ENVIRONMENT: str = "local"
+    SENTRY_RELEASE: str | None = None
+    SENTRY_DEBUG: bool = False
+    SENTRY_ATTACH_STACKTRACE: bool = True
+    SENTRY_SEND_DEFAULT_PII: bool = False
+    SENTRY_MAX_BREADCRUMBS: int = 100
+    SENTRY_TRACES_SAMPLE_RATE: float = 1.0
+    SENTRY_PROFILES_SAMPLE_RATE: float = 1.0
+```
+
+These values feed the existing Sentry initialization hook in the template runtime, so cloned projects can control capture behavior without editing startup code.
+
+### Metrics Settings
+
+Template-wide metrics configuration hooks:
+
+```python
+class MetricsSettings(BaseSettings):
+    METRICS_ENABLED: bool = False
+    METRICS_PATH: str = "/metrics"
+    METRICS_NAMESPACE: str = "fastapi_template"
+    METRICS_INCLUDE_REQUEST_PATH_LABELS: bool = False
+```
+
+These values establish a stable configuration contract for the later metrics endpoint and instrumentation work without forcing a metrics backend into the template yet.
+
+### Tracing Settings
+
+Template-wide tracing configuration hooks:
+
+```python
+class TracingSettings(BaseSettings):
+    TRACING_ENABLED: bool = False
+    TRACING_EXPORTER: TracingExporter = TracingExporter.OTLP
+    TRACING_SAMPLE_RATE: float = 1.0
+    TRACING_SERVICE_NAME: str | None = None
+    TRACING_PROPAGATE_CORRELATION_IDS: bool = True
+```
+
+These settings give future tracing middleware and worker instrumentation a consistent place to read exporter, service-name, and sampling defaults.
+
+### Log Verbosity Settings
+
+Validated logging level controls:
+
+```python
+class LogVerbositySettings(BaseSettings):
+    LOG_LEVEL: LogLevel = LogLevel.INFO
+    UVICORN_LOG_LEVEL: LogLevel = LogLevel.INFO
+
+
+class FileLoggerSettings(BaseSettings):
+    FILE_LOG_LEVEL: LogLevel = LogLevel.INFO
+
+
+class ConsoleLoggerSettings(BaseSettings):
+    CONSOLE_LOG_LEVEL: LogLevel = LogLevel.INFO
+```
+
+These settings drive the existing root logger, Uvicorn logger integration, and structured file/console handlers, so verbosity can be adjusted through environment variables instead of code edits.
 
 ### Rate Limiting Settings
 
@@ -230,11 +479,10 @@ Validate individual fields:
 
 ```python
 class DatabaseSettings(BaseSettings):
-    DB_POOL_SIZE: int = 20
-    DB_MAX_OVERFLOW: int = 30
-    DB_TIMEOUT: int = 30
+    DATABASE_POOL_SIZE: int = Field(default=10, ge=1)
+    DATABASE_POOL_TIMEOUT: int = Field(default=30, ge=1)
 
-    @field_validator("DB_POOL_SIZE")
+    @field_validator("DATABASE_POOL_SIZE")
     @classmethod
     def validate_pool_size(cls, v: int) -> int:
         if v < 1:
@@ -243,7 +491,7 @@ class DatabaseSettings(BaseSettings):
             raise ValueError("Pool size should not exceed 100")
         return v
 
-    @field_validator("DB_TIMEOUT")
+    @field_validator("DATABASE_POOL_TIMEOUT")
     @classmethod
     def validate_timeout(cls, v: int) -> int:
         if v < 5:
@@ -257,21 +505,18 @@ Validate across multiple fields:
 
 ```python
 class SecuritySettings(BaseSettings):
-    ENABLE_HTTPS: bool = False
-    SSL_CERT_PATH: str = ""
-    SSL_KEY_PATH: str = ""
-    FORCE_SSL: bool = False
+    DATABASE_SSL_MODE: str = "disable"
+    DATABASE_SSL_CA_FILE: str | None = None
+    DATABASE_SSL_CERT_FILE: str | None = None
+    DATABASE_SSL_KEY_FILE: str | None = None
 
     @model_validator(mode="after")
     def validate_ssl_config(self) -> "SecuritySettings":
-        if self.ENABLE_HTTPS:
-            if not self.SSL_CERT_PATH:
-                raise ValueError("SSL_CERT_PATH required when HTTPS enabled")
-            if not self.SSL_KEY_PATH:
-                raise ValueError("SSL_KEY_PATH required when HTTPS enabled")
+        if self.DATABASE_SSL_MODE in {"verify-ca", "verify-full"} and not self.DATABASE_SSL_CA_FILE:
+            raise ValueError("DATABASE_SSL_CA_FILE is required for verified SSL modes")
 
-        if self.FORCE_SSL and not self.ENABLE_HTTPS:
-            raise ValueError("Cannot force SSL without enabling HTTPS")
+        if bool(self.DATABASE_SSL_CERT_FILE) != bool(self.DATABASE_SSL_KEY_FILE):
+            raise ValueError("DATABASE_SSL_CERT_FILE and DATABASE_SSL_KEY_FILE must be set together")
 
         return self
 ```

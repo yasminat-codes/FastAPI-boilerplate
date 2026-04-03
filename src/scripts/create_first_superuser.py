@@ -7,7 +7,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from uuid6 import uuid7  # 126
 
 from ..app.core.config import settings
-from ..app.core.db.database import AsyncSession, async_engine, local_session
+from ..app.core.db.database import AsyncSession, local_session
+from ..app.core.db.sessions import DatabaseSessionScope, database_transaction, open_database_session
 from ..app.core.security import get_password_hash
 from ..app.models.user import User
 
@@ -55,9 +56,8 @@ async def create_first_user(session: AsyncSession) -> None:
             }
 
             stmt = insert(user_table).values(data)
-            async with async_engine.connect() as conn:
-                await conn.execute(stmt)
-                await conn.commit()
+            async with database_transaction(session):
+                await session.execute(stmt)
 
             logger.info(f"Admin user {username} created successfully.")
 
@@ -69,7 +69,7 @@ async def create_first_user(session: AsyncSession) -> None:
 
 
 async def main():
-    async with local_session() as session:
+    async with open_database_session(local_session, DatabaseSessionScope.SCRIPT) as session:
         await create_first_user(session)
 
 

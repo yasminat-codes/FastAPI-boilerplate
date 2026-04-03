@@ -14,21 +14,46 @@ Background tasks are essential for operations that:
 ## Quick Example
 
 ```python
-# Define a background task
-async def send_welcome_email(ctx: Worker, user_id: int, email: str) -> str:
-    # Send email logic here
-    await send_email_service(email, "Welcome!")
-    return f"Welcome email sent to {email}"
+from structlog.contextvars import get_contextvars
 
-# Enqueue the task from an API endpoint
+from src.app.platform import queue
+from src.app.workers.jobs import JobEnvelope, JobRetryPolicy, RetryableJobError, WorkerJob
+
+
+class SendWelcomeEmailJob(WorkerJob):
+    job_name = "client.jobs.send_welcome_email"
+    retry_policy = JobRetryPolicy(max_tries=5, defer_seconds=30.0)
+
+    @classmethod
+    async def run(cls, ctx: dict[str, object], envelope: JobEnvelope) -> str:
+        user_id = envelope.payload["user_id"]
+        email = envelope.payload["email"]
+        logger = cls.get_logger(ctx=ctx, envelope=envelope)
+
+        logger.info("Sending welcome email", user_id=user_id)
+
+        try:
+            await send_email_service(email, "Welcome!")
+        except TemporaryEmailProviderError as exc:
+            raise RetryableJobError("email provider unavailable", defer_seconds=60.0) from exc
+
+        return f"Welcome email sent to {email}"
+
+
 @router.post("/users/", response_model=UserRead)
 async def create_user(user_data: UserCreate):
-    # Create user in database
     user = await crud_users.create(db=db, object=user_data)
-    
-    # Queue welcome email in background
-    await queue.pool.enqueue_job("send_welcome_email", user["id"], user["email"])
-    
+
+    if queue.pool is not None:
+        await SendWelcomeEmailJob.enqueue(
+            queue.pool,
+            payload={"user_id": user["id"], "email": user["email"]},
+            correlation_id=get_contextvars().get("request_id"),
+            tenant_id=current_tenant_id,
+            organization_id=current_organization_id,
+            metadata={"source": "api.users.create"},
+        )
+
     return user
 ```
 
@@ -45,6 +70,17 @@ async def create_user(user_data: UserCreate):
 2. **Processing**: ARQ workers pick up and execute tasks
 3. **Results**: Task results are stored and can be retrieved
 4. **Monitoring**: Track task status and execution history
+
+### Template Job Pattern
+
+- Define jobs as subclasses of `WorkerJob` so queue names, retry policy, and runtime settings live with the job itself.
+- Every worker job receives a `JobEnvelope` containing `payload`, `correlation_id`, `tenant_context`, `retry_count`, and free-form `metadata`.
+- Use `WorkerJob.get_logger(...)` or `src.app.workers.logging.get_job_logger(...)` for structured logs that automatically carry shared job context.
+- Register worker jobs through `src.app.workers.settings.WorkerSettings`.
+- Raise `RetryableJobError` for failures that should be retried with the job's configured retry policy.
+- Use `JobRetryPolicy` to override per-job retry limits when a job should differ from the template-wide `WORKER_*` defaults.
+- Worker startup and shutdown are wired through a shared resource stack so the template can prime the database engine, worker-side Redis aliases, optional cache and rate-limit clients, and Sentry without duplicating lifecycle logic in each project.
+- The template does not expose a generic `/tasks` submission endpoint by default; queue-producing routes should belong to project-specific APIs.
 
 ## Key Features
 
@@ -73,7 +109,9 @@ async def create_user(user_data: UserCreate):
 
 ## Getting Started
 
-The boilerplate provides everything needed to start using background tasks immediately. Simply define your task functions, register them in the worker settings, and enqueue them from your API endpoints.
+The template provides a reusable worker job base out of the box. Define a job by subclassing `WorkerJob`, read runtime inputs from the `JobEnvelope`, register it in `WorkerSettings.functions`, and enqueue it from your API endpoints with `YourJob.enqueue(...)`.
+
+The default registry also includes `WorkerProbeJob`, a minimal internal job that keeps the worker runtime bootable and available for smoke checks without shipping demo business behavior in the shared template.
 
 ## Configuration
 
@@ -83,10 +121,25 @@ Basic Redis queue configuration:
 # Redis Queue Settings  
 REDIS_QUEUE_HOST=localhost
 REDIS_QUEUE_PORT=6379
+REDIS_QUEUE_DB=0
+REDIS_QUEUE_CONNECT_TIMEOUT=5
+REDIS_QUEUE_CONNECT_RETRIES=5
+REDIS_QUEUE_RETRY_DELAY=1
+REDIS_QUEUE_RETRY_ON_TIMEOUT=true
+REDIS_QUEUE_SSL=false
+
+# Worker Runtime Settings
+WORKER_QUEUE_NAME=arq:queue
+WORKER_MAX_JOBS=10
+WORKER_JOB_MAX_TRIES=3
+WORKER_JOB_RETRY_DELAY_SECONDS=5.0
+WORKER_KEEP_RESULT_SECONDS=3600
+WORKER_KEEP_RESULT_FOREVER=false
+WORKER_JOB_EXPIRES_EXTRA_MS=86400000
 ```
 
-The system automatically handles Redis connection pooling and worker lifecycle management.
+The worker runtime builds ARQ Redis connection settings from these values, including timeout, retry, and TLS options, so queue connectivity can be tuned per deployment without changing code. The `WORKER_*` settings also control the shared queue name, concurrency, default retry policy for `WorkerJob`, and how long job results remain available for inspection.
 
 ## Next Steps
 
-Check the [ARQ documentation](https://arq-docs.helpmanual.io/) for advanced usage patterns and refer to the boilerplate's example implementation in `src/app/core/worker/` and `src/app/api/v1/tasks.py`. 
+Check the [ARQ documentation](https://arq-docs.helpmanual.io/) for advanced usage patterns and refer to the template worker primitives in `src/app/workers/jobs.py` and `src/app/workers/settings.py`.

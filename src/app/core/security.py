@@ -3,13 +3,14 @@ from enum import Enum
 from typing import Any, Literal
 
 import bcrypt
+from fastapi import Response
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crud.crud_users import crud_users
-from .config import settings
+from .config import RefreshTokenCookieSettings, settings
 from .db.crud_token_blacklist import crud_token_blacklist
 from .schemas import TokenBlacklistCreate, TokenData
 
@@ -24,6 +25,56 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 class TokenType(str, Enum):
     ACCESS = "access"
     REFRESH = "refresh"
+
+
+def build_refresh_token_cookie_kwargs(
+    *,
+    refresh_token: str,
+    max_age: int,
+    cookie_settings: RefreshTokenCookieSettings,
+) -> dict[str, Any]:
+    return {
+        "key": cookie_settings.REFRESH_TOKEN_COOKIE_NAME,
+        "value": refresh_token,
+        "max_age": max_age,
+        "path": cookie_settings.REFRESH_TOKEN_COOKIE_PATH,
+        "domain": cookie_settings.REFRESH_TOKEN_COOKIE_DOMAIN,
+        "secure": cookie_settings.REFRESH_TOKEN_COOKIE_SECURE,
+        "httponly": cookie_settings.REFRESH_TOKEN_COOKIE_HTTPONLY,
+        "samesite": cookie_settings.REFRESH_TOKEN_COOKIE_SAMESITE.value,
+    }
+
+
+def build_refresh_token_cookie_delete_kwargs(
+    *,
+    cookie_settings: RefreshTokenCookieSettings,
+) -> dict[str, Any]:
+    return {
+        "key": cookie_settings.REFRESH_TOKEN_COOKIE_NAME,
+        "path": cookie_settings.REFRESH_TOKEN_COOKIE_PATH,
+        "domain": cookie_settings.REFRESH_TOKEN_COOKIE_DOMAIN,
+        "secure": cookie_settings.REFRESH_TOKEN_COOKIE_SECURE,
+        "httponly": cookie_settings.REFRESH_TOKEN_COOKIE_HTTPONLY,
+        "samesite": cookie_settings.REFRESH_TOKEN_COOKIE_SAMESITE.value,
+    }
+
+
+def set_refresh_token_cookie(
+    response: Response,
+    *,
+    refresh_token: str,
+    max_age: int,
+    cookie_settings: RefreshTokenCookieSettings,
+) -> None:
+    response.set_cookie(**build_refresh_token_cookie_kwargs(
+        refresh_token=refresh_token,
+        max_age=max_age,
+        cookie_settings=cookie_settings,
+    ))
+
+
+def clear_refresh_token_cookie(response: Response, *, cookie_settings: RefreshTokenCookieSettings) -> None:
+    response.delete_cookie(**build_refresh_token_cookie_delete_kwargs(cookie_settings=cookie_settings))
 
 
 async def verify_password(plain_password: str, hashed_password: str) -> bool:

@@ -15,6 +15,7 @@ from ...core.security import (
     authenticate_user,
     create_access_token,
     create_refresh_token,
+    set_refresh_token_cookie,
     verify_token,
 )
 
@@ -37,8 +38,11 @@ async def login_for_access_token(
     refresh_token = await create_refresh_token(data={"sub": user["username"]})
     max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
 
-    response.set_cookie(
-        key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="lax", max_age=max_age
+    set_refresh_token_cookie(
+        response,
+        refresh_token=refresh_token,
+        max_age=max_age,
+        cookie_settings=settings,
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
@@ -46,7 +50,7 @@ async def login_for_access_token(
 
 @router.post("/refresh")
 async def refresh_access_token(request: Request, db: AsyncSession = Depends(async_get_db)) -> dict[str, str]:
-    refresh_token = request.cookies.get("refresh_token")
+    refresh_token = request.cookies.get(settings.REFRESH_TOKEN_COOKIE_NAME)
     if not refresh_token:
         raise UnauthorizedException("Refresh token missing.")
 

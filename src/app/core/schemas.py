@@ -18,8 +18,7 @@ class ReadyCheck(BaseModel):
     environment: str
     version: str
     app: str
-    database: str
-    redis: str
+    dependencies: dict[str, str] = Field(default_factory=dict)
     timestamp: str
 
 

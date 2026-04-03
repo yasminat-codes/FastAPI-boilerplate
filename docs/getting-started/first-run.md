@@ -50,6 +50,8 @@ Expected response:
 curl http://localhost:8000/api/v1/ready
 ```
 
+The ready response is assembled through the template's shared readiness contract, so future dependency checks can be added in one place.
+
 Expected response:
 ```json
 {
@@ -57,8 +59,10 @@ Expected response:
   "environment":"local",
   "version":"0.1.0",
   "app":"healthy",
-  "database":"healthy",
-  "redis":"healthy",
+  "dependencies":{
+    "database":"healthy",
+    "redis":"healthy"
+  },
   "timestamp":"2025-10-21T14:40:47+00:00"
 }
 ```
@@ -236,28 +240,9 @@ curl -X GET "http://localhost:8000/api/v1/posts?page=1&items_per_page=5" \
 
 ### Background Tasks
 
-Test the job queue system:
+The template starts an ARQ worker service by default, but it intentionally does not expose a shared demo task endpoint. That keeps the base repository reusable instead of baking sample business behavior into the default API surface.
 
-#### 1. Submit a Background Task
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/tasks/task?message=hello" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
-```
-
-Response:
-```json
-{
-  "id": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-#### 2. Check Task Status
-
-```bash
-curl -X GET "http://localhost:8000/api/v1/tasks/task/550e8400-e29b-41d4-a716-446655440000" \
-  -H "Authorization: Bearer YOUR_ACCESS_TOKEN_HERE"
-```
+When you are ready to add background processing for a cloned project, define a project-specific `WorkerJob`, register it in `src/app/workers/jobs.py`, and enqueue it from the API route that owns that workflow. The reusable job pattern lives in [the background tasks guide](../user-guide/background-tasks/index.md).
 
 ### Caching
 
@@ -483,9 +468,8 @@ docker compose exec web alembic revision --autogenerate -m "Add items table"
 docker compose exec web alembic upgrade head
 
 # For manual installation
-cd src
-uv run alembic revision --autogenerate -m "Add items table"
-uv run alembic upgrade head
+uv run db-migrate revision --autogenerate -m "Add items table"
+uv run db-migrate upgrade head
 ```
 
 ### 7. Test Your New Endpoint

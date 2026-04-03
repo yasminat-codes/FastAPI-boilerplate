@@ -112,7 +112,7 @@ services:
 
   worker:
     build: .
-    command: uv run arq src.app.core.worker.settings.WorkerSettings
+    command: uv run arq src.app.workers.settings.WorkerSettings
     env_file:
       - ./src/.env
     depends_on:
@@ -461,12 +461,13 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 # Production database settings
 engine = create_async_engine(
-    DATABASE_URL,
+    settings.DATABASE_URL,
     echo=False,  # Disable in production
-    pool_size=20,
-    max_overflow=0,
-    pool_pre_ping=True,
-    pool_recycle=3600,
+    pool_size=settings.DATABASE_POOL_SIZE,
+    max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    pool_pre_ping=settings.DATABASE_POOL_PRE_PING,
+    pool_recycle=settings.DATABASE_POOL_RECYCLE,
+    pool_timeout=settings.DATABASE_POOL_TIMEOUT,
 )
 ```
 

@@ -100,7 +100,7 @@ file_handler = RotatingFileHandler(
     maxBytes=settings.FILE_LOG_MAX_BYTES,
     backupCount=settings.FILE_LOG_BACKUP_COUNT,
 )
-file_handler.setLevel(settings.FILE_LOG_LEVEL)
+file_handler.setLevel(settings.FILE_LOG_LEVEL.value)
 file_handler.setFormatter(
     build_formatter(
         json_output=settings.FILE_LOG_FORMAT_JSON, pre_chain=SHARED_PROCESSORS + [file_log_filter_processors]
@@ -109,7 +109,7 @@ file_handler.setFormatter(
 
 # Console handler configuration
 console_handler = logging.StreamHandler()
-console_handler.setLevel(settings.CONSOLE_LOG_LEVEL)
+console_handler.setLevel(settings.CONSOLE_LOG_LEVEL.value)
 console_handler.setFormatter(
     build_formatter(
         json_output=settings.CONSOLE_LOG_FORMAT_JSON, pre_chain=SHARED_PROCESSORS + [console_log_filter_processors]
@@ -119,7 +119,7 @@ console_handler.setFormatter(
 
 # Root logger configuration
 root_logger = logging.getLogger()
-root_logger.setLevel(logging.INFO)
+root_logger.setLevel(settings.LOG_LEVEL.value)
 root_logger.handlers.clear()  # avoid duplicate logs
 root_logger.addHandler(file_handler)
 root_logger.addHandler(console_handler)
@@ -129,4 +129,4 @@ for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
     logger = logging.getLogger(logger_name)
     logger.handlers.clear()
     logger.propagate = True
-    logger.setLevel(logging.INFO)
+    logger.setLevel(settings.UVICORN_LOG_LEVEL.value)

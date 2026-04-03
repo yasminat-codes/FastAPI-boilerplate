@@ -1,0 +1,43 @@
+name: Migration Check
+
+on: [push, pull_request]
+
+jobs:
+  migration-check:
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: local
+      SECRET_KEY: test-secret-key-for-testing-only
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/fastapi_template
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: fastapi_template
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d fastapi_template"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+
+    - name: Install uv
+      run: pip install uv
+
+    - name: Install project and dev toolchain
+      run: uv sync --frozen --group dev
+
+    - name: Verify migrations and schema drift
+      run: uv run db-migrate-verify

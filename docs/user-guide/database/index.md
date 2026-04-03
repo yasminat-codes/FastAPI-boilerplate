@@ -6,8 +6,9 @@ Learn how to work with the database layer in the FastAPI Boilerplate. This secti
 
 - **[Models](models.md)** - Define database tables with SQLAlchemy models
 - **[Schemas](schemas.md)** - Validate and serialize data with Pydantic schemas  
+- **[Database Reliability](reliability.md)** - Understand engine tuning, session scoping, timeouts, retries, and SSL
 - **[CRUD Operations](crud.md)** - Perform database operations with FastCRUD
-- **[Migrations](migrations.md)** - Manage database schema changes with Alembic
+- **[Migrations](migrations.md)** - Manage schema changes with Alembic, rollback planning, backfills, and phased contract changes
 
 ## Quick Overview
 
@@ -90,16 +91,16 @@ await crud_users.delete(db=db, id=user_id)
 ```
 
 ### 🔄 **Database Migrations**
-Track schema changes with Alembic:
+Track schema changes with Alembic and ship them with an explicit rollback and expand-contract plan:
 ```bash
 # Generate migration
-alembic revision --autogenerate -m "Add user table"
+uv run db-migrate revision --autogenerate -m "Add user table"
 
 # Apply migrations
-alembic upgrade head
+uv run db-migrate upgrade head
 
 # Rollback if needed
-alembic downgrade -1
+uv run db-migrate downgrade -1
 ```
 
 ## Database Setup
@@ -128,6 +129,8 @@ async def async_get_db() -> AsyncIterator[AsyncSession]:
 async def get_users(db: Annotated[AsyncSession, Depends(async_get_db)]):
     return await crud_users.get_multi(db=db)
 ```
+
+For a deeper operational view of engine tuning, session scope, retry posture, and SSL settings, see [Database Reliability](reliability.md).
 
 ## Included Models
 

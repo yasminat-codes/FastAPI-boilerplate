@@ -12,62 +12,32 @@ The FastAPI Boilerplate uses [Alembic](https://alembic.sqlalchemy.org/) for data
 - **Environment-specific configurations** - Different settings for dev/staging/production
 - **Safe schema evolution** - Apply changes incrementally
 
-## Simple Setup: Automatic Table Creation
+## Migrations-Only Startup
 
-For simple projects or development, the boilerplate includes `create_tables_on_start` parameter that automatically creates all tables on application startup:
+The template no longer creates tables automatically during application startup. Database schema changes should be applied with Alembic before serving traffic, not as a side effect of booting the API process.
 
-```python
-# This is enabled by default in create_application()
-app = create_application(
-    router=router, 
-    settings=settings, 
-    create_tables_on_start=True  # Default: True
-)
-```
+Use the following startup split:
 
-**When to use:**
+- Application boot initializes runtime dependencies and shared clients.
+- Migration execution is a separate operational step.
+- Schema creation belongs to Alembic, not to `create_application()`.
 
-- ✅ **Development** - Quick setup without migration management
-- ✅ **Simple projects** - When you don't need migration history  
-- ✅ **Prototyping** - Fast iteration without migration complexity
-- ✅ **Testing** - Clean database state for each test run
-
-**When NOT to use:**
-
-- ❌ **Production** - No migration history or rollback capability
-- ❌ **Team development** - Can't track schema changes between developers
-- ❌ **Data migrations** - Only handles schema, not data transformations
-- ❌ **Complex deployments** - No control over when/how schema changes apply
-
-```python
-# Disable for production environments
-app = create_application(
-    router=router, 
-    settings=settings, 
-    create_tables_on_start=False  # Use migrations instead
-)
-```
-
-For production deployments and team development, use proper Alembic migrations as described below.
+This keeps production boot deterministic and avoids hiding schema drift behind application startup.
 
 ## Configuration
 
 ### Alembic Setup
 
-Alembic is configured in `src/alembic.ini`:
+Alembic is configured in the repository-root `alembic.ini` so template users can run migration commands from the project root:
 
 ```ini
 [alembic]
-# Path to migration files
-script_location = migrations
-
-# Database URL with environment variable substitution
-sqlalchemy.url = postgresql://%(POSTGRES_USER)s:%(POSTGRES_PASSWORD)s@%(POSTGRES_SERVER)s:%(POSTGRES_PORT)s/%(POSTGRES_DB)s
-
-# Other configurations
-file_template = %%(year)d%%(month).2d%%(day).2d_%%(hour).2d%%(minute).2d_%%(rev)s_%%(slug)s
-timezone = UTC
+script_location = %(here)s/src/migrations
+prepend_sys_path = %(here)s/src
+sqlalchemy.url = driver://user:pass@localhost/dbname
 ```
+
+Use `uv run db-migrate ...` as the preferred developer command. It is a thin wrapper around Alembic that always injects the canonical repository-root config, so developers do not need to remember `-c alembic.ini` or change directories before running migration commands.
 
 ### Environment Configuration
 
@@ -75,21 +45,33 @@ Migration environment is configured in `src/migrations/env.py`:
 
 ```python
 # src/migrations/env.py
-from alembic import context
-from sqlalchemy import engine_from_config, pool
-from app.core.db.database import Base
-from app.core.config import settings
+import importlib
+import pkgutil
 
-# Import all models to ensure they're registered
-from app.models import *  # This imports all models
+from alembic import context
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import async_engine_from_config
+
+from app.platform.config import settings
+from app.platform.database import Base
+
+def import_models(package_name: str) -> None:
+    package = importlib.import_module(package_name)
+    for _, module_name, _ in pkgutil.walk_packages(package.__path__, package.__name__ + "."):
+        importlib.import_module(module_name)
 
 config = context.config
 
-# Override database URL from environment
+# Import domain models so autogenerate sees the full metadata.
+import_models("app.domain")
+
+# Override the placeholder URL from the config file with the environment-backed runtime URL.
 config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
 ```
+
+For connection tuning, session scope, and SSL guidance that complement migrations, see [Database Reliability](reliability.md).
 
 ## Migration Workflow
 
@@ -98,11 +80,8 @@ target_metadata = Base.metadata
 Generate migrations automatically when you change models:
 
 ```bash
-# Navigate to src directory
-cd src
-
 # Generate migration from model changes
-uv run alembic revision --autogenerate -m "Add user profile fields"
+uv run db-migrate revision --autogenerate -m "Add user profile fields"
 ```
 
 **What happens:**
@@ -153,13 +132,13 @@ Apply migrations to update database schema:
 
 ```bash
 # Apply all pending migrations
-uv run alembic upgrade head
+uv run db-migrate upgrade head
 
 # Apply specific number of migrations
-uv run alembic upgrade +2
+uv run db-migrate upgrade +2
 
 # Apply to specific revision
-uv run alembic upgrade abc123def456
+uv run db-migrate upgrade abc123def456
 ```
 
 ### 4. Verify Migration
@@ -168,13 +147,216 @@ Check migration status and current version:
 
 ```bash
 # Show current database version
-uv run alembic current
+uv run db-migrate current
 
 # Show migration history
-uv run alembic history
+uv run db-migrate history
 
 # Show pending migrations
-uv run alembic show head
+uv run db-migrate show head
+```
+
+To verify the full template migration path on a disposable database, use the repo-provided verification wrapper:
+
+```bash
+# Apply all revisions, then fail if model metadata would autogenerate new drift
+uv run db-migrate-verify
+```
+
+## Operational Guidance
+
+- Run migrations before bringing up the API or worker process in production.
+- Keep destructive schema changes out of normal boot paths.
+- For rollback planning, decide ahead of time whether the safe recovery path is downgrade, forward-fix, or backup restore.
+- Use data migrations and script-scoped backfills for data movement, not ad hoc SQL in application startup.
+- Roll schema changes out with an expand-contract sequence when a change removes or renames live structures.
+- In CI, run `uv run db-migrate-verify` against an ephemeral PostgreSQL database so migration application and schema drift are both checked from a clean state.
+
+## Rollback Guidance For Migration Failures
+
+Rollback planning belongs in the design of the revision, not in the incident call after a deploy has already failed.
+Before a migration reaches production, decide which of these three recovery paths applies:
+
+- **Downgrade** when the revision is reversible, the downgrade path has been tested, and the migration has not already invalidated live application assumptions.
+- **Forward-fix** when the safest recovery is a new corrective migration instead of trying to reverse partially applied schema or data changes.
+- **Restore from backup** when the change is destructive or irreversible and reversing it with Alembic would not safely reconstruct the previous state.
+
+### Recommended rollback checklist
+
+1. Stop the rollout and confirm whether the failure happened before, during, or after the revision was applied.
+2. Capture the current revision with `uv run db-migrate current` and save the failing logs or database error details.
+3. Decide whether the incident should use downgrade, forward-fix, or restore based on the revision design.
+4. If downgrading is safe, run the exact target downgrade on the same disposable or staging shape you rehearsed before production.
+5. Verify the database state, rerun smoke checks, and only then restore API or worker traffic.
+6. Follow with a corrected revision, updated runbook notes, and a documented cause of failure before the next deploy attempt.
+
+### When to prefer downgrade
+
+Use an Alembic downgrade only when all of the following are true:
+
+- The revision has an explicit `downgrade()` path.
+- The downgrade has been exercised in staging or a disposable production-like database.
+- The migration does not drop or rewrite data that the downgrade cannot reconstruct.
+- The application code can still run safely against the older schema after traffic is shifted back.
+
+If any of those conditions are false, prefer a forward-fix migration or a restore from backup.
+
+### Minimal recovery commands
+
+```bash
+# Inspect the current revision before making changes
+uv run db-migrate current
+uv run db-migrate history
+
+# Downgrade one revision when the rollback plan explicitly allows it
+uv run db-migrate downgrade -1
+
+# Or downgrade to a known-safe revision
+uv run db-migrate downgrade <known_safe_revision>
+```
+
+Treat backups as part of the rollback contract for every production migration.
+For destructive or high-risk revisions, the template expectation is:
+
+- Take a fresh backup before the migration window.
+- Rehearse the restore path as well as the Alembic path.
+- Record whether the operational recovery step is downgrade, forward-fix, or restore in the deploy plan.
+
+## Data Backfill Guidance And Script Pattern
+
+Backfills should run as explicit operational work, not inside API startup, request handlers, or normal worker boot hooks.
+The reusable template pattern is:
+
+- use a script-scoped database session,
+- process rows in bounded batches,
+- commit each batch independently,
+- make the script idempotent so it can resume safely,
+- support a dry-run mode before touching production data.
+
+### Backfill script scaffold
+
+```python
+import argparse
+import asyncio
+import logging
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.app.platform.database import (
+    DatabaseSessionScope,
+    database_transaction,
+    local_session,
+    open_database_session,
+    retry_database_operation,
+)
+
+LOGGER = logging.getLogger(__name__)
+
+
+async def process_batch(
+    session: AsyncSession,
+    *,
+    batch_size: int,
+    dry_run: bool,
+) -> int:
+    result = await session.execute(
+        select(ExampleModel)
+        .where(ExampleModel.new_value.is_(None))
+        .order_by(ExampleModel.id)
+        .limit(batch_size)
+    )
+    rows = list(result.scalars())
+    if not rows:
+        return 0
+
+    if dry_run:
+        for row in rows:
+            row.new_value = build_new_value(row)
+        await session.rollback()
+        return len(rows)
+
+    async with database_transaction(session):
+        for row in rows:
+            row.new_value = build_new_value(row)
+
+    return len(rows)
+
+
+async def run_backfill(*, batch_size: int, dry_run: bool) -> None:
+    async with open_database_session(local_session, DatabaseSessionScope.SCRIPT) as session:
+        while True:
+            updated = await retry_database_operation(
+                lambda: process_batch(
+                    session,
+                    batch_size=batch_size,
+                    dry_run=dry_run,
+                ),
+                attempts=3,
+            )
+            if updated == 0:
+                break
+
+            LOGGER.info("Processed %s rows", updated)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Template backfill pattern")
+    parser.add_argument("--batch-size", type=int, default=500)
+    parser.add_argument("--dry-run", action="store_true")
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    asyncio.run(run_backfill(batch_size=args.batch_size, dry_run=args.dry_run))
+```
+
+### Backfill rules
+
+- Keep each batch small enough to retry safely and to limit lock duration.
+- Make the selection predicate exclude already-processed rows so reruns are safe.
+- Prefer monotonic checkpoints such as primary-key ranges, timestamps, or an explicit progress table when a backfill spans many batches.
+- Log batch counts and boundaries so operators can estimate remaining work.
+- Run schema migration first, then the backfill, then the later contract step that makes the old shape unreachable.
+- If a backfill is large enough to compete with live traffic, throttle it or run it during a maintenance window.
+
+## Destructive Schema Changes And Expand-Contract Rules
+
+Destructive changes are any revisions that remove, rename, or narrow data structures that live code may still depend on.
+Those changes should not ship as a one-step migration in the template. Use an expand-contract rollout instead.
+
+### Expand-contract sequence
+
+1. **Expand**: add the new column, table, index, or compatibility structure in a backwards-compatible form.
+2. **Migrate reads and writes**: deploy application code that can use both the old and new shapes, or dual-write where necessary.
+3. **Backfill**: populate the new structure outside application startup and verify completeness.
+4. **Contract**: remove the old column, table, constraint, or code path in a later deploy once the new path is fully live.
+
+### Rules for destructive changes
+
+- Do not combine add, backfill, and drop steps in a single production deploy.
+- Treat renames as add-copy-switch-drop, not as an instantaneous rename when application code and external clients may still reference the old name.
+- Add new non-null columns as nullable or server-defaulted first, then enforce stricter constraints only after the backfill succeeds.
+- Delay table drops, column drops, and irreversible type changes until logs, metrics, and application reads confirm the old path is unused.
+- Keep downgrade expectations realistic: a contract-step migration may need a restore plan instead of a true downgrade if data was discarded.
+- Review large index builds, table rewrites, and lock-heavy operations for operational impact before scheduling the rollout.
+
+### Example rollout for a column rename
+
+```text
+Release A:
+- add new_column as nullable
+- write both old_column and new_column
+
+Release B:
+- backfill new_column from old_column
+- switch reads to new_column
+- verify no traffic depends on old_column
+
+Release C:
+- drop old_column
+- remove compatibility code
 ```
 
 ## Common Migration Scenarios
@@ -214,7 +396,7 @@ from .category import Category  # Add new import
 3. **Generate migration**:
 
 ```bash
-uv run alembic revision --autogenerate -m "Add category model"
+uv run db-migrate revision --autogenerate -m "Add category model"
 ```
 
 ### Adding Foreign Key
@@ -229,7 +411,7 @@ category_id: Mapped[Optional[int]] = mapped_column(ForeignKey("category.id"), nu
 2. **Generate migration**:
 
 ```bash
-uv run alembic revision --autogenerate -m "Add category_id to posts"
+uv run db-migrate revision --autogenerate -m "Add category_id to posts"
 ```
 
 3. **Review and apply**:
@@ -244,7 +426,7 @@ def upgrade() -> None:
 
 ### Data Migrations
 
-Sometimes you need to migrate data, not just schema:
+Sometimes you need to migrate data, not just schema. Keep the migration step focused on schema compatibility and run larger data movement with the backfill pattern above:
 
 ```python
 # Example: Populate default category for existing posts
@@ -308,15 +490,15 @@ def downgrade() -> None:
 ```bash
 # 1. Make model changes
 # 2. Generate migration
-uv run alembic revision --autogenerate -m "Descriptive message"
+uv run db-migrate revision --autogenerate -m "Descriptive message"
 
 # 3. Review migration file
 # 4. Test migration
-uv run alembic upgrade head
+uv run db-migrate upgrade head
 
 # 5. Test downgrade (optional)
-uv run alembic downgrade -1
-uv run alembic upgrade head
+uv run db-migrate downgrade -1
+uv run db-migrate upgrade head
 ```
 
 ### 2. Staging Deployment
@@ -327,7 +509,7 @@ uv run alembic upgrade head
 pg_dump -h staging-db -U user dbname > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 3. Apply migrations
-uv run alembic upgrade head
+uv run db-migrate upgrade head
 
 # 4. Verify application works
 # 5. Run tests
@@ -341,7 +523,7 @@ uv run alembic upgrade head
 pg_dump -h prod-db -U user dbname > prod_backup_$(date +%Y%m%d_%H%M%S).sql
 
 # 3. Apply migrations (with monitoring)
-uv run alembic upgrade head
+uv run db-migrate upgrade head
 
 # 4. Verify health checks pass
 # 5. Monitor application metrics
@@ -362,7 +544,7 @@ services:
       - db
     command: |
       sh -c "
-        uv run alembic upgrade head &&
+        uv run db-migrate upgrade head &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
 ```
@@ -416,10 +598,10 @@ services:
 
 ```bash
 # Good
-uv run alembic revision --autogenerate -m "Add user email verification fields"
+uv run db-migrate revision --autogenerate -m "Add user email verification fields"
 
 # Bad
-uv run alembic revision --autogenerate -m "Update user model"
+uv run db-migrate revision --autogenerate -m "Update user model"
 ```
 
 ### 3. Handle Nullable Columns Carefully
@@ -441,8 +623,8 @@ def upgrade() -> None:
 
 ```bash
 # Test that your downgrade works
-uv run alembic downgrade -1
-uv run alembic upgrade head
+uv run db-migrate downgrade -1
+uv run db-migrate upgrade head
 ```
 
 ### 5. Use Transactions for Complex Migrations

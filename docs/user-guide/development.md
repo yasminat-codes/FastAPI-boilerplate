@@ -123,9 +123,9 @@ from .post import Post
 Generate and apply the migration:
 
 ```bash
-# From the src/ directory
-uv run alembic revision --autogenerate -m "Add category model"
-uv run alembic upgrade head
+# From the project root
+uv run db-migrate revision --autogenerate -m "Add category model"
+uv run db-migrate upgrade head
 ```
 
 #### 6. Create API Endpoints
@@ -433,6 +433,9 @@ async def test_crud_get_user(async_session, test_user):
 ### Running Tests
 
 ```bash
+# install the dev toolchain once
+uv sync --group dev
+
 # Run all tests
 uv run pytest
 
@@ -651,14 +654,14 @@ async def health_check():
 !!! warning "Model Import Requirement"
     To create tables if you haven't created endpoints yet, ensure you import the models in `src/app/models/__init__.py`. This step is crucial for Alembic to detect new tables.
 
-While in the `src` folder, run Alembic migrations:
+From the project root, run migrations through the repo-aware wrapper:
 
 ```bash
 # Generate migration file
-uv run alembic revision --autogenerate -m "Description of changes"
+uv run db-migrate revision --autogenerate -m "Description of changes"
 
 # Apply migrations
-uv run alembic upgrade head
+uv run db-migrate upgrade head
 ```
 
 !!! note "Without uv"
@@ -668,9 +671,9 @@ uv run alembic upgrade head
 
 1. **Make Model Changes** - Modify your SQLAlchemy models
 2. **Import Models** - Ensure models are imported in `src/app/models/__init__.py`
-3. **Generate Migration** - Run `alembic revision --autogenerate`
+3. **Generate Migration** - Run `uv run db-migrate revision --autogenerate`
 4. **Review Migration** - Check the generated migration file in `src/migrations/versions/`
-5. **Apply Migration** - Run `alembic upgrade head`
+5. **Apply Migration** - Run `uv run db-migrate upgrade head`
 6. **Test Changes** - Verify your changes work as expected
 
 ### Common Migration Tasks
@@ -703,9 +706,8 @@ from .category import Category  # Add this line
 
 ```bash
 # 3. Generate and apply migration
-cd src
-uv run alembic revision --autogenerate -m "Add categories table"
-uv run alembic upgrade head
+uv run db-migrate revision --autogenerate -m "Add categories table"
+uv run db-migrate upgrade head
 ```
 
 #### Modifying Existing Models
@@ -719,11 +721,11 @@ class User(Base):
 
 ```bash
 # 2. Generate migration
-uv run alembic revision --autogenerate -m "Add bio field to users"
+uv run db-migrate revision --autogenerate -m "Add bio field to users"
 
 # 3. Review the generated migration file
 # 4. Apply migration
-uv run alembic upgrade head
+uv run db-migrate upgrade head
 ```
 
 This guide provides the foundation for extending and customizing the FastAPI boilerplate. For specific implementation details, refer to the existing code examples throughout the boilerplate. 

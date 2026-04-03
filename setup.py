@@ -99,6 +99,9 @@ def copy_files(deployment_type: str):
             print("⚠️  IMPORTANT: Update the .env file with your production values:")
             print("   - Generate a new SECRET_KEY: openssl rand -hex 32")
             print("   - Change all passwords and sensitive values")
+            if deployment_type == "production":
+                print("   - Set explicit CORS_ORIGINS values for your deployed frontend")
+                print("   - The app will refuse to boot in production until placeholder secrets are replaced")
             print()
 
         print("Next steps:")

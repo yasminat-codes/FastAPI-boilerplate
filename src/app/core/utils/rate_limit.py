@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from typing import Optional
+from typing import Any, Optional
 
 from redis.asyncio import ConnectionPool, Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,11 +21,23 @@ class RateLimiter:
         return cls._instance
 
     @classmethod
-    def initialize(cls, redis_url: str) -> None:
+    def initialize(cls, redis_url: str, **connection_pool_kwargs: Any) -> None:
         instance = cls()
         if instance.pool is None:
-            instance.pool = ConnectionPool.from_url(redis_url)
+            instance.pool = ConnectionPool.from_url(redis_url, **connection_pool_kwargs)
             instance.client = Redis(connection_pool=instance.pool)
+
+    @classmethod
+    async def shutdown(cls) -> None:
+        instance = cls()
+        if instance.client is not None:
+            await instance.client.aclose()  # type: ignore[attr-defined]
+
+        if instance.pool is not None and hasattr(instance.pool, "aclose"):
+            await instance.pool.aclose()  # type: ignore[attr-defined]
+
+        instance.client = None
+        instance.pool = None
 
     @classmethod
     def get_client(cls) -> Redis:

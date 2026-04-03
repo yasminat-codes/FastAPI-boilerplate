@@ -9,7 +9,7 @@ from .views import register_admin_views
 
 def create_admin_interface() -> Optional[CRUDAdmin]:
     """Create and configure the admin interface."""
-    if not settings.CRUD_ADMIN_ENABLED:
+    if not settings.FEATURE_ADMIN_ENABLED or not settings.CRUD_ADMIN_ENABLED:
         return None
 
     session_backend = "memory"

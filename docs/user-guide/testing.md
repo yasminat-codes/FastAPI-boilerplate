@@ -4,6 +4,13 @@ This guide covers comprehensive testing strategies for the FastAPI boilerplate, 
 
 ## Test Setup
 
+Install the development toolchain before running tests, and install the docs toolchain when you need to verify documentation locally:
+
+```bash
+uv sync --group dev
+uv sync --group docs
+```
+
 ### Testing Dependencies
 
 The boilerplate uses these testing libraries:
@@ -706,6 +713,21 @@ uv run pytest -x
 uv run pytest -m slow
 ```
 
+## Documentation Verification
+
+Use the repository-managed docs toolchain instead of ad hoc `uvx` commands:
+
+```bash
+# Install the docs toolchain
+uv sync --group docs
+
+# Run the strict docs build
+uv run mkdocs build --strict
+
+# Serve docs locally
+uv run mkdocs serve
+```
+
 ### Test Environment Setup
 
 ```bash
@@ -796,15 +818,10 @@ jobs:
     - name: Install dependencies
       run: |
         pip install uv
-        uv sync
-    
+        uv sync --frozen --group dev
+
     - name: Run tests
-      run: uv run pytest --cov=src --cov-report=xml
-    
-    - name: Upload coverage
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage.xml
+      run: uv run pytest
 ```
 
 This testing guide provides comprehensive coverage of testing strategies for the FastAPI boilerplate, ensuring reliable and maintainable code. 

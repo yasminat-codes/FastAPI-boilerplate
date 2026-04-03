@@ -38,11 +38,6 @@ theme:
 
 plugins:
   - search
-  - mkdocstrings:
-      handlers:
-        python:
-          rendering:
-            show_source: true
 
 nav:
   - Home: index.md
@@ -64,6 +59,7 @@ nav:
           - Overview: user-guide/database/index.md
           - Models: user-guide/database/models.md
           - Schemas: user-guide/database/schemas.md
+          - Reliability: user-guide/database/reliability.md
           - CRUD Operations: user-guide/database/crud.md
           - Migrations: user-guide/database/migrations.md
       - API:

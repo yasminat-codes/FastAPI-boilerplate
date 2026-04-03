@@ -31,22 +31,14 @@ dependencies = [
     "fastcrud>=0.19.2",
     "crudadmin>=0.4.2",
     "gunicorn>=23.0.0",
-    "ruff>=0.11.13",
-    "mypy>=1.16.0",
     "structlog>=25.1.0,<=25.5.0",
     "rich>=14.2.0",
     "sentry-sdk>=2.0.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.4.2",
-    "pytest-mock>=3.14.0",
-    "faker>=26.0.0",
-    "mypy>=1.8.0",
-    "types-redis>=4.6.0",
-    "ruff>=0.1.0",
-]
+[project.scripts]
+db-migrate = "src.scripts.migrations:main"
+db-migrate-verify = "src.scripts.verify_migrations:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -102,14 +94,27 @@ max-complexity = 24
 convention = "numpy"
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "strict"
 filterwarnings = [
     "ignore::PendingDeprecationWarning:starlette.formparsers",
 ]
 
 [dependency-groups]
 dev = [
+    "faker>=26.0.0",
+    "mypy>=1.16.0",
     "pre-commit>=4.3.0",
+    "pytest>=7.4.2",
     "pytest-asyncio>=1.0.0",
+    "pytest-mock>=3.14.0",
+    "ruff>=0.11.13",
+    "types-redis>=4.6.0",
+]
+docs = [
+    "mkdocs>=1.5.3",
+    "mkdocs-material>=9.5.17",
+    "pymdown-extensions>=10.7",
 ]
 
 [tool.mypy]

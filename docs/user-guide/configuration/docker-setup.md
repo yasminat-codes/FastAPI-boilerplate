@@ -68,7 +68,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: arq app.core.worker.settings.WorkerSettings
+    command: arq app.workers.settings.WorkerSettings
     env_file:
       - ./src/.env
     depends_on:
@@ -154,7 +154,7 @@ worker:
   build:
     context: .
     dockerfile: Dockerfile
-  command: arq app.core.worker.settings.WorkerSettings
+  command: arq app.workers.settings.WorkerSettings
   env_file:
     - ./src/.env
   depends_on:

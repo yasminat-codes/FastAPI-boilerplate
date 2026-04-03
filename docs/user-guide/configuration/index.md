@@ -118,7 +118,6 @@ REDIS_RATE_LIMIT_PORT=6379
 APP_NAME="Your App Name"
 APP_VERSION="1.0.0"
 ENVIRONMENT="local"  # local, staging, production
-DEBUG=true
 ```
 
 ### Rate Limiting
@@ -137,35 +136,13 @@ ADMIN_PASSWORD="secure_password"
 
 ## Environment-Specific Configurations
 
-### Development
-```env
-ENVIRONMENT="local"
-DEBUG=true
-POSTGRES_SERVER="localhost"
-REDIS_CACHE_HOST="localhost"
-ACCESS_TOKEN_EXPIRE_MINUTES=60  # Longer for development
-```
+Use the environment matrix when you want profile-by-profile guidance instead of a flat variable reference:
 
-### Staging
-```env
-ENVIRONMENT="staging"
-DEBUG=false
-POSTGRES_SERVER="staging-db.example.com"
-REDIS_CACHE_HOST="staging-redis.example.com"
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
+- **Local**: public API docs, localhost CORS defaults, and HTTP-friendly cookie defaults for developer machines
+- **Staging**: secure-environment validation, superuser-only docs, and production-like host / proxy / cookie expectations
+- **Production**: the same secure validation as staging, but with API docs disabled and live-service observability expectations
 
-### Production
-```env
-ENVIRONMENT="production"
-DEBUG=false
-POSTGRES_SERVER="prod-db.example.com"
-REDIS_CACHE_HOST="prod-redis.example.com"
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-# Use custom ports for security
-POSTGRES_PORT=5433
-REDIS_CACHE_PORT=6380
-```
+See **[Environment-Specific](environment-specific.md)** for the full local/staging/production matrix, recommended values, and example env-file starting points.
 
 ## Docker Configuration
 

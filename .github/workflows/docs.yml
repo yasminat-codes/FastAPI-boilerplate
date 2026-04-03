@@ -1,0 +1,24 @@
+name: Documentation
+
+on: [push, pull_request]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11
+
+    - name: Install uv
+      run: pip install uv
+
+    - name: Install docs toolchain
+      run: uv sync --frozen --group docs
+
+    - name: Run strict docs build
+      run: uv run mkdocs build --strict

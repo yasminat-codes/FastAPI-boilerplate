@@ -1,34 +1,45 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from functools import cache
+from typing import Any
 
 from fastapi import FastAPI
 
-from .admin.initialize import create_admin_interface
-from .api import router
-from .core.config import settings
-from .core.setup import create_application, lifespan_factory
-
-admin = create_admin_interface()
+from .api import build_api_router
+from .platform.admin import create_admin_interface
+from .platform.application import create_application, lifespan_factory
+from .platform.config import settings
 
 
-@asynccontextmanager
-async def lifespan_with_admin(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Custom lifespan that includes admin initialization."""
-    # Get the default lifespan
-    default_lifespan = lifespan_factory(settings)
-
-    # Run the default lifespan initialization and our admin initialization
-    async with default_lifespan(app):
-        # Initialize admin interface if it exists
-        if admin:
-            # Initialize admin database and setup
-            await admin.initialize()
-
-        yield
+@cache
+def get_admin_interface() -> Any:
+    """Create the default admin interface once per process."""
+    return create_admin_interface()
 
 
-app = create_application(router=router, settings=settings, lifespan=lifespan_with_admin)
+def create_app() -> FastAPI:
+    """Build the template's default FastAPI application."""
+    admin = get_admin_interface()
+    api_router = build_api_router(settings)
 
-# Mount admin interface if enabled
-if admin:
-    app.mount(settings.CRUD_ADMIN_MOUNT_PATH, admin.app)
+    @asynccontextmanager
+    async def lifespan_with_admin(app: FastAPI) -> AsyncGenerator[None, None]:
+        default_lifespan = lifespan_factory(settings)
+
+        async with default_lifespan(app):
+            if admin:
+                await admin.initialize()
+
+            yield
+
+    application = create_application(router=api_router, settings=settings, lifespan=lifespan_with_admin)
+
+    if admin:
+        application.mount(settings.CRUD_ADMIN_MOUNT_PATH, admin.app)
+
+    return application
+
+
+app = create_app()
+
+__all__ = ["app", "create_app", "get_admin_interface"]

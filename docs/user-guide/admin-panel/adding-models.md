@@ -135,10 +135,10 @@ Generate the database migration for your new model:
 
 ```bash
 # Generate migration
-uv run alembic revision --autogenerate -m "Add product model"
+uv run db-migrate revision --autogenerate -m "Add product model"
 
 # Apply migration
-uv run alembic upgrade head
+uv run db-migrate upgrade head
 ```
 
 ### Step 5: Test Your New Model

@@ -131,10 +131,14 @@ Sets up NGINX as reverse proxy with Gunicorn + Uvicorn workers for production.
 
 > [!CAUTION]
 > You MUST change `SECRET_KEY`, all passwords, and sensitive values in the `.env` file before deploying!
+> The template will refuse to boot with unsafe placeholder production settings.
 
 **Manual setup:** `./setup.py production` or copy the files above manually.
 
 ---
+
+This template uses a migrations-only database lifecycle. Application startup will not create tables automatically.
+Shared runtime resources are brought up through FastAPI lifespan: the API process primes the shared database engine, verifies Redis-backed services before exposing them, and flushes telemetry integrations during shutdown. If startup fails midway, already-initialized shared resources are unwound before the process exits.
 
 **Start your application:**
 
@@ -154,43 +158,61 @@ docker compose up
 docker compose run --rm create_superuser
 ```
 
-**Run database migrations** (if you add models):
+**Run database migrations before serving traffic:**
 ```bash
-cd src && uv run alembic revision --autogenerate && uv run alembic upgrade head
+# repo-aware wrapper around the canonical Alembic config
+uv run db-migrate upgrade head
 ```
 
-**Test background jobs:**
-```bash
-curl -X POST 'http://127.0.0.1:8000/api/v1/tasks/task?message=hello'
-```
+**Background jobs:**
+The worker runtime is included, but the template intentionally does not ship a demo task submission endpoint. Add project-specific jobs by subclassing `WorkerJob` and registering them in `src/app/workers/jobs.py`.
+Worker startup and shutdown now use a shared resource stack so the template can prime the database engine, worker-side Redis aliases, optional cache and rate-limit clients, and Sentry in one reusable lifecycle path.
+Tune the shared worker runtime with `WORKER_QUEUE_NAME`, `WORKER_MAX_JOBS`, `WORKER_JOB_MAX_TRIES`, `WORKER_JOB_RETRY_DELAY_SECONDS`, `WORKER_KEEP_RESULT_SECONDS`, `WORKER_KEEP_RESULT_FOREVER`, and `WORKER_JOB_EXPIRES_EXTRA_MS`.
 
 **Or run locally without Docker:**
 ```bash
-uv sync && uv run uvicorn src.app.main:app --reload
+uv sync && uv run db-migrate upgrade head && uv run uvicorn src.app.main:app --reload
 ```
 
 > Full setup (from-scratch, .env examples, PostgreSQL & Redis, gunicorn, nginx) lives in the [docs](https://benavlabs.github.io/FastAPI-boilerplate/getting-started/installation/).
 
 ## Configuration (minimal)
 
-Create `src/.env` and set **app**, **database**, **JWT**, and **environment** settings. See the [docs](https://benavlabs.github.io/FastAPI-boilerplate/getting-started/configuration/) for a copy-pasteable example and production guidance.
+Create `src/.env` and set **app**, **database**, **JWT**, and **environment** settings. Prefer a single `DATABASE_URL` for the application database connection; the template still supports composed `POSTGRES_*` settings as a fallback when a direct URL is not available. See the [docs](https://benavlabs.github.io/FastAPI-boilerplate/getting-started/configuration/) for a copy-pasteable example and production guidance.
+
+The docs also include an environment settings matrix for `local`, `staging`, and `production`: [https://benavlabs.github.io/FastAPI-boilerplate/user-guide/configuration/environment-specific/](https://benavlabs.github.io/FastAPI-boilerplate/user-guide/configuration/environment-specific/)
 
 [https://benavlabs.github.io/FastAPI-boilerplate/getting-started/configuration/](https://benavlabs.github.io/FastAPI-boilerplate/getting-started/configuration/)
 
 * `ENVIRONMENT=local|staging|production` controls API docs exposure
+* `DATABASE_URL=postgresql://...` is the first-class database setting for runtime, migrations, and tests
+* `WORKER_*` settings control ARQ queue naming, concurrency, retry defaults, and result retention
+* `WEBHOOK_*` settings define generic verification, replay-window, and payload-retention defaults for future provider adapters
+* `SENTRY_*`, `METRICS_*`, `TRACING_*`, and `*_LOG_LEVEL` settings define the template observability contract
+* `FEATURE_*` settings provide high-level toggles for optional route groups and template-owned modules such as admin and client cache
+* `CORS_*` settings now default to a fail-closed allowlist outside local development and support credentials, exposed headers, and max-age tuning
+* `SECURITY_HEADERS_*`, `REFRESH_TOKEN_COOKIE_*`, and `SESSION_SECURE_COOKIES` control baseline response-header hardening and template-owned cookie behavior
+* `TRUSTED_HOSTS` and `PROXY_HEADERS_*` settings provide optional host-header protection and safe forwarded-header trust controls for reverse-proxy deployments
 * Set `ADMIN_*` to enable the first admin user
 
 ## Common tasks
 
 ```bash
 # run locally with reload (without Docker)
-uv sync && uv run uvicorn src.app.main:app --reload
+uv sync && uv run db-migrate upgrade head && uv run uvicorn src.app.main:app --reload
 
-# run Alembic migrations
-cd src && uv run alembic revision --autogenerate && uv run alembic upgrade head
+# create and apply Alembic migrations
+uv run db-migrate revision --autogenerate && uv run db-migrate upgrade head
 
-# enqueue a background job (example endpoint)
-curl -X POST 'http://127.0.0.1:8000/api/v1/tasks/task?message=hello'
+# run the ARQ worker runtime
+uv run arq src.app.workers.settings.WorkerSettings
+
+# install and verify the docs toolchain
+uv sync --group docs
+uv run mkdocs build --strict
+
+# serve docs locally
+uv run mkdocs serve
 ```
 
 More examples (superuser creation, tiers, rate limits, admin usage) in the [docs](https://benavlabs.github.io/FastAPI-boilerplate/getting-started/first-run/).

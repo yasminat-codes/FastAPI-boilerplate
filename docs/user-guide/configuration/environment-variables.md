@@ -15,6 +15,8 @@ The boilerplate uses a layered configuration approach:
 
 All configuration is managed through environment variables defined in the `.env` file located in the `src/` directory.
 
+If you want profile-specific recommendations instead of the full variable catalog, use the [Environment-Specific Configuration](environment-specific.md) matrix alongside this reference.
+
 ### Application Settings
 
 Basic application metadata displayed in API documentation:
@@ -44,20 +46,52 @@ PostgreSQL database connection settings:
 
 ```env
 # ------------- database -------------
+DATABASE_URL="postgresql://your_postgres_user:your_secure_password@localhost:5432/your_database_name"
+
+# Optional fallback composition
 POSTGRES_USER="your_postgres_user"
 POSTGRES_PASSWORD="your_secure_password"
 POSTGRES_SERVER="localhost"
 POSTGRES_PORT=5432
 POSTGRES_DB="your_database_name"
+
+# Runtime tuning
+DATABASE_POOL_SIZE=10
+DATABASE_MAX_OVERFLOW=20
+DATABASE_POOL_PRE_PING=true
+DATABASE_POOL_RECYCLE=1800
+DATABASE_POOL_TIMEOUT=30
+DATABASE_CONNECT_TIMEOUT=10
+DATABASE_COMMAND_TIMEOUT=60
+DATABASE_STATEMENT_TIMEOUT_MS=30000
+DATABASE_SSL_MODE="disable"
+DATABASE_SSL_CA_FILE="/path/to/ca.pem"
+DATABASE_SSL_CERT_FILE="/path/to/client.crt"
+DATABASE_SSL_KEY_FILE="/path/to/client.key"
 ```
 
 **Variables Explained:**
 
+- `DATABASE_URL`: Preferred first-class PostgreSQL connection string for runtime, migrations, and tests
 - `POSTGRES_USER`: Database user with appropriate permissions
 - `POSTGRES_PASSWORD`: Strong password for database access
 - `POSTGRES_SERVER`: Hostname or IP of PostgreSQL server
 - `POSTGRES_PORT`: PostgreSQL port (default: 5432)
 - `POSTGRES_DB`: Name of the database to connect to
+- `DATABASE_POOL_SIZE`: Number of persistent async connections in the SQLAlchemy pool
+- `DATABASE_MAX_OVERFLOW`: Temporary extra connections allowed above the pool size
+- `DATABASE_POOL_PRE_PING`: Whether SQLAlchemy checks connections before reusing them
+- `DATABASE_POOL_RECYCLE`: Max connection age in seconds before SQLAlchemy refreshes it
+- `DATABASE_POOL_TIMEOUT`: Seconds to wait for a pooled connection before failing
+- `DATABASE_CONNECT_TIMEOUT`: Seconds allowed to establish a new PostgreSQL connection
+- `DATABASE_COMMAND_TIMEOUT`: Default asyncpg command timeout in seconds
+- `DATABASE_STATEMENT_TIMEOUT_MS`: Optional PostgreSQL server-side statement timeout in milliseconds
+- `DATABASE_SSL_MODE`: SSL posture for the database connection: `disable`, `require`, `verify-ca`, or `verify-full`
+- `DATABASE_SSL_CA_FILE`: CA bundle path used for `verify-ca` and `verify-full`
+- `DATABASE_SSL_CERT_FILE`: Optional client certificate path
+- `DATABASE_SSL_KEY_FILE`: Optional client certificate key path
+
+`DATABASE_URL` is the preferred template interface. If it is omitted, the template composes an equivalent connection string from the `POSTGRES_*` values.
 
 **Environment-Specific Values:**
 
@@ -103,14 +137,60 @@ Redis is used for caching, job queues, and rate limiting:
 # ------------- redis cache -------------
 REDIS_CACHE_HOST="localhost"  # Use "redis" for Docker Compose
 REDIS_CACHE_PORT=6379
+REDIS_CACHE_DB=0
+# REDIS_CACHE_USERNAME="cache-user"
+# REDIS_CACHE_PASSWORD="cache-password"
+REDIS_CACHE_CONNECT_TIMEOUT=5
+REDIS_CACHE_SOCKET_TIMEOUT=5
+REDIS_CACHE_RETRY_ATTEMPTS=3
+REDIS_CACHE_RETRY_BASE_DELAY=0.1
+REDIS_CACHE_RETRY_MAX_DELAY=1.0
+REDIS_CACHE_RETRY_ON_TIMEOUT=true
+REDIS_CACHE_MAX_CONNECTIONS=null
+REDIS_CACHE_SSL=false
+REDIS_CACHE_SSL_CHECK_HOSTNAME=false
+REDIS_CACHE_SSL_CERT_REQS="required"
+# REDIS_CACHE_SSL_CA_CERTS="/path/to/cache-ca.pem"
+# REDIS_CACHE_SSL_CERTFILE="/path/to/cache-client.crt"
+# REDIS_CACHE_SSL_KEYFILE="/path/to/cache-client.key"
 
 # ------------- redis queue -------------
 REDIS_QUEUE_HOST="localhost"  # Use "redis" for Docker Compose
 REDIS_QUEUE_PORT=6379
+REDIS_QUEUE_DB=0
+# REDIS_QUEUE_USERNAME="queue-user"
+# REDIS_QUEUE_PASSWORD="queue-password"
+REDIS_QUEUE_CONNECT_TIMEOUT=5
+REDIS_QUEUE_CONNECT_RETRIES=5
+REDIS_QUEUE_RETRY_DELAY=1
+REDIS_QUEUE_RETRY_ON_TIMEOUT=true
+REDIS_QUEUE_MAX_CONNECTIONS=null
+REDIS_QUEUE_SSL=false
+REDIS_QUEUE_SSL_CHECK_HOSTNAME=false
+REDIS_QUEUE_SSL_CERT_REQS="required"
+# REDIS_QUEUE_SSL_CA_CERTS="/path/to/queue-ca.pem"
+# REDIS_QUEUE_SSL_CERTFILE="/path/to/queue-client.crt"
+# REDIS_QUEUE_SSL_KEYFILE="/path/to/queue-client.key"
 
 # ------------- redis rate limit -------------
 REDIS_RATE_LIMIT_HOST="localhost"  # Use "redis" for Docker Compose
 REDIS_RATE_LIMIT_PORT=6379
+REDIS_RATE_LIMIT_DB=0
+# REDIS_RATE_LIMIT_USERNAME="rate-limit-user"
+# REDIS_RATE_LIMIT_PASSWORD="rate-limit-password"
+REDIS_RATE_LIMIT_CONNECT_TIMEOUT=5
+REDIS_RATE_LIMIT_SOCKET_TIMEOUT=5
+REDIS_RATE_LIMIT_RETRY_ATTEMPTS=3
+REDIS_RATE_LIMIT_RETRY_BASE_DELAY=0.1
+REDIS_RATE_LIMIT_RETRY_MAX_DELAY=1.0
+REDIS_RATE_LIMIT_RETRY_ON_TIMEOUT=true
+REDIS_RATE_LIMIT_MAX_CONNECTIONS=null
+REDIS_RATE_LIMIT_SSL=false
+REDIS_RATE_LIMIT_SSL_CHECK_HOSTNAME=false
+REDIS_RATE_LIMIT_SSL_CERT_REQS="required"
+# REDIS_RATE_LIMIT_SSL_CA_CERTS="/path/to/rate-limit-ca.pem"
+# REDIS_RATE_LIMIT_SSL_CERTFILE="/path/to/rate-limit-client.crt"
+# REDIS_RATE_LIMIT_SSL_KEYFILE="/path/to/rate-limit-client.key"
 ```
 
 **Best Practices:**
@@ -125,6 +205,140 @@ REDIS_QUEUE_HOST="queue.redis.example.com"
 REDIS_RATE_LIMIT_HOST="ratelimit.redis.example.com"
 ```
 
+The template computes `REDIS_CACHE_URL`, `REDIS_QUEUE_URL`, and `REDIS_RATE_LIMIT_URL` from these fields and passes the timeout, retry, and TLS settings into the cache pool, ARQ worker connection, and rate-limiter connection pool.
+
+### Worker Runtime Settings
+
+Shared worker defaults for ARQ:
+
+```env
+WORKER_QUEUE_NAME="arq:queue"
+WORKER_MAX_JOBS=10
+WORKER_JOB_MAX_TRIES=3
+WORKER_JOB_RETRY_DELAY_SECONDS=5.0
+WORKER_KEEP_RESULT_SECONDS=3600
+WORKER_KEEP_RESULT_FOREVER=false
+WORKER_JOB_EXPIRES_EXTRA_MS=86400000
+```
+
+**Variables Explained:**
+
+- `WORKER_QUEUE_NAME`: Queue name consumed by the canonical worker entrypoint
+- `WORKER_MAX_JOBS`: Maximum number of concurrent jobs a worker process will execute
+- `WORKER_JOB_MAX_TRIES`: Default retry attempt cap for `WorkerJob` subclasses that do not override `retry_policy`
+- `WORKER_JOB_RETRY_DELAY_SECONDS`: Default defer delay used when a `RetryableJobError` is raised without a custom delay
+- `WORKER_KEEP_RESULT_SECONDS`: Default amount of time completed job results are retained
+- `WORKER_KEEP_RESULT_FOREVER`: Retain completed job results indefinitely instead of expiring them
+- `WORKER_JOB_EXPIRES_EXTRA_MS`: Additional queue retention window ARQ uses before treating queued jobs as expired
+
+### Webhook Runtime Settings
+
+Generic webhook ingestion defaults for future provider adapters:
+
+```env
+WEBHOOK_SIGNATURE_VERIFICATION_ENABLED=true
+WEBHOOK_SIGNATURE_MAX_AGE_SECONDS=300
+WEBHOOK_REPLAY_PROTECTION_ENABLED=true
+WEBHOOK_REPLAY_WINDOW_SECONDS=300
+WEBHOOK_STORE_RAW_PAYLOADS=true
+WEBHOOK_PAYLOAD_RETENTION_DAYS=7
+```
+
+**Variables Explained:**
+
+- `WEBHOOK_SIGNATURE_VERIFICATION_ENABLED`: Require provider adapters to verify incoming webhook signatures by default
+- `WEBHOOK_SIGNATURE_MAX_AGE_SECONDS`: Maximum accepted age for timestamped signatures before the request is treated as stale
+- `WEBHOOK_REPLAY_PROTECTION_ENABLED`: Enable replay-window enforcement for duplicate or delayed webhook delivery attempts
+- `WEBHOOK_REPLAY_WINDOW_SECONDS`: Length of time the template should consider a webhook delivery eligible for replay protection checks
+- `WEBHOOK_STORE_RAW_PAYLOADS`: Persist raw webhook bodies when the future webhook ingestion layer is enabled
+- `WEBHOOK_PAYLOAD_RETENTION_DAYS`: How long retained raw webhook payloads should remain available before cleanup
+
+### Sentry Settings
+
+Error monitoring defaults:
+
+```env
+SENTRY_ENABLE=false
+# SENTRY_DSN="https://public@example.ingest.sentry.io/1"
+SENTRY_ENVIRONMENT="local"
+SENTRY_RELEASE="fastapi-template@0.1.0"
+SENTRY_DEBUG=false
+SENTRY_ATTACH_STACKTRACE=true
+SENTRY_SEND_DEFAULT_PII=false
+SENTRY_MAX_BREADCRUMBS=100
+SENTRY_TRACES_SAMPLE_RATE=1.0
+SENTRY_PROFILES_SAMPLE_RATE=1.0
+```
+
+**Variables Explained:**
+
+- `SENTRY_ENABLE`: Toggle Sentry initialization in the current runtime
+- `SENTRY_DSN`: DSN used when Sentry is enabled
+- `SENTRY_ENVIRONMENT`: Environment tag attached to Sentry events
+- `SENTRY_RELEASE`: Optional release identifier for deploy correlation
+- `SENTRY_DEBUG`: Enable verbose Sentry SDK diagnostics
+- `SENTRY_ATTACH_STACKTRACE`: Attach stack traces to captured log events
+- `SENTRY_SEND_DEFAULT_PII`: Allow default PII capture when your deployment needs it
+- `SENTRY_MAX_BREADCRUMBS`: Limit the number of breadcrumbs attached to an event
+- `SENTRY_TRACES_SAMPLE_RATE`: Sentry tracing sample rate between `0.0` and `1.0`
+- `SENTRY_PROFILES_SAMPLE_RATE`: Sentry profiling sample rate between `0.0` and `1.0`
+
+### Metrics Settings
+
+Metrics configuration hooks for future instrumentation:
+
+```env
+METRICS_ENABLED=false
+METRICS_PATH="/metrics"
+METRICS_NAMESPACE="fastapi_template"
+METRICS_INCLUDE_REQUEST_PATH_LABELS=false
+```
+
+**Variables Explained:**
+
+- `METRICS_ENABLED`: Enable the template metrics surface once instrumentation is wired in
+- `METRICS_PATH`: HTTP path reserved for metrics exposure
+- `METRICS_NAMESPACE`: Prefix/namespace used by future metric names
+- `METRICS_INCLUDE_REQUEST_PATH_LABELS`: Include request paths as labels when instrumentation needs route-level detail
+
+### Tracing Settings
+
+Tracing configuration hooks for future instrumentation:
+
+```env
+TRACING_ENABLED=false
+TRACING_EXPORTER="otlp"
+TRACING_SAMPLE_RATE=1.0
+TRACING_SERVICE_NAME="fastapi-template-api"
+TRACING_PROPAGATE_CORRELATION_IDS=true
+```
+
+**Variables Explained:**
+
+- `TRACING_ENABLED`: Enable distributed tracing hooks when tracing instrumentation is added
+- `TRACING_EXPORTER`: Trace export strategy, currently `otlp` or `console`
+- `TRACING_SAMPLE_RATE`: Fraction of traces to keep between `0.0` and `1.0`
+- `TRACING_SERVICE_NAME`: Service name reported to the tracing backend
+- `TRACING_PROPAGATE_CORRELATION_IDS`: Carry correlation/request identifiers into future trace context
+
+### Log Verbosity Settings
+
+Structured logging level controls:
+
+```env
+LOG_LEVEL="INFO"
+UVICORN_LOG_LEVEL="INFO"
+FILE_LOG_LEVEL="INFO"
+CONSOLE_LOG_LEVEL="INFO"
+```
+
+**Variables Explained:**
+
+- `LOG_LEVEL`: Root logger verbosity for the application
+- `UVICORN_LOG_LEVEL`: Verbosity for Uvicorn and Uvicorn access/error loggers
+- `FILE_LOG_LEVEL`: Minimum level written to the rotating file handler
+- `CONSOLE_LOG_LEVEL`: Minimum level written to stdout/stderr
+
 ### Caching Settings
 
 Client-side and server-side caching configuration:
@@ -137,6 +351,32 @@ CLIENT_CACHE_MAX_AGE=30  # seconds
 **Variables Explained:**
 
 - `CLIENT_CACHE_MAX_AGE`: How long browsers should cache responses
+
+### Feature Flags And Optional Modules
+
+High-level toggles for template-owned route groups and modules:
+
+```env
+FEATURE_ADMIN_ENABLED=true
+FEATURE_CLIENT_CACHE_ENABLED=true
+FEATURE_API_AUTH_ROUTES_ENABLED=true
+FEATURE_API_USERS_ENABLED=true
+FEATURE_API_POSTS_ENABLED=true
+FEATURE_API_TIERS_ENABLED=true
+FEATURE_API_RATE_LIMITS_ENABLED=true
+```
+
+**Variables Explained:**
+
+- `FEATURE_ADMIN_ENABLED`: Enable or disable the built-in CRUD admin mount at a high level
+- `FEATURE_CLIENT_CACHE_ENABLED`: Enable or disable the template-owned client cache middleware
+- `FEATURE_API_AUTH_ROUTES_ENABLED`: Register or skip the built-in `/api/v1/login` and `/api/v1/logout` routes
+- `FEATURE_API_USERS_ENABLED`: Register or skip the starter user-management routes
+- `FEATURE_API_POSTS_ENABLED`: Register or skip the starter post routes
+- `FEATURE_API_TIERS_ENABLED`: Register or skip the starter tier routes
+- `FEATURE_API_RATE_LIMITS_ENABLED`: Register or skip the starter rate-limit management routes
+
+These flags are intentionally coarse-grained. They let template adopters trim starter surfaces without having to fork router registration or app wiring.
 
 ### Rate Limiting
 
@@ -178,33 +418,161 @@ Cross-Origin Resource Sharing (CORS) settings for frontend integration:
 
 ```env
 # ------------- CORS -------------
-CORS_ORIGINS=["*"]
-CORS_METHODS=["*"]
-CORS_HEADERS=["*"]
+CORS_ORIGINS=["https://app.example.com"]
+CORS_ALLOW_CREDENTIALS=true
+CORS_METHODS=["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
+CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID"]
+CORS_EXPOSE_HEADERS=["X-Request-ID"]
+CORS_MAX_AGE=600
 ```
 
 **Variables Explained:**
 
 - `CORS_ORIGINS`: Comma-separated list of allowed origins (e.g., `["https://app.com","https://www.app.com"]`)
-- `CORS_METHODS`: Comma-separated list of allowed HTTP methods (e.g., `["GET","POST","PUT","DELETE"]`)
-- `CORS_HEADERS`: Comma-separated list of allowed headers (e.g., `["Authorization","Content-Type"]`)
+- `CORS_ALLOW_CREDENTIALS`: Allow cookies and authenticated browser credentials for approved origins
+- `CORS_METHODS`: Allowed HTTP methods (e.g., `["GET","POST","PUT","DELETE"]`)
+- `CORS_HEADERS`: Allowed request headers (e.g., `["Authorization","Content-Type"]`)
+- `CORS_EXPOSE_HEADERS`: Response headers browsers are allowed to read, such as `X-Request-ID`
+- `CORS_MAX_AGE`: Browser cache duration for preflight responses, in seconds
 
 **Environment-Specific Values:**
 
 ```env
-# Development - Allow all origins
-CORS_ORIGINS=["*"]
-CORS_METHODS=["*"]
-CORS_HEADERS=["*"]
+# Development - Local profile defaults to common localhost frontend ports
+CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173"]
+CORS_ALLOW_CREDENTIALS=true
+CORS_METHODS=["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
+CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID"]
+CORS_EXPOSE_HEADERS=["X-Request-ID"]
+CORS_MAX_AGE=600
 
-# Production - Specific domains only
+# Production - Explicit domains only; leaving CORS_ORIGINS unset blocks cross-origin browser access by default
 CORS_ORIGINS=["https://yourapp.com","https://www.yourapp.com"]
-CORS_METHODS=["GET","POST","PUT","DELETE","PATCH"]
-CORS_HEADERS=["Authorization","Content-Type","X-Requested-With"]
+CORS_ALLOW_CREDENTIALS=true
+CORS_METHODS=["GET","POST","PUT","DELETE","PATCH","OPTIONS"]
+CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID"]
+CORS_EXPOSE_HEADERS=["X-Request-ID"]
+CORS_MAX_AGE=600
 ```
 
 !!! danger "Security Warning"
-Never use wildcard (`*`) for `CORS_ORIGINS` in production environments. Always specify exact allowed domains to prevent unauthorized cross-origin requests.
+When `CORS_ALLOW_CREDENTIALS=true`, wildcard values are rejected for `CORS_ORIGINS`, `CORS_METHODS`, and `CORS_HEADERS`. Secure environments should either specify exact origins or leave `CORS_ORIGINS` empty to fail closed.
+
+### Security Headers And Cookie Behavior
+
+Template-owned response-header and cookie controls:
+
+```env
+SECURITY_HEADERS_ENABLED=true
+SECURITY_HEADERS_FRAME_OPTIONS="DENY"
+SECURITY_HEADERS_REFERRER_POLICY="strict-origin-when-cross-origin"
+# SECURITY_HEADERS_CONTENT_SECURITY_POLICY="default-src 'self'"
+# SECURITY_HEADERS_PERMISSIONS_POLICY="geolocation=()"
+SECURITY_HEADERS_CROSS_ORIGIN_OPENER_POLICY="same-origin"
+SECURITY_HEADERS_CROSS_ORIGIN_RESOURCE_POLICY="same-origin"
+SECURITY_HEADERS_HSTS_ENABLED=false
+SECURITY_HEADERS_HSTS_MAX_AGE_SECONDS=31536000
+SECURITY_HEADERS_HSTS_INCLUDE_SUBDOMAINS=true
+SECURITY_HEADERS_HSTS_PRELOAD=false
+
+REFRESH_TOKEN_COOKIE_NAME="refresh_token"
+REFRESH_TOKEN_COOKIE_PATH="/"
+# REFRESH_TOKEN_COOKIE_DOMAIN="auth.example.com"
+REFRESH_TOKEN_COOKIE_SECURE=false
+REFRESH_TOKEN_COOKIE_HTTPONLY=true
+REFRESH_TOKEN_COOKIE_SAMESITE="lax"
+
+SESSION_SECURE_COOKIES=false
+```
+
+**Variables Explained:**
+
+- `SECURITY_HEADERS_ENABLED`: Enable the template’s baseline security-header middleware
+- `SECURITY_HEADERS_FRAME_OPTIONS`: Set `X-Frame-Options` to `DENY` or `SAMEORIGIN`
+- `SECURITY_HEADERS_REFERRER_POLICY`: Set the `Referrer-Policy` header
+- `SECURITY_HEADERS_CONTENT_SECURITY_POLICY`: Optional raw `Content-Security-Policy` value
+- `SECURITY_HEADERS_PERMISSIONS_POLICY`: Optional raw `Permissions-Policy` value
+- `SECURITY_HEADERS_CROSS_ORIGIN_OPENER_POLICY`: Optional `Cross-Origin-Opener-Policy` value
+- `SECURITY_HEADERS_CROSS_ORIGIN_RESOURCE_POLICY`: Optional `Cross-Origin-Resource-Policy` value
+- `SECURITY_HEADERS_HSTS_ENABLED`: Enable the `Strict-Transport-Security` header
+- `SECURITY_HEADERS_HSTS_MAX_AGE_SECONDS`: Max age used for HSTS when enabled
+- `SECURITY_HEADERS_HSTS_INCLUDE_SUBDOMAINS`: Add `includeSubDomains` to HSTS
+- `SECURITY_HEADERS_HSTS_PRELOAD`: Add `preload` to HSTS; requires HSTS to be enabled with subdomains included
+- `REFRESH_TOKEN_COOKIE_NAME`: Cookie name used by the built-in refresh-token flow
+- `REFRESH_TOKEN_COOKIE_PATH`: Cookie path used for set/delete operations
+- `REFRESH_TOKEN_COOKIE_DOMAIN`: Optional cookie domain for cross-subdomain deployments
+- `REFRESH_TOKEN_COOKIE_SECURE`: Require HTTPS transport for the refresh-token cookie
+- `REFRESH_TOKEN_COOKIE_HTTPONLY`: Prevent JavaScript access to the refresh-token cookie
+- `REFRESH_TOKEN_COOKIE_SAMESITE`: SameSite policy for the refresh-token cookie: `lax`, `strict`, or `none`
+- `SESSION_SECURE_COOKIES`: Require HTTPS transport for the built-in admin session cookie
+
+**Environment-Specific Values:**
+
+```env
+# Local development defaults
+SECURITY_HEADERS_ENABLED=true
+SECURITY_HEADERS_FRAME_OPTIONS="DENY"
+SECURITY_HEADERS_REFERRER_POLICY="strict-origin-when-cross-origin"
+SECURITY_HEADERS_HSTS_ENABLED=false
+REFRESH_TOKEN_COOKIE_SECURE=false
+REFRESH_TOKEN_COOKIE_HTTPONLY=true
+REFRESH_TOKEN_COOKIE_SAMESITE="lax"
+SESSION_SECURE_COOKIES=false
+
+# Production example
+SECURITY_HEADERS_ENABLED=true
+SECURITY_HEADERS_FRAME_OPTIONS="DENY"
+SECURITY_HEADERS_REFERRER_POLICY="strict-origin-when-cross-origin"
+SECURITY_HEADERS_CONTENT_SECURITY_POLICY="default-src 'self'"
+SECURITY_HEADERS_HSTS_ENABLED=true
+SECURITY_HEADERS_HSTS_MAX_AGE_SECONDS=31536000
+SECURITY_HEADERS_HSTS_INCLUDE_SUBDOMAINS=true
+SECURITY_HEADERS_HSTS_PRELOAD=false
+REFRESH_TOKEN_COOKIE_SECURE=true
+REFRESH_TOKEN_COOKIE_HTTPONLY=true
+REFRESH_TOKEN_COOKIE_SAMESITE="lax"
+SESSION_SECURE_COOKIES=true
+```
+
+!!! danger "Security Warning"
+Secure environments reject `REFRESH_TOKEN_COOKIE_SECURE=false`, and they also reject `SESSION_SECURE_COOKIES=false` when the built-in CRUD admin surface is enabled. Browsers additionally require `REFRESH_TOKEN_COOKIE_SECURE=true` when `REFRESH_TOKEN_COOKIE_SAMESITE="none"`.
+
+### Trusted Hosts And Proxy Headers
+
+Explicit host-header and forwarded-header trust controls:
+
+```env
+TRUSTED_HOSTS=["api.example.com","*.api.example.com"]
+TRUSTED_HOSTS_WWW_REDIRECT=true
+PROXY_HEADERS_ENABLED=false
+PROXY_HEADERS_TRUSTED_PROXIES=["127.0.0.1"]
+```
+
+**Variables Explained:**
+
+- `TRUSTED_HOSTS`: Enable the host-header allowlist when you provide one or more exact hosts / `*.` subdomain patterns
+- `TRUSTED_HOSTS_WWW_REDIRECT`: Redirect requests to a `www.` host variant when the target host is in the allowlist
+- `PROXY_HEADERS_ENABLED`: Opt into `X-Forwarded-For` and `X-Forwarded-Proto` handling
+- `PROXY_HEADERS_TRUSTED_PROXIES`: IPs, CIDRs, or literal proxy addresses that are allowed to supply forwarded headers
+
+**Environment-Specific Values:**
+
+```env
+# Local reverse proxy example
+TRUSTED_HOSTS=["localhost","127.0.0.1"]
+TRUSTED_HOSTS_WWW_REDIRECT=false
+PROXY_HEADERS_ENABLED=true
+PROXY_HEADERS_TRUSTED_PROXIES=["127.0.0.1"]
+
+# Production example
+TRUSTED_HOSTS=["api.example.com","www.api.example.com"]
+TRUSTED_HOSTS_WWW_REDIRECT=true
+PROXY_HEADERS_ENABLED=false  # Enable only after replacing the trusted proxy list below
+PROXY_HEADERS_TRUSTED_PROXIES=["10.0.0.0/8"]
+```
+
+!!! danger "Security Warning"
+Secure environments reject `TRUSTED_HOSTS=["*"]`, and they also reject `PROXY_HEADERS_TRUSTED_PROXIES=["*"]` when proxy header handling is enabled. Keep these values explicit so only known hosts and proxy hops are trusted.
 
 ### User Tiers
 
@@ -233,6 +601,23 @@ ENVIRONMENT="local"  # local, staging, or production
 - **local**: Full API docs available publicly at `/docs`
 - **staging**: API docs available to superusers only
 - **production**: API docs completely disabled
+
+## Secure Environment Validation
+
+When `ENVIRONMENT="staging"` or `ENVIRONMENT="production"`, the settings layer loads a dedicated environment profile and fails fast on a small set of unsafe defaults so template adopters do not accidentally ship example credentials.
+
+Secure environment startup is blocked when any of these are still unsafe:
+
+- `SECRET_KEY`
+- `POSTGRES_PASSWORD`
+- `ADMIN_PASSWORD` when CRUD admin is enabled
+- `CORS_ORIGINS` containing `"*"` in secure environments
+- `REFRESH_TOKEN_COOKIE_SECURE=false` in secure environments
+- `SESSION_SECURE_COOKIES=false` when CRUD admin is enabled in secure environments
+- `TRUSTED_HOSTS` containing `"*"` in secure environments
+- `PROXY_HEADERS_TRUSTED_PROXIES` containing `"*"` when proxy header handling is enabled
+
+This validation happens when settings are loaded, so fix the environment values before starting the API, workers, or other secure-environment processes.
 
 ## Docker Compose Configuration
 
@@ -345,12 +730,13 @@ class Settings(
 
 ### Alembic Configuration
 
-Database migrations are configured in `src/alembic.ini`:
+Database migrations are configured in the repository-root `alembic.ini`:
 
 ```ini
 [alembic]
-script_location = migrations
-sqlalchemy.url = postgresql://%(POSTGRES_USER)s:%(POSTGRES_PASSWORD)s@%(POSTGRES_SERVER)s:%(POSTGRES_PORT)s/%(POSTGRES_DB)s
+script_location = %(here)s/src/migrations
+prepend_sys_path = %(here)s/src
+sqlalchemy.url = driver://user:pass@localhost/dbname
 ```
 
 ### Connection Pooling
@@ -358,22 +744,17 @@ sqlalchemy.url = postgresql://%(POSTGRES_USER)s:%(POSTGRES_PASSWORD)s@%(POSTGRES
 SQLAlchemy connection pool settings in `src/app/core/db/database.py`:
 
 ```python
-engine = create_async_engine(
-    DATABASE_URL,
-    pool_size=20,  # Number of connections to maintain
-    max_overflow=30,  # Additional connections allowed
-    pool_timeout=30,  # Seconds to wait for connection
-    pool_recycle=1800,  # Seconds before connection refresh
-)
+engine = create_async_engine(settings.DATABASE_URL, **build_database_engine_kwargs(settings))
 ```
 
 ### Database Best Practices
 
 **Connection Pool Sizing:**
 
-- Start with `pool_size=20`, `max_overflow=30`
+- Start with `DATABASE_POOL_SIZE=10`, `DATABASE_MAX_OVERFLOW=20`
 - Monitor connection usage and adjust based on load
-- Use connection pooling monitoring tools
+- Keep `DATABASE_POOL_PRE_PING=true` in long-lived environments
+- Use `DATABASE_STATEMENT_TIMEOUT_MS` to cap runaway queries when your workload needs a server-side default
 
 **Migration Strategy:**
 
@@ -406,7 +787,9 @@ app.add_middleware(
     allow_origins=["http://localhost:3000"],  # Specify allowed origins
     allow_credentials=True,
     allow_methods=["GET", "POST"],  # Specify allowed methods
-    allow_headers=["*"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    expose_headers=["X-Request-ID"],
+    max_age=600,
 )
 ```
 

@@ -164,8 +164,7 @@ For more control or development purposes, you can install everything manually.
 1. **Run database migrations**:
 
    ```bash
-   cd src
-   uv run alembic upgrade head
+   uv run db-migrate upgrade head
    ```
 
 1. **Create admin user**:
@@ -183,7 +182,7 @@ For more control or development purposes, you can install everything manually.
 1. **Start the worker** (in another terminal):
 
    ```bash
-   uv run arq src.app.core.worker.settings.WorkerSettings
+   uv run arq src.app.workers.settings.WorkerSettings
    ```
 
 ## Method 3: Development Setup
@@ -281,7 +280,7 @@ redis:
 ```yaml
 worker:
   build: .
-  command: arq src.app.core.worker.settings.WorkerSettings
+  command: arq src.app.workers.settings.WorkerSettings
   depends_on:
     - redis
 ```

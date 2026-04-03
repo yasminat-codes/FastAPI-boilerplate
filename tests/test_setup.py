@@ -5,10 +5,11 @@ from types import ModuleType
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from structlog.contextvars import get_contextvars
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from src.app.core import setup as core_setup
@@ -22,6 +23,23 @@ from src.app.platform.middleware import ClientCacheMiddleware, SecurityHeadersMi
 @asynccontextmanager
 async def noop_lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
     yield
+
+
+def build_proxy_probe_router() -> APIRouter:
+    router = APIRouter()
+
+    @router.get("/proxy-probe")
+    async def proxy_probe(request: Request) -> dict[str, str | None]:
+        client_host = None if request.client is None else request.client.host
+        log_client_host = get_contextvars().get("client_host")
+
+        return {
+            "client_host": client_host,
+            "scheme": request.url.scheme,
+            "log_client_host": log_client_host,
+        }
+
+    return router
 
 
 @pytest.mark.asyncio
@@ -633,3 +651,53 @@ def test_create_application_uses_proxy_header_runtime_settings() -> None:
     proxy_headers_middleware = next(mw for mw in app.user_middleware if mw.cls is ProxyHeadersMiddleware)
 
     assert proxy_headers_middleware.kwargs["trusted_hosts"] == ["127.0.0.1", "10.0.0.0/8"]
+
+
+def test_create_application_applies_forwarded_headers_for_trusted_proxies() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        PROXY_HEADERS_ENABLED=True,
+        PROXY_HEADERS_TRUSTED_PROXIES=["testclient"],
+    )
+
+    app = create_application(build_proxy_probe_router(), custom_settings, lifespan=noop_lifespan)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/proxy-probe",
+            headers={
+                "X-Forwarded-For": "198.51.100.23, testclient",
+                "X-Forwarded-Proto": "https",
+            },
+        )
+
+    assert response.json() == {
+        "client_host": "198.51.100.23",
+        "scheme": "https",
+        "log_client_host": "198.51.100.23",
+    }
+
+
+def test_create_application_ignores_forwarded_headers_from_untrusted_proxies() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        PROXY_HEADERS_ENABLED=True,
+        PROXY_HEADERS_TRUSTED_PROXIES=["127.0.0.1"],
+    )
+
+    app = create_application(build_proxy_probe_router(), custom_settings, lifespan=noop_lifespan)
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/proxy-probe",
+            headers={
+                "X-Forwarded-For": "198.51.100.23, testclient",
+                "X-Forwarded-Proto": "https",
+            },
+        )
+
+    assert response.json() == {
+        "client_host": "testclient",
+        "scheme": "http",
+        "log_client_host": "testclient",
+    }

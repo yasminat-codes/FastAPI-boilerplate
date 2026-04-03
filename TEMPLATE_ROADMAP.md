@@ -260,7 +260,7 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 - [x] Standardize request IDs and correlation IDs across all requests.
 - [x] Propagate correlation context into background jobs and outbound integrations.
-- [ ] Add trusted proxy handling.
+- [x] Add trusted proxy handling.
 - [ ] Add request size limits for large or malicious bodies.
 - [ ] Add body parsing guidance for raw-body webhook verification.
 - [ ] Add timeout policy guidance for inbound requests.
@@ -836,6 +836,34 @@ Phase 2 is now complete. The template includes reusable persistence ledgers for 
 - [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
 - [ ] Define versioning rules for the API.
 - [ ] Add standard request and response envelope guidance where appropriate.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added end-to-end regression coverage proving trusted forwarded headers update `request.client`, request scheme, and structured-log `client_host` only when the connecting proxy is explicitly trusted.
+- Expanded the API architecture guide to document how `PROXY_HEADERS_ENABLED` and `PROXY_HEADERS_TRUSTED_PROXIES` interact with request context binding and log context.
+- Synced the roadmap checklist for Phase 3 Wave 3.2 by marking trusted proxy handling complete.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The local test addition initially used `TestClient(..., client=...)`, but this repository's installed test client signature does not accept that override. | Removed the explicit client override and relied on the default `testclient` peer that the existing test transport already uses, which still exercises the trusted-proxy code path. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 183 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 3 Wave 3.2 now has verified trusted proxy handling in the request pipeline. When proxy header support is enabled and limited to explicit trusted peers, forwarded client IP and scheme are applied before request context binding, so route handlers and structured logs see the same trusted upstream client metadata. The broader request-safety wave is still incomplete because request-size limits, raw-body webhook guidance, timeout guidance, and the remaining safety items are still open.
+
+### What remains
+- [ ] Add request size limits for large or malicious bodies.
+- [ ] Add body parsing guidance for raw-body webhook verification.
+- [ ] Add timeout policy guidance for inbound requests.
 
 ---
 

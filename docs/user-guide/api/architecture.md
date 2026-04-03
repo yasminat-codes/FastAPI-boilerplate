@@ -128,6 +128,8 @@ The middleware also:
 
 Treat `request_id` as request-local and use `correlation_id` as the durable hand-off value across async work and outbound traffic.
 
+Trusted proxy handling is opt-in. When `PROXY_HEADERS_ENABLED=true` and the connecting peer is listed in `PROXY_HEADERS_TRUSTED_PROXIES`, the template lets Uvicorn's `ProxyHeadersMiddleware` honor `X-Forwarded-For` and `X-Forwarded-Proto` before request context is bound. That means `request.client`, `request.url.scheme`, and the structured-log `client_host` field all reflect the proxied client only for explicitly trusted ingress hops; untrusted peers keep the raw socket client and scheme.
+
 The current template now exposes two reusable propagation hooks through `src.app.platform.request_context`:
 
 - `WorkerJob.enqueue(...)` automatically falls back to the currently bound `correlation_id` when the caller does not pass one explicitly.

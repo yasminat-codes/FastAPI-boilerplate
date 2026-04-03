@@ -171,7 +171,7 @@ Use this pattern when you need to:
 - correlate API, webhook, scheduler, or manual triggers with later orchestration state
 - inspect in-flight, waiting, failed, or canceled runs after a process restart
 - store lightweight workflow input, output, and operational context without hardcoding a client domain schema
-- give future step-state, dead-letter, or audit tables a stable execution header to attach to
+- give step-state, dead-letter, or audit tables a stable execution header to attach to
 
 ### Why this lives in the platform layer
 
@@ -250,7 +250,7 @@ Use this pattern when you need to:
 - inspect job attempts, retries, and terminal outcomes after the worker process restarts
 - correlate a worker execution with the original `JobEnvelope` inputs, tenant context, and correlation identifiers
 - store compact runtime metadata for operational triage without hardcoding a domain-specific job schema
-- give future dead-letter, audit, or reconciliation tables a stable job-execution record to reference
+- give dead-letter, audit, or reconciliation tables a stable job-execution record to reference
 
 ### Why this lives in the platform layer
 
@@ -414,4 +414,188 @@ Avoid storing whole upstream payload archives, secrets, or one provider's bespok
 - Use `checkpoint_key` to partition checkpoint rows intentionally instead of encoding multiple unrelated sync streams into one mutable JSON document.
 - If a cloned project needs long-term reconciliation history, pair this hot checkpoint table with a separate audit or run-history ledger instead of overloading the checkpoint row.
 
-Future roadmap items will layer dead-letter and audit-log patterns on top of these shared webhook, idempotency, workflow, job, and integration-sync ledgers.
+## Audit Log Event Ledger
+
+The template also supports a generic audit-log and operational-event table pattern in `src/app/core/db/audit_log_event.py`.
+
+Use this pattern when you need to:
+
+- retain an append-friendly ledger of important platform or business operations without hardcoding one client domain
+- correlate actor, subject, request, and workflow context around security-sensitive or operationally meaningful events
+- distinguish informational, warning, and failure events without requiring a separate alerting system table
+- capture a small structured payload and context snapshot for operator triage
+- define explicit hot retention windows for events that should eventually be archived or pruned
+
+### Why this lives in the platform layer
+
+Audit and operational events are reusable platform concerns. Every cloned project should inherit one durable event-ledger shape for operator visibility, compliance-friendly change tracking, and cleanup planning instead of inventing bespoke audit schemas from scratch.
+
+### Included fields
+
+The baseline table stores:
+
+- `event_source` and `event_type`: where the event came from and what happened
+- `severity`: the event importance, from informational through critical
+- `category`: an optional grouping key for higher-level drill-down such as `security`, `workflow`, or `admin`
+- `status`: a lightweight processing state for audit events that may be post-processed, exported, or archived later
+- `actor_type` and `actor_reference`: who or what initiated the action
+- `subject_type` and `subject_reference`: what object or resource the action affected
+- `correlation_id` and `request_id`: request-scoped or workflow-scoped tracing handles
+- `occurred_at`, `recorded_at`, and `processed_at`: timestamps for event timing and pipeline visibility
+- `retention_expires_at`: an explicit cleanup boundary for hot-table retention
+- `event_payload`, `event_context`, `summary`, `outcome_code`, and `error_detail`: compact structured and text context for operators
+
+### Lookup posture
+
+The table includes indexes for the most common audit and operator queries:
+
+- by `event_source`
+- by `event_type`
+- by `severity`
+- by `status`
+- by `request_id`
+- by `correlation_id`
+- by `(event_source, event_type)`
+- by `(status, occurred_at)`
+- by `(category, occurred_at)`
+- by `(actor_type, actor_reference)`
+- by `(subject_type, subject_reference)`
+- by `retention_expires_at`
+
+These indexes intentionally support time-ordered operational review, actor/subject drill-down, retention cleanup, and downstream export workflows without assuming one compliance program or one product domain.
+
+### Example model
+
+```python
+class AuditLogEvent(Base):
+    __tablename__ = "audit_log_event"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
+    event_source: Mapped[str] = mapped_column(String(100), index=True)
+    event_type: Mapped[str] = mapped_column(String(150), index=True)
+    severity: Mapped[str] = mapped_column(String(16), default="info", index=True)
+    status: Mapped[str] = mapped_column(String(32), default="recorded", index=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
+    request_id: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
+    retention_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    event_payload: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    event_context: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+```
+
+### Extending this pattern in a cloned project
+
+Keep the shared fields above, then add project-specific columns only if the cloned system truly needs them. Common extensions include:
+
+- tenant or organization scoping columns when audit visibility must be isolated per customer
+- foreign keys to domain resources, workflow executions, or user identities once those relationships are real
+- compact compliance or export markers if the cloned project ships events into a SIEM or long-term archive
+- read-optimized denormalized columns for dashboards that require very specific operator filters
+
+Avoid storing full secrets, raw authorization headers, or entire request/response bodies directly in the base audit table.
+
+### Retention and safety notes
+
+- Keep `event_payload` and `event_context` compact and redact sensitive fields before persistence.
+- Prefer `retention_expires_at` or an environment-driven cleanup policy over indefinite hot-table retention.
+- If a cloned project needs immutable compliance archives, stream or archive rows to cold storage instead of keeping everything in the primary operational table forever.
+
+## Dead Letter Record Ledger
+
+The template also supports a generic dead-letter and failed-message table pattern in `src/app/core/db/dead_letter_record.py`.
+
+Use this pattern when you need to:
+
+- retain messages or jobs that repeatedly failed and need manual review, replay, or archival
+- preserve a compact payload snapshot and failure context once normal retry posture is exhausted
+- track operator triage state as a record moves from failure capture through retry, resolution, or archival
+- correlate a dead-lettered record with the original source system, workflow, or job correlation identifiers
+- give replay tooling a stable hot table to inspect before a cloned project adds provider-specific reconciliation flows
+
+### Why this lives in the platform layer
+
+Dead-letter handling is a reusable resilience concern for webhook, queue, workflow, and outbound-integration systems. Cloned projects should inherit a durable failed-message ledger instead of improvising a one-off error table after production incidents happen.
+
+### Included fields
+
+The baseline table stores:
+
+- `dead_letter_namespace`: the logical queue, pipeline, or subsystem that produced the failure
+- `dead_letter_key`: the natural key for the failed record inside that namespace
+- `message_type`: the reusable message or job type identifier
+- `status`: a lightweight triage state from pending through retrying, dead-lettered, resolved, or archived
+- `source_system` and `source_reference`: where the failed record came from upstream
+- `correlation_id`: the shared request, workflow, or job tracing handle
+- `failure_category`, `attempt_count`, `error_code`, and `error_detail`: compact failure and retry posture
+- `first_seen_at`, `last_seen_at`, `dead_lettered_at`, `next_retry_at`, `resolved_at`, and `archived_at`: timestamps for operator visibility and cleanup planning
+- `payload_snapshot` and `failure_context`: structured snapshots of the failed work without forcing one provider-specific schema
+
+### Lookup posture
+
+The table includes a unique constraint and indexes for the most common dead-letter operations:
+
+- unique by `(dead_letter_namespace, dead_letter_key)`
+- by `dead_letter_namespace`
+- by `status`
+- by `correlation_id`
+- by `(dead_letter_namespace, message_type)`
+- by `(failure_category, dead_lettered_at)`
+- by `(status, next_retry_at)`
+- by `dead_lettered_at`
+
+These indexes intentionally support manual triage queues, scheduled replay attempts, stale-failure review, and archival cleanup without assuming one queue backend or one provider contract.
+
+### Example model
+
+```python
+class DeadLetterRecord(Base):
+    __tablename__ = "dead_letter_record"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
+    dead_letter_namespace: Mapped[str] = mapped_column(String(150), index=True)
+    dead_letter_key: Mapped[str] = mapped_column(String(255))
+    message_type: Mapped[str] = mapped_column(String(255), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    correlation_id: Mapped[str | None] = mapped_column(String(255), default=None, index=True)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    payload_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    failure_context: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+```
+
+### Extending this pattern in a cloned project
+
+Keep the shared fields above, then add project-specific columns only if the cloned system truly needs them. Common extensions include:
+
+- tenant or organization scoping columns when dead-letter triage is partitioned by customer
+- foreign keys to workflow, webhook-event, or domain-specific task records once those relationships are real
+- replay-ownership or escalation columns for teams with explicit operational handoff rules
+- compact UI summary or tagging columns for operator dashboards
+
+Avoid storing huge raw payload bodies forever in the base table. Keep the row operator-friendly and archive oversized artifacts elsewhere when needed.
+
+### Retention and safety notes
+
+- Keep `payload_snapshot` intentionally small and strip secrets or raw credentials before persistence.
+- Use `archived_at` or a separate archive/export step once a record is resolved or retained long enough for operational needs.
+- If a cloned project needs long-lived forensic storage, move dead-letter payload archives out of the hot operational table after triage.
+
+## Retention And Cleanup Guidance For High-Volume Event Tables
+
+The template now includes several hot operational ledgers that may grow quickly in real systems: `webhook_event`, `idempotency_key`, `workflow_execution`, `job_state_history`, `integration_sync_checkpoint`, `audit_log_event`, and `dead_letter_record`.
+
+Use these baseline retention rules when a cloned project starts deciding how to keep those tables healthy:
+
+- Define a hot retention window per table up front. Not every ledger needs the same lifetime. For example, raw webhook payloads and audit snapshots usually deserve shorter hot retention than workflow headers or sync checkpoints.
+- Clean up in bounded batches using monotonic predicates such as `id`, `received_at`, `occurred_at`, `retention_expires_at`, `expires_at`, `dead_lettered_at`, or `archived_at`. Avoid one giant delete against a high-volume table.
+- Prefer archive-then-prune for rows that still matter operationally or for compliance. Keep the primary application database focused on active workloads and recent operator triage.
+- Keep cleanup predicates indexed. The built-in tables already expose retention-oriented columns such as `expires_at`, `retention_expires_at`, `dead_lettered_at`, `archived_at`, and time-ordered status indexes so cloned projects can build efficient cleanup jobs on top.
+- Separate payload retention from row retention. A cloned project may keep a lightweight header row longer than large JSON payload snapshots or raw webhook bodies.
+- Make cleanup jobs observable and retry-safe. Record batch cursors, counts, and failures in structured logs or future maintenance workflows rather than deleting silently.
+- Use dry-run and checkpoint patterns for destructive maintenance, especially when pruning very large event or dead-letter tables in production.
+
+As a practical default for cloned projects:
+
+- `webhook_event`: keep the hot inbox short-lived, especially if raw payload storage is enabled
+- `idempotency_key`: expire and prune by replay window after the key is no longer needed
+- `workflow_execution` and `job_state_history`: archive completed runs separately from active operational rows when volumes grow
+- `audit_log_event`: decide early which events need long-lived archival versus short-lived operational visibility
+- `dead_letter_record`: keep unresolved or retryable failures hot, then archive or prune resolved records on a defined schedule

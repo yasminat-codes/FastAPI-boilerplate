@@ -4,6 +4,8 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
+from src.app.core.db.audit_log_event import AuditLogEvent
+from src.app.core.db.dead_letter_record import DeadLetterRecord
 from src.app.core.db.idempotency_key import IdempotencyKey
 from src.app.core.db.integration_sync_checkpoint import IntegrationSyncCheckpoint
 from src.app.core.db.job_state_history import JobStateHistory
@@ -115,6 +117,8 @@ def test_primary_key_columns_do_not_duplicate_unique_constraints() -> None:
         TokenBlacklist.__table__.c.id,
         RateLimit.__table__.c.id,
         Post.__table__.c.id,
+        AuditLogEvent.__table__.c.id,
+        DeadLetterRecord.__table__.c.id,
         IdempotencyKey.__table__.c.id,
         IntegrationSyncCheckpoint.__table__.c.id,
         JobStateHistory.__table__.c.id,

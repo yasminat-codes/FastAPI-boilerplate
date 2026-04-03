@@ -753,3 +753,31 @@ The template now includes four reusable automation persistence ledgers in the sh
 - [ ] Add a table pattern for integration sync checkpoints.
 - [ ] Add a table pattern for audit logs or operational events.
 - [ ] Add a table pattern for dead-letter or failed message records.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Re-verified the existing `workflow_execution` and `job_state_history` persistence patterns end to end across models, Alembic revisions, canonical exports, tests, and docs.
+- Confirmed that the current Wave 2.3 roadmap checkboxes already match the repository state, so no implementation or checklist corrections were needed in this session.
+- Re-ran the persistence verification stack, including migration drift detection against a real PostgreSQL instance and a strict MkDocs build, to keep the roadmap status backed by fresh evidence.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run db-migrate-verify` initially failed because no local PostgreSQL server was listening on `localhost:5432`. | Started a temporary local PostgreSQL 16 container using the template defaults, reran migration verification successfully, and then stopped the container to return the environment to its prior state. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 149 passed, 0 failed
+- additional verification: `uv run db-migrate-verify` pass; `uv run mkdocs build --strict` pass
+
+### Current state of the template
+The template still has four verified automation persistence ledgers in the shared platform layer: webhook events, idempotency keys, workflow executions, and job state history. Those patterns are migration-backed, exported through the canonical database surface, documented for template adopters, and covered by focused regression tests. The remaining Wave 2.3 work is still unfinished, because integration sync checkpoints, audit or operational event ledgers, dead-letter records, and retention guidance for high-volume tables have not been scaffolded yet.
+
+### What remains
+- [ ] Add a table pattern for integration sync checkpoints.
+- [ ] Add a table pattern for audit logs or operational events.
+- [ ] Add a table pattern for dead-letter or failed message records.

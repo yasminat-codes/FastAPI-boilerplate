@@ -27,6 +27,7 @@ from ..core.db.database import (
     retry_database_operation,
 )
 from ..core.db.idempotency_key import IdempotencyKey, IdempotencyKeyStatus
+from ..core.db.integration_sync_checkpoint import IntegrationSyncCheckpoint, IntegrationSyncCheckpointStatus
 from ..core.db.job_state_history import JobStateHistory, JobStateHistoryStatus
 from ..core.db.models import SoftDeleteMixin, TimestampMixin, UUIDMixin
 from ..core.db.token_blacklist import TokenBlacklist
@@ -45,6 +46,8 @@ __all__ = [
     "DatabaseSessionScope",
     "IdempotencyKey",
     "IdempotencyKeyStatus",
+    "IntegrationSyncCheckpoint",
+    "IntegrationSyncCheckpointStatus",
     "JobStateHistory",
     "JobStateHistoryStatus",
     "SoftDeleteMixin",

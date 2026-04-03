@@ -36,6 +36,7 @@ Platform persistence primitives can live alongside the database layer when they 
 
 ```text
 src/app/core/db/
+├── integration_sync_checkpoint.py # Shared sync cursor/checkpoint ledger pattern
 ├── idempotency_key.py   # Shared idempotency ledger pattern
 ├── job_state_history.py # Shared background-job execution ledger pattern
 ├── token_blacklist.py   # Shared auth persistence primitive

@@ -240,8 +240,6 @@ Avoid using this table as an append-only event log. Keep it as the durable execu
 - Use `status_metadata` for compact operational context such as wait reasons, queue references, or retry notes, not unbounded logs.
 - If a cloned project needs long-term compliance retention, archive completed runs separately from the hot operational table used for current workflow management.
 
-Future roadmap items will layer integration-checkpoint, dead-letter, and audit-log patterns on top of these shared webhook, idempotency, workflow, and job ledgers.
-
 ## Job State History Ledger
 
 The template also supports a generic job-state-history table pattern for durable worker execution tracking in `src/app/core/db/job_state_history.py`.
@@ -335,3 +333,85 @@ Avoid encoding business-specific payload schemas, provider-specific retry state,
 - Keep `input_payload` and `output_payload` intentionally small, and do not use them to retain secrets or full provider payload archives by default.
 - Use `status_metadata` for compact operational context such as wait reasons, queue references, or retry notes, not unbounded logs.
 - If a cloned project needs long-term compliance retention, archive completed runs separately from the hot operational table used for current job management.
+
+## Integration Sync Checkpoint Ledger
+
+The template also supports a generic integration-sync-checkpoint table pattern in `src/app/core/db/integration_sync_checkpoint.py`.
+
+Use this pattern when you need to:
+
+- persist incremental sync cursors or high-water marks for pull-based provider integrations
+- coordinate which sync partition, account, stream, or shard should run next without hardcoding provider-specific tables
+- track whether a recurring sync is pending, running, idle, paused, failed, or fully completed
+- lease a checkpoint briefly so multiple workers do not process the same sync partition at once
+- retain lightweight failure context and scheduling hints without turning the checkpoint row into a full audit log
+
+### Why this lives in the platform layer
+
+Incremental sync state is a reusable platform concern for any template user integrating with external APIs, data exports, or upstream reconciliation feeds. Cloned projects should not have to invent a checkpoint table before they can store cursors, backoff after failures, or resume from the last successful watermark.
+
+### Included fields
+
+The baseline table stores:
+
+- `integration_name`: provider or integration slug such as `salesforce`, `hubspot`, or `internal-reporting-api`
+- `sync_scope`: the logical stream or sync job name such as `contacts.incremental` or `invoices.daily`
+- `checkpoint_key`: a reusable partition key, defaulting to `default`, that cloned projects can repurpose for account, shard, region, or tenant-aware slices once those concepts are real
+- `status`: a lightweight lifecycle state from pending through running, idle, failed, paused, or completed
+- `cursor_state`: the current cursor, watermark, page token, or high-water-mark payload stored as structured JSON
+- `checkpoint_metadata`: compact operational context such as page size, retry note, or provider-specific bookkeeping that does not deserve a dedicated first-class column
+- `lease_owner` and `lease_expires_at`: optional short-lived claim metadata so workers can coordinate ownership safely
+- `next_sync_after`, `last_synced_at`, `cursor_updated_at`, and `last_transition_at`: timestamps for scheduling, freshness, and stale-checkpoint visibility
+- `failure_count`, `error_code`, and `error_detail`: minimal failure context without assuming a provider-specific error schema
+
+### Lookup posture
+
+The table includes a unique constraint and indexes for the most common checkpoint queries:
+
+- unique by `(integration_name, sync_scope, checkpoint_key)`
+- by `integration_name`
+- by `sync_scope`
+- by `status`
+- by `(integration_name, sync_scope)`
+- by `(status, last_transition_at)`
+- by `(status, next_sync_after)`
+- by `(sync_scope, last_synced_at)`
+- by `lease_expires_at`
+
+These indexes intentionally support checkpoint claiming, stale-lease recovery, due-sync scheduling, and operator drill-down without assuming one provider, one tenancy model, or one queueing system.
+
+### Example model
+
+```python
+class IntegrationSyncCheckpoint(Base):
+    __tablename__ = "integration_sync_checkpoint"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, init=False)
+    integration_name: Mapped[str] = mapped_column(String(100), index=True)
+    sync_scope: Mapped[str] = mapped_column(String(150), index=True)
+    checkpoint_key: Mapped[str] = mapped_column(String(255), default="default")
+    status: Mapped[str] = mapped_column(String(32), default="pending", index=True)
+    cursor_state: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    checkpoint_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    next_sync_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+```
+
+### Extending this pattern in a cloned project
+
+Keep the shared fields above, then add project-specific columns only if the cloned system truly needs them. Common extensions include:
+
+- tenant or organization scoping columns once the cloned project defines its multi-tenant posture
+- foreign keys to workflow-execution, job-history, or domain-specific import-run records after those relationships are real
+- provider-specific cursor-normalization helpers at the application layer rather than new base-table columns
+- compact summary columns for dashboards if the cloned project needs a read-optimized operational view
+
+Avoid storing whole upstream payload archives, secrets, or one provider's bespoke sync semantics directly in the base template model.
+
+### Retention and safety notes
+
+- Keep `cursor_state` and `checkpoint_metadata` compact. Store only the information needed to resume safely, not entire response bodies.
+- Use `checkpoint_key` to partition checkpoint rows intentionally instead of encoding multiple unrelated sync streams into one mutable JSON document.
+- If a cloned project needs long-term reconciliation history, pair this hot checkpoint table with a separate audit or run-history ledger instead of overloading the checkpoint row.
+
+Future roadmap items will layer dead-letter and audit-log patterns on top of these shared webhook, idempotency, workflow, job, and integration-sync ledgers.

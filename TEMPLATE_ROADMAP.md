@@ -212,7 +212,7 @@ The finished template should provide:
 - [x] Add a table pattern for idempotency keys.
 - [x] Add a table pattern for workflow executions or process runs.
 - [x] Add a table pattern for job state history where needed.
-- [ ] Add a table pattern for integration sync checkpoints.
+- [x] Add a table pattern for integration sync checkpoints.
 - [ ] Add a table pattern for audit logs or operational events.
 - [ ] Add a table pattern for dead-letter or failed message records.
 - [ ] Add retention and cleanup guidance for high-volume event tables.
@@ -753,6 +753,34 @@ The template now includes four reusable automation persistence ledgers in the sh
 - [ ] Add a table pattern for integration sync checkpoints.
 - [ ] Add a table pattern for audit logs or operational events.
 - [ ] Add a table pattern for dead-letter or failed message records.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added a reusable platform-owned `IntegrationSyncCheckpoint` table pattern for durable integration cursors, high-water marks, short-lived lease coordination, and lightweight failure state.
+- Added an Alembic migration plus regression tests covering metadata registration, lookup indexes, uniqueness posture, JSON payload columns, and default values for the new checkpoint ledger.
+- Expanded the database automation-patterns, models, and database overview docs so template users can understand when and how to use the shared integration sync checkpoint table.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run db-migrate-verify` initially failed because no local PostgreSQL server was listening on `localhost:5432`. | Started a temporary local PostgreSQL 16 container using the template defaults, reran migration verification successfully, and then stopped the container to return the environment to its prior state. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 152 passed, 0 failed
+- additional verification: `uv run db-migrate-verify` pass; `uv run mkdocs build --strict` pass
+
+### Current state of the template
+The template now includes five reusable automation persistence ledgers in the shared platform layer: webhook events, idempotency keys, workflow executions, job state history, and integration sync checkpoints. Those patterns are migration-backed, exported through the canonical database surface, documented for template adopters, and covered by focused regression tests. The automation persistence story is still incomplete overall, because audit or operational event ledgers, dead-letter records, and retention guidance for high-volume tables remain to be scaffolded.
+
+### What remains
+- [ ] Add a table pattern for audit logs or operational events.
+- [ ] Add a table pattern for dead-letter or failed message records.
+- [ ] Add retention and cleanup guidance for high-volume event tables.
 
 ---
 

@@ -215,8 +215,15 @@ class CORSSettings(BaseSettings):
     CORS_ORIGINS: list[str] = []
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_METHODS: list[str] = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    CORS_HEADERS: list[str] = ["Accept", "Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"]
-    CORS_EXPOSE_HEADERS: list[str] = ["X-Request-ID"]
+    CORS_HEADERS: list[str] = [
+        "Accept",
+        "Authorization",
+        "Content-Type",
+        "X-Requested-With",
+        "X-Request-ID",
+        "X-Correlation-ID",
+    ]
+    CORS_EXPOSE_HEADERS: list[str] = ["X-Request-ID", "X-Correlation-ID"]
     CORS_MAX_AGE: int = 600
 ```
 

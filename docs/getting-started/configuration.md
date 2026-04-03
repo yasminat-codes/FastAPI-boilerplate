@@ -210,14 +210,14 @@ Configure Cross-Origin Resource Sharing for your frontend:
 CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000"]  # Explicit origins; secure envs default to no cross-origin access
 CORS_ALLOW_CREDENTIALS=true
 CORS_METHODS=["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
-CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID"]
-CORS_EXPOSE_HEADERS=["X-Request-ID"]
+CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID","X-Correlation-ID"]
+CORS_EXPOSE_HEADERS=["X-Request-ID","X-Correlation-ID"]
 CORS_MAX_AGE=600
 ```
 
 !!! warning "CORS in Production"
 Specify exact domains for production and staging:
-`env     CORS_ORIGINS=["https://yourapp.com","https://www.yourapp.com"]     CORS_ALLOW_CREDENTIALS=true     CORS_METHODS=["GET","POST","PUT","DELETE","PATCH"]     CORS_HEADERS=["Authorization","Content-Type","X-Request-ID"]     CORS_EXPOSE_HEADERS=["X-Request-ID"]     CORS_MAX_AGE=600     `
+`env     CORS_ORIGINS=["https://yourapp.com","https://www.yourapp.com"]     CORS_ALLOW_CREDENTIALS=true     CORS_METHODS=["GET","POST","PUT","DELETE","PATCH"]     CORS_HEADERS=["Authorization","Content-Type","X-Request-ID","X-Correlation-ID"]     CORS_EXPOSE_HEADERS=["X-Request-ID","X-Correlation-ID"]     CORS_MAX_AGE=600     `
 
 ### Trusted Hosts And Proxy Headers
 

@@ -666,9 +666,16 @@ class CORSSettings(BaseSettings):
         default_factory=lambda: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     )
     CORS_HEADERS: list[str] = Field(
-        default_factory=lambda: ["Accept", "Authorization", "Content-Type", "X-Requested-With", "X-Request-ID"],
+        default_factory=lambda: [
+            "Accept",
+            "Authorization",
+            "Content-Type",
+            "X-Requested-With",
+            "X-Request-ID",
+            "X-Correlation-ID",
+        ],
     )
-    CORS_EXPOSE_HEADERS: list[str] = Field(default_factory=lambda: ["X-Request-ID"])
+    CORS_EXPOSE_HEADERS: list[str] = Field(default_factory=lambda: ["X-Request-ID", "X-Correlation-ID"])
     CORS_MAX_AGE: int = Field(default=600, ge=0)
 
     @model_validator(mode="after")

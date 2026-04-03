@@ -258,7 +258,7 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 3.2: Request Context And Safety
 
-- [ ] Standardize request IDs and correlation IDs across all requests.
+- [x] Standardize request IDs and correlation IDs across all requests.
 - [ ] Propagate correlation context into background jobs and outbound integrations.
 - [ ] Add trusted proxy handling.
 - [ ] Add request size limits for large or malicious bodies.
@@ -836,6 +836,34 @@ Phase 2 is now complete. The template includes reusable persistence ledgers for 
 - [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
 - [ ] Define versioning rules for the API.
 - [ ] Add standard request and response envelope guidance where appropriate.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added a reusable request-context layer that standardizes `X-Request-ID` and `X-Correlation-ID` across HTTP requests, binds both values into structured log context, and stores them on request state for route and middleware consumers.
+- Reworked the existing request middleware into a canonical `RequestContextMiddleware` pattern, added focused regression tests for generated, preserved, and error-path headers, and exposed a new platform request-context helper surface for future extension points.
+- Updated the browser-facing template contract so default CORS settings, API architecture docs, configuration guides, and worker examples all reflect the new request and correlation ID behavior.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| None | None |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 177 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 3 Wave 3.2 is now started with a verified request-context contract. Every HTTP request now receives a canonical request ID, a correlation ID that preserves upstream values when provided, mirrored response headers, and request-state/log bindings that cloned projects can build on safely. Cross-request propagation into jobs and outbound integrations is still not automated yet, and the remaining request-safety items in Wave 3.2 are still open.
+
+### What remains
+- [ ] Propagate correlation context into background jobs and outbound integrations.
+- [ ] Add trusted proxy handling.
+- [ ] Add request size limits for large or malicious bodies.
 
 ---
 

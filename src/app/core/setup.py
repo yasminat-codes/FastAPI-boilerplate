@@ -22,7 +22,7 @@ from ..api.errors import register_api_exception_handlers
 from ..core.logger import logging
 from ..core.utils.rate_limit import rate_limiter
 from ..middleware.client_cache_middleware import ClientCacheMiddleware
-from ..middleware.logger_middleware import LoggerMiddleware
+from ..middleware.logger_middleware import RequestContextMiddleware
 from ..middleware.security_headers_middleware import SecurityHeadersMiddleware, build_security_headers
 from ..models import *  # noqa: F403
 from .config import (
@@ -417,6 +417,7 @@ def create_application(
         - TrustedHostSettings: Enables host-header allowlisting when trusted hosts are configured.
         - ProxyHeadersSettings: Honors forwarded client IP and scheme only from explicitly trusted proxies.
         - GracefulShutdownMiddleware: Tracks in-flight requests and rejects new work once shutdown begins.
+        - RequestContextMiddleware: Standardizes request and correlation IDs for request state, logs, and responses.
         - RedisQueueSettings: Sets up event handlers for creating and closing a Redis queue pool.
         - RedisRateLimiterSettings: Sets up event handlers for creating and closing a Redis rate limiter pool.
         - EnvironmentSettings: Conditionally sets documentation URLs and integrates custom routes for API documentation
@@ -486,7 +487,7 @@ def create_application(
             www_redirect=settings.TRUSTED_HOSTS_WWW_REDIRECT,
         )
 
-    application.add_middleware(LoggerMiddleware)
+    application.add_middleware(RequestContextMiddleware)
 
     if isinstance(settings, ProxyHeadersSettings) and settings.PROXY_HEADERS_ENABLED:
         application.add_middleware(

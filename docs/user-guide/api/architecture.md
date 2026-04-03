@@ -112,3 +112,18 @@ Handled errors return:
 ```
 
 Validation errors add `details`, and unhandled exceptions are normalized to `internal_server_error` without leaking raw stack traces in the response body.
+
+## Request IDs And Correlation IDs
+
+`RequestContextMiddleware` now standardizes two tracing headers for every HTTP request:
+
+- `X-Request-ID` identifies the current HTTP request. If a caller sends it, the template preserves it; otherwise the middleware generates a UUID4 value.
+- `X-Correlation-ID` identifies the broader workflow or upstream call chain. If a caller sends it, the template preserves it; otherwise it defaults to the current `request_id`.
+
+The middleware also:
+
+- stores the canonical values on `request.state.request_context`, `request.state.request_id`, and `request.state.correlation_id`
+- binds both IDs into structured log context alongside `method`, `path`, `client_host`, and `status_code`
+- echoes both headers on every HTTP response so browsers, API clients, and operators can correlate failures
+
+Treat `request_id` as request-local and use `correlation_id` as the durable hand-off value when later phases add cross-request propagation into jobs and outbound integrations.

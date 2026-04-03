@@ -302,6 +302,14 @@ def test_cors_settings_use_explicit_allowlists_and_runtime_controls() -> None:
     assert settings.CORS_MAX_AGE == 900
 
 
+def test_cors_settings_expose_request_context_headers_by_default() -> None:
+    settings = load_settings(_env_file=None)
+
+    assert "X-Request-ID" in settings.CORS_HEADERS
+    assert "X-Correlation-ID" in settings.CORS_HEADERS
+    assert settings.CORS_EXPOSE_HEADERS == ["X-Request-ID", "X-Correlation-ID"]
+
+
 def test_cors_credentials_disallow_wildcard_origins() -> None:
     with pytest.raises(ValidationError, match="CORS_ORIGINS cannot contain '\\*' when CORS_ALLOW_CREDENTIALS is true"):
         load_settings(

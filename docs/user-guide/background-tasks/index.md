@@ -48,7 +48,7 @@ async def create_user(user_data: UserCreate):
         await SendWelcomeEmailJob.enqueue(
             queue.pool,
             payload={"user_id": user["id"], "email": user["email"]},
-            correlation_id=get_contextvars().get("request_id"),
+            correlation_id=get_contextvars().get("correlation_id"),
             tenant_id=current_tenant_id,
             organization_id=current_organization_id,
             metadata={"source": "api.users.create"},

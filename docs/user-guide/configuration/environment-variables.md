@@ -421,8 +421,8 @@ Cross-Origin Resource Sharing (CORS) settings for frontend integration:
 CORS_ORIGINS=["https://app.example.com"]
 CORS_ALLOW_CREDENTIALS=true
 CORS_METHODS=["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
-CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID"]
-CORS_EXPOSE_HEADERS=["X-Request-ID"]
+CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID","X-Correlation-ID"]
+CORS_EXPOSE_HEADERS=["X-Request-ID","X-Correlation-ID"]
 CORS_MAX_AGE=600
 ```
 
@@ -432,7 +432,7 @@ CORS_MAX_AGE=600
 - `CORS_ALLOW_CREDENTIALS`: Allow cookies and authenticated browser credentials for approved origins
 - `CORS_METHODS`: Allowed HTTP methods (e.g., `["GET","POST","PUT","DELETE"]`)
 - `CORS_HEADERS`: Allowed request headers (e.g., `["Authorization","Content-Type"]`)
-- `CORS_EXPOSE_HEADERS`: Response headers browsers are allowed to read, such as `X-Request-ID`
+- `CORS_EXPOSE_HEADERS`: Response headers browsers are allowed to read, such as `X-Request-ID` and `X-Correlation-ID`
 - `CORS_MAX_AGE`: Browser cache duration for preflight responses, in seconds
 
 **Environment-Specific Values:**
@@ -442,16 +442,16 @@ CORS_MAX_AGE=600
 CORS_ORIGINS=["http://localhost:3000","http://127.0.0.1:3000","http://localhost:5173","http://127.0.0.1:5173"]
 CORS_ALLOW_CREDENTIALS=true
 CORS_METHODS=["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
-CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID"]
-CORS_EXPOSE_HEADERS=["X-Request-ID"]
+CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID","X-Correlation-ID"]
+CORS_EXPOSE_HEADERS=["X-Request-ID","X-Correlation-ID"]
 CORS_MAX_AGE=600
 
 # Production - Explicit domains only; leaving CORS_ORIGINS unset blocks cross-origin browser access by default
 CORS_ORIGINS=["https://yourapp.com","https://www.yourapp.com"]
 CORS_ALLOW_CREDENTIALS=true
 CORS_METHODS=["GET","POST","PUT","DELETE","PATCH","OPTIONS"]
-CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID"]
-CORS_EXPOSE_HEADERS=["X-Request-ID"]
+CORS_HEADERS=["Accept","Authorization","Content-Type","X-Requested-With","X-Request-ID","X-Correlation-ID"]
+CORS_EXPOSE_HEADERS=["X-Request-ID","X-Correlation-ID"]
 CORS_MAX_AGE=600
 ```
 
@@ -787,8 +787,8 @@ app.add_middleware(
     allow_origins=["http://localhost:3000"],  # Specify allowed origins
     allow_credentials=True,
     allow_methods=["GET", "POST"],  # Specify allowed methods
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
-    expose_headers=["X-Request-ID"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Correlation-ID"],
+    expose_headers=["X-Request-ID", "X-Correlation-ID"],
     max_age=600,
 )
 ```

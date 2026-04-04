@@ -1,10 +1,21 @@
 # JWT Tokens
 
-JSON Web Tokens (JWT) form the backbone of modern web authentication. This comprehensive guide explains how the boilerplate implements a secure, stateless authentication system using access and refresh tokens.
+JSON Web Tokens (JWT) form the backbone of modern web authentication. This guide explains the template's current token contract: signed access JWTs in the `Authorization` header, signed refresh JWTs in an HTTP-only cookie, and blacklist records for logout or other explicit revocation flows.
 
 ## Understanding JWT Authentication
 
-JWT tokens are self-contained, digitally signed packages of information that can be safely transmitted between parties. Unlike traditional session-based authentication that requires server-side storage, JWT tokens are stateless - all the information needed to verify a user's identity is contained within the token itself.
+JWT tokens are self-contained, digitally signed packages of information that can be safely transmitted between parties. Unlike traditional session-based authentication that requires server-side storage, JWT tokens are stateless: the token itself carries the claims needed for validation.
+
+## Template Decision
+
+Phase 4 Wave 4.1 formally keeps the default template posture as stateless JWT-only instead of moving the starter onto a server-backed refresh-session store or hybrid access/session model.
+
+- **Access tokens**: short-lived JWTs sent in `Authorization` headers.
+- **Refresh tokens**: longer-lived JWTs stored in an HTTP-only cookie.
+- **Revocation path**: blacklist records for logout and other explicit invalidation events.
+- **Deferred hardening**: issuer/audience claims, key rotation, refresh-token rotation, and broader revocation retention are later Wave 4 tasks.
+
+This choice keeps the base template reusable and lightweight for cloned projects while staying honest about what the scaffold does and does not own today.
 
 ### Why Use JWT?
 
@@ -18,7 +29,7 @@ JWT tokens are self-contained, digitally signed packages of information that can
 
 ## Token Types
 
-The authentication system uses a **dual-token approach** for maximum security and user experience:
+The authentication system uses a **dual-token stateless approach**:
 
 ### Access Tokens
 
@@ -39,6 +50,7 @@ Refresh tokens are longer-lived credentials used solely to generate new access t
 - **Lifetime**: 7 days (configurable) - long enough for good UX, short enough for security
 - **Storage**: Secure HTTP-only cookie - inaccessible to JavaScript, preventing XSS attacks
 - **Usage**: Automatically used by the browser when access tokens need refreshing
+- **Server-side state**: No dedicated refresh-session table by default; blacklist entries are used for explicit invalidation
 
 **Why HTTP-Only Cookies?** This prevents malicious JavaScript from accessing refresh tokens, providing protection against XSS attacks while allowing automatic renewal.
 
@@ -93,7 +105,6 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
     "sub": "username",  # Subject (user identifier)
     "exp": 1234567890,  # Expiration timestamp (Unix)
     "token_type": "access",  # Distinguishes from refresh tokens
-    "iat": 1234567890,  # Issued at (automatic)
 }
 
 # Refresh token payload structure
@@ -101,7 +112,6 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
     "sub": "username",  # Same user identifier
     "exp": 1234567890,  # Longer expiration time
     "token_type": "refresh",  # Prevents confusion/misuse
-    "iat": 1234567890,  # Issue timestamp
 }
 ```
 
@@ -110,7 +120,8 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
 - **`sub` (Subject)**: Identifies the user - can be username, email, or user ID
 - **`exp` (Expiration)**: Unix timestamp when token becomes invalid
 - **`token_type`**: Custom field preventing tokens from being used incorrectly
-- **`iat` (Issued At)**: Useful for token rotation and audit trails
+
+The current scaffold keeps the claim set intentionally small. Additional claims such as `iss`, `aud`, `iat`, `jti`, or key identifiers are part of later auth-hardening roadmap work rather than the default baseline.
 
 ## Token Verification
 
@@ -405,7 +416,7 @@ async def login_for_access_token(
 ```python
 @router.post("/refresh", response_model=Token)
 async def refresh_access_token(
-    response: Response, db: Annotated[AsyncSession, Depends(async_get_db)], refresh_token: str = Cookie(None)
+    db: Annotated[AsyncSession, Depends(async_get_db)], refresh_token: str = Cookie(None)
 ) -> dict[str, str]:
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token missing")
@@ -418,24 +429,10 @@ async def refresh_access_token(
     # 2. Create new access token
     new_access_token = await create_access_token(data={"sub": token_data.username_or_email})
 
-    # 3. Optionally create new refresh token (token rotation)
-    new_refresh_token = await create_refresh_token(data={"sub": token_data.username_or_email})
-
-    # 4. Blacklist old refresh token
-    await blacklist_token(refresh_token, db)
-
-    # 5. Set new refresh token cookie
-    response.set_cookie(
-        key="refresh_token",
-        value=new_refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
-    )
-
     return {"access_token": new_access_token, "token_type": "bearer"}
 ```
+
+The default template does **not** rotate refresh tokens during `/refresh` yet. Refresh-token rotation remains a later Phase 4 hardening task so the baseline contract stays aligned with the current runtime.
 
 ### Logout Implementation
 

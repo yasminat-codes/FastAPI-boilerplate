@@ -280,7 +280,7 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 4.1: Auth Hardening
 
-- [ ] Review JWT design and decide whether to keep stateless JWT-only, session-backed refresh, or hybrid.
+- [x] Review JWT design and decide whether to keep stateless JWT-only, session-backed refresh, or hybrid.
 - [ ] Add explicit issuer, audience, and key rotation support if JWT remains the default.
 - [ ] Add refresh token rotation strategy.
 - [ ] Add secure password hashing policy and future-proofing.
@@ -1032,3 +1032,30 @@ Phase 3 is now complete. The API platform has versioned route groups, thin-route
 - [ ] Review JWT design and decide whether to keep stateless JWT-only, session-backed refresh, or hybrid.
 - [ ] Add explicit issuer, audience, and key rotation support if JWT remains the default.
 - [ ] Add refresh token rotation strategy.
+
+---
+
+## Session Report — 2026-04-04
+
+### What was built
+- Documented the Phase 4 Wave 4.1 auth decision: the template baseline remains a stateless dual-JWT model with header-based access tokens, cookie-delivered refresh tokens, and blacklist-based revocation.
+- Updated the authentication guides and README so they match the current runtime behavior and no longer imply built-in refresh-token rotation or server-backed refresh-session storage.
+- Added focused auth-token regression tests covering token-type claims and `verify_token(...)` behavior for matching, mismatched, and blacklisted tokens.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| None | None |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 204 passed, 0 failed
+
+### Current state of the template
+Phase 4 is now started with an explicit auth-architecture decision instead of an implied one. The template's verified baseline is short-lived access JWTs plus cookie-delivered refresh JWTs, with blacklist-backed logout and revocation documented, covered by targeted tests, and validated by a strict docs build. Stronger JWT claims, rotation, password-policy hardening, and broader authorization/security controls are still pending, so the auth layer is clearer and better specified but not yet fully hardened for the rest of Phase 4.
+
+### What remains
+- [ ] Add explicit issuer, audience, and key rotation support if JWT remains the default.
+- [ ] Add refresh token rotation strategy.
+- [ ] Add secure password hashing policy and future-proofing.

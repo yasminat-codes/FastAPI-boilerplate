@@ -1,6 +1,6 @@
 # Authentication & Security
 
-Learn how to implement secure authentication in your FastAPI application. The boilerplate provides a complete JWT-based authentication system with user management, permissions, and security best practices.
+Learn how to implement secure authentication in your FastAPI application. The template currently standardizes on a stateless dual-JWT model: short-lived access tokens in the `Authorization` header plus longer-lived refresh tokens delivered through an HTTP-only cookie. A blacklist table handles explicit revocation and logout while later Phase 4 tasks harden the model further.
 
 ## What You'll Learn
 
@@ -10,7 +10,14 @@ Learn how to implement secure authentication in your FastAPI application. The bo
 
 ## Authentication Overview
 
-The system uses JWT tokens with refresh token rotation for secure, stateless authentication:
+Phase 4 Wave 4.1 now formally keeps the template on a stateless JWT-only posture instead of introducing a server-backed refresh-session store by default. That keeps the reusable scaffold simple and broadly compatible while still giving adopters a production-minded baseline:
+
+- **Access tokens** remain short-lived signed JWTs for API requests.
+- **Refresh tokens** remain signed JWTs, but are delivered through an HTTP-only cookie instead of JavaScript-accessible storage.
+- **Revocation** is handled through blacklist records for logout and explicit invalidation flows.
+- **Not included by default**: server-backed refresh-session tables, per-device session management, or mandatory hybrid-session infrastructure.
+
+This means the next auth-hardening roadmap items build on the existing token model rather than replacing it wholesale.
 
 ```python
 # Basic login flow
@@ -19,7 +26,7 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
     user = await authenticate_user(form_data.username, form_data.password, db)
     access_token = await create_access_token(data={"sub": user["username"]})
     refresh_token = await create_refresh_token(data={"sub": user["username"]})
-    
+
     # Set secure HTTP-only cookie for refresh token
     response.set_cookie("refresh_token", refresh_token, httponly=True, secure=True)
     return {"access_token": access_token, "token_type": "bearer"}
@@ -30,7 +37,7 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
 ### JWT Token System
 - **Access tokens**: Short-lived (30 minutes), for API requests
 - **Refresh tokens**: Long-lived (7 days), stored in secure cookies
-- **Token blacklisting**: Secure logout implementation
+- **Token blacklisting**: Secure logout and explicit revocation implementation
 - **Automatic expiration**: Built-in token lifecycle management
 
 ### User Management
@@ -87,7 +94,7 @@ async def update_post(post_id: int, current_user: dict = Depends(get_current_use
 ### Token Security
 - Short-lived access tokens limit exposure
 - HTTP-only refresh token cookies prevent XSS
-- Token blacklisting enables secure logout
+- Token blacklisting enables secure logout and explicit revocation
 - Configurable token expiration times
 
 ### Password Security

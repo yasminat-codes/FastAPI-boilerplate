@@ -1,10 +1,22 @@
+from typing import cast
+from unittest.mock import AsyncMock, patch
+
+import pytest
 from fastapi import Response
+from jose import jwt
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.app.core.security import (
+    ALGORITHM,
+    SECRET_KEY,
+    TokenType,
     build_refresh_token_cookie_delete_kwargs,
     build_refresh_token_cookie_kwargs,
     clear_refresh_token_cookie,
+    create_access_token,
+    create_refresh_token,
     set_refresh_token_cookie,
+    verify_token,
 )
 from src.app.platform.config import load_settings
 
@@ -99,3 +111,54 @@ def test_refresh_token_cookie_helpers_apply_runtime_settings_to_response_headers
     assert "Path=/auth" in clear_cookie_header
     assert "SameSite=none" in clear_cookie_header
     assert "Secure" in clear_cookie_header
+
+
+@pytest.mark.asyncio
+async def test_stateless_tokens_embed_subject_and_type_claims() -> None:
+    access_token = await create_access_token(data={"sub": "template-user"})
+    refresh_token = await create_refresh_token(data={"sub": "template-user"})
+
+    access_payload = jwt.decode(access_token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+    refresh_payload = jwt.decode(refresh_token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+
+    assert access_payload["sub"] == "template-user"
+    assert access_payload["token_type"] == TokenType.ACCESS
+    assert refresh_payload["sub"] == "template-user"
+    assert refresh_payload["token_type"] == TokenType.REFRESH
+
+
+@pytest.mark.asyncio
+async def test_verify_token_accepts_matching_token_type() -> None:
+    access_token = await create_access_token(data={"sub": "template-user"})
+
+    with patch("src.app.core.security.crud_token_blacklist.exists", new=AsyncMock(return_value=False)):
+        token_data = await verify_token(
+            access_token,
+            TokenType.ACCESS,
+            cast(AsyncSession, object()),
+        )
+
+    assert token_data is not None
+    assert token_data.username_or_email == "template-user"
+
+
+@pytest.mark.asyncio
+async def test_verify_token_rejects_mismatched_or_blacklisted_tokens() -> None:
+    access_token = await create_access_token(data={"sub": "template-user"})
+
+    with patch("src.app.core.security.crud_token_blacklist.exists", new=AsyncMock(return_value=False)):
+        mismatched = await verify_token(
+            access_token,
+            TokenType.REFRESH,
+            cast(AsyncSession, object()),
+        )
+
+    with patch("src.app.core.security.crud_token_blacklist.exists", new=AsyncMock(return_value=True)):
+        blacklisted = await verify_token(
+            access_token,
+            TokenType.ACCESS,
+            cast(AsyncSession, object()),
+        )
+
+    assert mismatched is None
+    assert blacklisted is None

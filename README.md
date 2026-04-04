@@ -32,7 +32,7 @@
 
 * ⚡️ Fully async FastAPI + SQLAlchemy 2.0
 * 🧱 Pydantic v2 models & validation
-* 🔐 JWT auth (access + refresh), cookies for refresh
+* 🔐 Stateless JWT auth scaffold (access + refresh), cookie-delivered refresh tokens
 * 👮 Rate limiter + tiers (free/pro/etc.)
 * 🧰 FastCRUD for efficient CRUD & pagination
 * 🧑‍💼 **CRUDAdmin**: minimal admin panel (optional)
@@ -55,7 +55,7 @@
 **What you get:**
 
 * **App**: FastAPI app factory, [env-aware docs](https://benavlabs.github.io/FastAPI-boilerplate/user-guide/development/) exposure
-* **Auth**: [JWT access/refresh](https://benavlabs.github.io/FastAPI-boilerplate/user-guide/authentication/), logout via token blacklist
+* **Auth**: [JWT access/refresh scaffold](https://benavlabs.github.io/FastAPI-boilerplate/user-guide/authentication/), logout via token blacklist
 * **DB**: Postgres + SQLAlchemy 2.0, [Alembic migrations](https://benavlabs.github.io/FastAPI-boilerplate/user-guide/database/)
 * **CRUD**: [FastCRUD generics](https://benavlabs.github.io/FastAPI-boilerplate/user-guide/database/crud/) (get, get_multi, create, update, delete, joins)
 * **Caching**: [decorator-based endpoints cache](https://benavlabs.github.io/FastAPI-boilerplate/user-guide/caching/); client cache headers

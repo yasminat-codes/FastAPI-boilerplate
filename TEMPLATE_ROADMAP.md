@@ -21,7 +21,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [ ] Phase 0: Foundation Audit And Planning
 - [x] Phase 1: Core Application Hardening
 - [x] Phase 2: Database And Persistence Platform
-- [ ] Phase 3: API Platform And Request Pipeline
+- [x] Phase 3: API Platform And Request Pipeline
 - [ ] Phase 4: Authentication, Authorization, And Security
 - [ ] Phase 5: Webhook Ingestion Platform
 - [ ] Phase 6: Background Jobs, Scheduling, And Workflow Execution
@@ -269,12 +269,12 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 3.3: Health, Readiness, And Ops Endpoints
 
-- [ ] Keep a lightweight liveness endpoint.
-- [ ] Expand readiness checks to include DB, Redis, queue, and other critical runtime dependencies.
-- [ ] Add worker health visibility.
-- [ ] Add dependency-specific health details without leaking secrets.
-- [ ] Add metrics endpoint planning.
-- [ ] Add optional internal ops endpoints for diagnostics.
+- [x] Keep a lightweight liveness endpoint.
+- [x] Expand readiness checks to include DB, Redis, queue, and other critical runtime dependencies.
+- [x] Add worker health visibility.
+- [x] Add dependency-specific health details without leaking secrets.
+- [x] Add metrics endpoint planning.
+- [x] Add optional internal ops endpoints for diagnostics.
 
 ## Phase 4: Authentication, Authorization, And Security
 
@@ -1004,3 +1004,31 @@ Phase 2 remains complete and verified. The template includes reusable persistenc
 - [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
 - [ ] Define versioning rules for the API.
 - [ ] Add standard request and response envelope guidance where appropriate.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Completed Phase 3 Wave 3.3 by keeping `/api/v1/health` lightweight, expanding `/api/v1/ready` to cover the API process's database, cache Redis, queue Redis, and rate-limiter Redis dependencies, and verifying the updated readiness contract with focused regression tests.
+- Added a reusable internal diagnostics endpoint at `/api/v1/internal/health` that exposes safe dependency summaries plus ARQ worker-heartbeat visibility without leaking DSNs, hostnames, usernames, or secrets.
+- Updated the API, getting-started, installation, and background-task docs to document the split liveness/readiness/internal-diagnostics contract and to reserve metrics as a future Phase 8 operator-only surface.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| None | None |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 201 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 3 is now complete. The API platform has versioned route groups, thin-router/service/repository conventions, request-context and request-safety middleware, and a clearer operator contract that separates liveness, readiness, and trusted internal diagnostics. The health surface is now more production-ready because the API process reports its critical runtime dependencies explicitly while worker-heartbeat visibility stays available to operators without turning public readiness into a worker-liveness gate. Authentication hardening, authorization policy, and broader security controls still remain for Phase 4.
+
+### What remains
+- [ ] Review JWT design and decide whether to keep stateless JWT-only, session-backed refresh, or hybrid.
+- [ ] Add explicit issuer, audience, and key rotation support if JWT remains the default.
+- [ ] Add refresh token rotation strategy.

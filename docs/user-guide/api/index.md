@@ -4,6 +4,7 @@ The template's API boundary is now organized around a small set of reusable plat
 
 - versioned routers rooted at `/api/<version>`
 - explicit route groups for `public`, `ops`, `admin`, `internal`, and `webhooks`
+- split runtime health surfaces for liveness, readiness, and internal diagnostics
 - thin routers that delegate reusable orchestration to domain services
 - typed pagination, filtering, and sorting query models
 - consistent machine-readable error payloads
@@ -27,10 +28,17 @@ src/app/api/
 At runtime the default template mounts:
 
 - `/api/v1/...` for version 1 endpoints
-- `/api/v1/health` and `/api/v1/ready` as ops endpoints
+- `/api/v1/health` and `/api/v1/ready` as lightweight ops endpoints
+- `/api/v1/internal/health` for worker-aware internal diagnostics with safe dependency summaries
 - public resource routes such as `/api/v1/users` and `/api/v1/{username}/posts`
 
 Dedicated `/admin`, `/internal`, and `/webhooks` route-group prefixes are reserved inside each version so cloned projects can grow into those surfaces without inventing a second routing pattern later.
+
+The health contract is intentionally split:
+
+- `/api/v1/health` stays cheap and always answers process liveness.
+- `/api/v1/ready` checks template-owned runtime dependencies that the API process needs before serving traffic.
+- `/api/v1/internal/health` adds safe dependency summaries plus worker-heartbeat visibility for operators and trusted internal tooling.
 
 ## How Routers Should Work
 

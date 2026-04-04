@@ -18,7 +18,7 @@ Inside a version, the template now reserves these route groups:
 | `public` | none | External application APIs such as users, posts, tiers, auth, and similar resource routes |
 | `ops` | none | Lightweight liveness and readiness endpoints |
 | `admin` | `/admin` | Future admin-only HTTP surfaces |
-| `internal` | `/internal` | Future service-to-service or trusted internal endpoints |
+| `internal` | `/internal` | Trusted internal endpoints such as runtime diagnostics and future service-to-service hooks |
 | `webhooks` | `/webhooks` | Future inbound webhook receivers |
 
 The current code wires this through:
@@ -134,3 +134,25 @@ The current template now exposes two reusable propagation hooks through `src.app
 
 - `WorkerJob.enqueue(...)` automatically falls back to the currently bound `correlation_id` when the caller does not pass one explicitly.
 - `build_correlation_headers(...)` and `merge_correlation_headers(...)` build outbound `X-Request-ID` / `X-Correlation-ID` headers from the active structured-log context so future provider clients can preserve correlation without copying request-state logic.
+
+## Health And Diagnostics
+
+The template now reserves three distinct runtime-health surfaces:
+
+- `/api/v1/health` is the lightweight liveness endpoint. It reports only process-local metadata like status, environment, version, and timestamp. Keep it cheap so load balancers and container runtimes can probe it frequently.
+- `/api/v1/ready` is the API readiness endpoint. It checks the template-owned dependencies the API process needs before it should receive traffic: database connectivity, cache Redis, queue Redis, and rate-limiter Redis.
+- `/api/v1/internal/health` is the internal diagnostics endpoint. It returns the same readiness posture plus safe per-dependency summaries and the current ARQ worker heartbeat state from the configured queue.
+
+Use the internal endpoint only behind trusted ingress, VPN, or future service-to-service auth. It is designed for operators and automation, not for unauthenticated public clients.
+
+The dependency summaries are intentionally safe. They explain which probe succeeded or failed without echoing DSNs, hostnames, usernames, secrets, or raw exception payloads.
+
+## Metrics Planning
+
+Metrics collection is intentionally planned here but deferred to Phase 8, where the template will choose the concrete Prometheus/OpenTelemetry implementation.
+
+Until then, treat these rules as the reserved template posture:
+
+- Keep `/api/v1/health` and `/api/v1/ready` focused on health, not metrics scraping.
+- Prefer a dedicated `/metrics` surface or an internal-only ingress mapping once metrics are added.
+- Do not expose future metrics publicly by default; treat them like other operator-only diagnostics.

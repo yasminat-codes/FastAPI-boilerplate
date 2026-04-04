@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from ...platform.config import FeatureFlagsSettings, settings
 from ..routing import ApiRouteGroup, ApiVersion, build_route_group_router, build_version_prefix_router
 from .health import router as health_router
+from .internal_health import router as internal_health_router
 from .login import router as login_router
 from .logout import router as logout_router
 from .posts import router as posts_router
@@ -44,7 +45,9 @@ def build_v1_admin_router() -> APIRouter:
 
 
 def build_v1_internal_router() -> APIRouter:
-    return build_route_group_router(ApiRouteGroup.INTERNAL)
+    router = build_route_group_router(ApiRouteGroup.INTERNAL)
+    router.include_router(internal_health_router)
+    return router
 
 
 def build_v1_webhooks_router() -> APIRouter:

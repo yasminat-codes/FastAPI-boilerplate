@@ -19,6 +19,7 @@ def test_create_app_returns_configured_fastapi_application() -> None:
 
     assert isinstance(application, FastAPI)
     assert "/api/v1/health" in paths
+    assert "/api/v1/internal/health" in paths
 
 
 def test_build_api_router_can_disable_optional_route_groups() -> None:
@@ -35,6 +36,7 @@ def test_build_api_router_can_disable_optional_route_groups() -> None:
     paths = {route.path for route in router.routes if hasattr(route, "path")}
 
     assert "/api/v1/health" in paths
+    assert "/api/v1/internal/health" in paths
     assert "/api/v1/login" not in paths
     assert "/api/v1/logout" not in paths
     assert "/api/v1/user" not in paths

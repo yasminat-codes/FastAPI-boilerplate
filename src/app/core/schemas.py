@@ -22,6 +22,28 @@ class ReadyCheck(BaseModel):
     timestamp: str
 
 
+class DependencyHealthDetail(BaseModel):
+    status: str
+    summary: str
+
+
+class WorkerHealthCheck(BaseModel):
+    status: str
+    summary: str
+    queue_name: str
+
+
+class InternalHealthCheck(BaseModel):
+    status: str
+    environment: str
+    version: str
+    app: str
+    dependencies: dict[str, str] = Field(default_factory=dict)
+    dependency_details: dict[str, DependencyHealthDetail] = Field(default_factory=dict)
+    worker: WorkerHealthCheck
+    timestamp: str
+
+
 # -------------- mixins --------------
 class UUIDSchema(BaseModel):
     uuid: uuid_pkg.UUID = Field(default_factory=uuid7)

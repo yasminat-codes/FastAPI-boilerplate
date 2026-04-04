@@ -50,7 +50,7 @@ Expected response:
 curl http://localhost:8000/api/v1/ready
 ```
 
-The ready response is assembled through the template's shared readiness contract, so future dependency checks can be added in one place.
+The ready response is assembled through the template's shared readiness contract, so future dependency checks can be added in one place without rewriting the route. It now covers the API process dependencies the template owns directly: database, cache Redis, queue Redis, and rate-limiter Redis.
 
 Expected response:
 ```json
@@ -61,9 +61,46 @@ Expected response:
   "app":"healthy",
   "dependencies":{
     "database":"healthy",
-    "redis":"healthy"
+    "redis":"healthy",
+    "queue":"healthy",
+    "rate_limiter":"healthy"
   },
   "timestamp":"2025-10-21T14:40:47+00:00"
+}
+```
+
+**Internal Diagnostics:**
+```bash
+curl http://localhost:8000/api/v1/internal/health
+```
+
+Use this endpoint for trusted operator diagnostics, not public browser clients. It keeps the same dependency statuses as `/ready`, adds safe summaries for each probe, and reports whether the configured ARQ worker heartbeat is visible on the queue.
+
+Expected response:
+```json
+{
+  "status":"healthy",
+  "environment":"local",
+  "version":"0.1.0",
+  "app":"healthy",
+  "dependencies":{
+    "database":"healthy",
+    "redis":"healthy",
+    "queue":"healthy",
+    "rate_limiter":"healthy"
+  },
+  "dependency_details":{
+    "database":{"status":"healthy","summary":"Database probe succeeded."},
+    "redis":{"status":"healthy","summary":"Cache Redis ping succeeded."},
+    "queue":{"status":"healthy","summary":"Queue Redis ping succeeded."},
+    "rate_limiter":{"status":"healthy","summary":"Rate limiter Redis ping succeeded."}
+  },
+  "worker":{
+    "status":"healthy",
+    "summary":"Recent worker heartbeat observed on the configured queue.",
+    "queue_name":"arq:queue"
+  },
+  "timestamp":"2025-10-21T14:41:02+00:00"
 }
 ```
 

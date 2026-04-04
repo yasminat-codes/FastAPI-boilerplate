@@ -1,7 +1,9 @@
 """Canonical platform schemas surface."""
 
 from ..core.schemas import (
+    DependencyHealthDetail,
     HealthCheck,
+    InternalHealthCheck,
     PersistentDeletion,
     ReadyCheck,
     TimestampSchema,
@@ -12,10 +14,13 @@ from ..core.schemas import (
     TokenBlacklistUpdate,
     TokenData,
     UUIDSchema,
+    WorkerHealthCheck,
 )
 
 __all__ = [
+    "DependencyHealthDetail",
     "HealthCheck",
+    "InternalHealthCheck",
     "PersistentDeletion",
     "ReadyCheck",
     "TimestampSchema",
@@ -26,4 +31,5 @@ __all__ = [
     "TokenBlacklistUpdate",
     "TokenData",
     "UUIDSchema",
+    "WorkerHealthCheck",
 ]

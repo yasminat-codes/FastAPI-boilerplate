@@ -17,7 +17,12 @@ from src.app.core.utils import cache, queue
 from src.app.platform.application import create_application, lifespan_factory
 from src.app.platform.config import load_settings, settings
 from src.app.platform.database import Base
-from src.app.platform.middleware import ClientCacheMiddleware, SecurityHeadersMiddleware
+from src.app.platform.middleware import (
+    ClientCacheMiddleware,
+    RequestBodyLimitMiddleware,
+    RequestTimeoutMiddleware,
+    SecurityHeadersMiddleware,
+)
 
 
 @asynccontextmanager
@@ -38,6 +43,30 @@ def build_proxy_probe_router() -> APIRouter:
             "scheme": request.url.scheme,
             "log_client_host": log_client_host,
         }
+
+    return router
+
+
+def build_request_safety_router() -> APIRouter:
+    router = APIRouter()
+
+    @router.post("/echo")
+    async def echo(request: Request) -> dict[str, int]:
+        return {"bytes": len(await request.body())}
+
+    @router.post("/exempt/upload")
+    async def exempt_upload(request: Request) -> dict[str, int]:
+        return {"bytes": len(await request.body())}
+
+    @router.get("/slow")
+    async def slow() -> dict[str, str]:
+        await asyncio.sleep(0.05)
+        return {"status": "ok"}
+
+    @router.get("/exempt/slow")
+    async def exempt_slow() -> dict[str, str]:
+        await asyncio.sleep(0.05)
+        return {"status": "ok"}
 
     return router
 
@@ -653,6 +682,36 @@ def test_create_application_uses_proxy_header_runtime_settings() -> None:
     assert proxy_headers_middleware.kwargs["trusted_hosts"] == ["127.0.0.1", "10.0.0.0/8"]
 
 
+def test_create_application_uses_request_body_limit_runtime_settings() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        REQUEST_BODY_LIMIT_ENABLED=True,
+        REQUEST_BODY_MAX_BYTES=2048,
+        REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES=["/webhooks"],
+    )
+
+    app = create_application(APIRouter(), custom_settings)
+    request_body_limit_middleware = next(mw for mw in app.user_middleware if mw.cls is RequestBodyLimitMiddleware)
+
+    assert request_body_limit_middleware.kwargs["max_bytes"] == 2048
+    assert request_body_limit_middleware.kwargs["exempt_path_prefixes"] == ["/webhooks"]
+
+
+def test_create_application_uses_request_timeout_runtime_settings() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        REQUEST_TIMEOUT_ENABLED=True,
+        REQUEST_TIMEOUT_SECONDS=5.5,
+        REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=["/ops"],
+    )
+
+    app = create_application(APIRouter(), custom_settings)
+    request_timeout_middleware = next(mw for mw in app.user_middleware if mw.cls is RequestTimeoutMiddleware)
+
+    assert request_timeout_middleware.kwargs["timeout_seconds"] == 5.5
+    assert request_timeout_middleware.kwargs["exempt_path_prefixes"] == ["/ops"]
+
+
 def test_create_application_applies_forwarded_headers_for_trusted_proxies() -> None:
     custom_settings = load_settings(
         _env_file=None,
@@ -701,3 +760,85 @@ def test_create_application_ignores_forwarded_headers_from_untrusted_proxies() -
         "scheme": "http",
         "log_client_host": "testclient",
     }
+
+
+def test_create_application_rejects_oversized_request_bodies_with_standard_error_payload() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        REQUEST_BODY_MAX_BYTES=16,
+    )
+
+    app = create_application(build_request_safety_router(), custom_settings, lifespan=noop_lifespan)
+
+    with TestClient(app) as client:
+        response = client.post("/echo", content=b"x" * 32, headers={"Content-Type": "application/octet-stream"})
+
+    assert response.status_code == 413
+    assert response.json() == {
+        "error": {
+            "code": "payload_too_large",
+            "message": "Request body exceeds the configured limit of 16 bytes.",
+        }
+    }
+    assert "X-Request-ID" in response.headers
+    assert "X-Correlation-ID" in response.headers
+
+
+def test_create_application_skips_request_body_limit_for_exempt_paths() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        REQUEST_BODY_MAX_BYTES=16,
+        REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES=["/exempt"],
+    )
+
+    app = create_application(build_request_safety_router(), custom_settings, lifespan=noop_lifespan)
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/exempt/upload",
+            content=b"x" * 32,
+            headers={"Content-Type": "application/octet-stream"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"bytes": 32}
+
+
+def test_create_application_times_out_slow_requests_with_standard_error_payload() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        REQUEST_TIMEOUT_ENABLED=True,
+        REQUEST_TIMEOUT_SECONDS=0.01,
+    )
+
+    app = create_application(build_request_safety_router(), custom_settings, lifespan=noop_lifespan)
+
+    with TestClient(app) as client:
+        response = client.get("/slow")
+
+    assert response.status_code == 504
+    assert response.json() == {
+        "error": {
+            "code": "request_timeout",
+            "message": "Request processing exceeded the configured timeout.",
+        }
+    }
+    assert "X-Request-ID" in response.headers
+    assert "X-Correlation-ID" in response.headers
+
+
+def test_create_application_skips_request_timeout_for_exempt_paths() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        REQUEST_TIMEOUT_ENABLED=True,
+        REQUEST_TIMEOUT_SECONDS=0.01,
+        REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=["/exempt"],
+    )
+
+    app = create_application(build_request_safety_router(), custom_settings, lifespan=noop_lifespan)
+
+    with TestClient(app) as client:
+        response = client.get("/exempt/slow")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

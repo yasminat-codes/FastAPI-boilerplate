@@ -66,6 +66,7 @@ nav:
       - API:
           - Overview: user-guide/api/index.md
           - Architecture: user-guide/api/architecture.md
+          - Request Safety: user-guide/api/request-safety.md
           - Endpoints: user-guide/api/endpoints.md
           - Pagination: user-guide/api/pagination.md
           - Exceptions: user-guide/api/exceptions.md

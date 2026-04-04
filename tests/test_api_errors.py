@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
@@ -64,3 +64,31 @@ def test_unhandled_exceptions_return_internal_server_error_payload() -> None:
             "message": "Internal server error.",
         }
     }
+
+
+def test_http_413_errors_use_payload_too_large_code() -> None:
+    application = _build_test_app()
+
+    @application.post("/too-large")
+    async def too_large() -> None:
+        raise HTTPException(status_code=413, detail="Body too large")
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        response = client.post("/too-large")
+
+    assert response.status_code == 413
+    assert response.json() == {"error": {"code": "payload_too_large", "message": "Body too large"}}
+
+
+def test_http_504_errors_use_request_timeout_code() -> None:
+    application = _build_test_app()
+
+    @application.get("/timed-out")
+    async def timed_out() -> None:
+        raise HTTPException(status_code=504, detail="Timed out")
+
+    with TestClient(application, raise_server_exceptions=False) as client:
+        response = client.get("/timed-out")
+
+    assert response.status_code == 504
+    assert response.json() == {"error": {"code": "request_timeout", "message": "Timed out"}}

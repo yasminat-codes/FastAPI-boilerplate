@@ -369,6 +369,36 @@ def test_proxy_header_settings_normalize_trusted_proxy_list() -> None:
     assert settings.PROXY_HEADERS_TRUSTED_PROXIES == ["127.0.0.1", "10.0.0.0/8"]
 
 
+def test_request_body_limit_settings_normalize_exempt_prefixes() -> None:
+    settings = load_settings(
+        _env_file=None,
+        REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES=[" /health ", "/api/v1/webhooks"],
+    )
+
+    assert settings.REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES == ["/health", "/api/v1/webhooks"]
+
+
+def test_request_timeout_settings_reject_invalid_exempt_prefixes() -> None:
+    with pytest.raises(ValidationError, match="REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES entries must start with '/'"):
+        load_settings(
+            _env_file=None,
+            REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=["api/v1/slow"],
+        )
+
+
+def test_log_redaction_settings_normalize_field_lists_and_replacement() -> None:
+    settings = load_settings(
+        _env_file=None,
+        LOG_REDACTION_EXACT_FIELDS=[" Authorization ", "X-Api-Key"],
+        LOG_REDACTION_SUBSTRING_FIELDS=[" Token ", "SeCreT"],
+        LOG_REDACTION_REPLACEMENT=" [FILTERED] ",
+    )
+
+    assert settings.LOG_REDACTION_EXACT_FIELDS == ["authorization", "x-api-key"]
+    assert settings.LOG_REDACTION_SUBSTRING_FIELDS == ["token", "secret"]
+    assert settings.LOG_REDACTION_REPLACEMENT == "[FILTERED]"
+
+
 def test_security_headers_settings_cover_common_hardening_headers() -> None:
     settings = load_settings(
         _env_file=None,

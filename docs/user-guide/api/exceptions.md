@@ -78,8 +78,10 @@ The template currently maps common cases to machine-readable codes such as:
 - `forbidden`
 - `not_found`
 - `conflict`
+- `payload_too_large`
 - `validation_error`
 - `rate_limited`
+- `request_timeout`
 - `internal_server_error`
 
 Custom exception class names are converted into snake_case codes where possible, which keeps the transport contract predictable without forcing every router to handcraft error payloads.

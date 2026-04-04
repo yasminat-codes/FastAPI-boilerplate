@@ -574,6 +574,58 @@ PROXY_HEADERS_TRUSTED_PROXIES=["10.0.0.0/8"]
 !!! danger "Security Warning"
 Secure environments reject `TRUSTED_HOSTS=["*"]`, and they also reject `PROXY_HEADERS_TRUSTED_PROXIES=["*"]` when proxy header handling is enabled. Keep these values explicit so only known hosts and proxy hops are trusted.
 
+### Request Safety Controls
+
+Generic request-size, timeout, and structured-log redaction settings:
+
+```env
+REQUEST_BODY_LIMIT_ENABLED=true
+REQUEST_BODY_MAX_BYTES=1048576
+REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES=["/api/v1/webhooks/provider"]
+REQUEST_TIMEOUT_ENABLED=false
+REQUEST_TIMEOUT_SECONDS=30
+REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=["/api/v1/ops"]
+LOG_REDACTION_ENABLED=true
+LOG_REDACTION_EXACT_FIELDS=["authorization","cookie","set-cookie","x-api-key","password","email"]
+LOG_REDACTION_SUBSTRING_FIELDS=["token","secret","password","authorization","cookie","session","email","phone","ssn"]
+LOG_REDACTION_REPLACEMENT="[REDACTED]"
+```
+
+**Variables Explained:**
+
+- `REQUEST_BODY_LIMIT_ENABLED`: Enable the shared request-body size guardrail
+- `REQUEST_BODY_MAX_BYTES`: Maximum request size before the middleware returns `413 payload_too_large`
+- `REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES`: Route prefixes that should bypass the global body-size guardrail
+- `REQUEST_TIMEOUT_ENABLED`: Enable the shared application-layer request timeout middleware
+- `REQUEST_TIMEOUT_SECONDS`: Maximum request runtime before the middleware returns `504 request_timeout`
+- `REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES`: Route prefixes that should bypass the global timeout middleware
+- `LOG_REDACTION_ENABLED`: Enable structured-log redaction before console or file rendering
+- `LOG_REDACTION_EXACT_FIELDS`: Exact case-insensitive field names that should always have their values redacted
+- `LOG_REDACTION_SUBSTRING_FIELDS`: Field-name fragments that trigger redaction for nested structured log values
+- `LOG_REDACTION_REPLACEMENT`: Replacement string written in place of sensitive values
+
+**Environment-Specific Values:**
+
+```env
+# Local example
+REQUEST_BODY_LIMIT_ENABLED=true
+REQUEST_BODY_MAX_BYTES=1048576
+REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES=[]
+REQUEST_TIMEOUT_ENABLED=false
+REQUEST_TIMEOUT_SECONDS=30
+REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=[]
+LOG_REDACTION_ENABLED=true
+
+# Production example
+REQUEST_BODY_LIMIT_ENABLED=true
+REQUEST_BODY_MAX_BYTES=1048576
+REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES=["/api/v1/webhooks/provider"]
+REQUEST_TIMEOUT_ENABLED=true
+REQUEST_TIMEOUT_SECONDS=15
+REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=["/api/v1/internal/stream"]
+LOG_REDACTION_ENABLED=true
+```
+
 ### User Tiers
 
 Initial tier configuration:

@@ -10,6 +10,7 @@ from structlog.processors import JSONRenderer
 from structlog.types import EventDict, Processor
 
 from ..core.config import settings
+from .log_redaction import normalize_redaction_field_name, redact_log_event_dict
 
 
 def drop_color_message_key(_, __, event_dict: EventDict) -> EventDict:
@@ -55,6 +56,26 @@ def console_log_filter_processors(_, __, event_dict: EventDict) -> EventDict:
     return event_dict
 
 
+def redact_sensitive_log_fields(_, __, event_dict: EventDict) -> EventDict:
+    """Scrub common secrets, tokens, and PII-like fields from structured logs."""
+
+    if not settings.LOG_REDACTION_ENABLED:
+        return event_dict
+
+    exact_fields = {
+        normalize_redaction_field_name(field_name) for field_name in settings.LOG_REDACTION_EXACT_FIELDS
+    }
+    substring_fields = tuple(
+        normalize_redaction_field_name(field_name) for field_name in settings.LOG_REDACTION_SUBSTRING_FIELDS
+    )
+    return redact_log_event_dict(
+        event_dict,
+        exact_fields=exact_fields,
+        substring_fields=substring_fields,
+        replacement=settings.LOG_REDACTION_REPLACEMENT,
+    )
+
+
 # Shared processors for all loggers
 timestamper = structlog.processors.TimeStamper(fmt="iso")
 SHARED_PROCESSORS: list[Processor] = [
@@ -63,6 +84,7 @@ SHARED_PROCESSORS: list[Processor] = [
     structlog.stdlib.add_log_level,
     structlog.stdlib.PositionalArgumentsFormatter(),
     structlog.stdlib.ExtraAdder(),
+    redact_sensitive_log_fields,
     drop_color_message_key,
     timestamper,
     structlog.processors.StackInfoRenderer(),

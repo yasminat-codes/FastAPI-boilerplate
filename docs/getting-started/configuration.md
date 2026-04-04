@@ -238,6 +238,29 @@ PROXY_HEADERS_TRUSTED_PROXIES=["127.0.0.1"]  # Replace with the proxy IPs, CIDRs
 !!! warning "Proxy Trust In Secure Environments"
     Staging and production profiles reject `TRUSTED_HOSTS=["*"]` and `PROXY_HEADERS_TRUSTED_PROXIES=["*"]`. Keep both settings explicit and template adopters can swap in the ingress addresses or CIDRs that fit their deployment.
 
+### Request Safety Controls
+
+Use these settings to add generic request-size, timeout, and log-redaction guardrails:
+
+```env
+REQUEST_BODY_LIMIT_ENABLED=true
+REQUEST_BODY_MAX_BYTES=1048576
+REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES=["/api/v1/webhooks/provider"]
+REQUEST_TIMEOUT_ENABLED=false
+REQUEST_TIMEOUT_SECONDS=30
+REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=["/api/v1/ops"]
+LOG_REDACTION_ENABLED=true
+LOG_REDACTION_EXACT_FIELDS=["authorization","cookie","set-cookie","password","email"]
+LOG_REDACTION_SUBSTRING_FIELDS=["token","secret","password","authorization","cookie","session","email","phone","ssn"]
+LOG_REDACTION_REPLACEMENT="[REDACTED]"
+```
+
+- `REQUEST_BODY_*` protects the app from oversized bodies and returns a standard `413` payload when the limit is exceeded.
+- `REQUEST_TIMEOUT_*` adds an optional application-layer timeout budget that returns a standard `504` payload when a request runs too long.
+- `LOG_REDACTION_*` controls the structured-log redaction processor that scrubs common headers, tokens, secrets, and PII-like keys before logs are rendered.
+
+For the webhook-specific raw-body verification pattern, see [User Guide - API Request Safety](../user-guide/api/request-safety.md).
+
 ### Security Headers And Cookie Behavior
 
 Use these settings to control the baseline security headers the template adds and the cookie behavior the template itself owns:

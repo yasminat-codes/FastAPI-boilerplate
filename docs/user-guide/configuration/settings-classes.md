@@ -292,6 +292,46 @@ class ProxyHeadersSettings(BaseSettings):
 
 These settings feed Uvicorn's `ProxyHeadersMiddleware`. Template adopters can opt in to forwarded client IP and scheme handling only after supplying the proxy IPs, CIDRs, or literals they explicitly trust.
 
+### Request Body Limit Settings
+
+Reusable request-size guardrails:
+
+```python
+class RequestBodyLimitSettings(BaseSettings):
+    REQUEST_BODY_LIMIT_ENABLED: bool = True
+    REQUEST_BODY_MAX_BYTES: int = 1_048_576
+    REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES: list[str] = []
+```
+
+These settings feed `RequestBodyLimitMiddleware`, which rejects oversized request bodies with a standard `413` API payload while still allowing path-prefix exemptions for intentionally larger routes.
+
+### Request Timeout Settings
+
+Optional application-layer request timeouts:
+
+```python
+class RequestTimeoutSettings(BaseSettings):
+    REQUEST_TIMEOUT_ENABLED: bool = False
+    REQUEST_TIMEOUT_SECONDS: float = 30.0
+    REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES: list[str] = []
+```
+
+These settings feed `RequestTimeoutMiddleware`. The timeout is disabled by default so cloned projects can align it with ingress, proxy, and workload expectations instead of inheriting an arbitrary hard cutoff.
+
+### Log Redaction Settings
+
+Structured-log redaction controls:
+
+```python
+class LogRedactionSettings(BaseSettings):
+    LOG_REDACTION_ENABLED: bool = True
+    LOG_REDACTION_EXACT_FIELDS: list[str] = [...]
+    LOG_REDACTION_SUBSTRING_FIELDS: list[str] = [...]
+    LOG_REDACTION_REPLACEMENT: str = "[REDACTED]"
+```
+
+These settings feed the shared structlog redaction processor so nested headers, tokens, secrets, cookies, and PII-like keys are scrubbed before console or file log rendering.
+
 ### Sentry Settings
 
 Current Sentry runtime settings:

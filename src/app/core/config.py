@@ -155,6 +155,12 @@ def _validate_allowed_host_patterns(*, setting_name: str, values: list[str]) -> 
             raise ValueError(f"{setting_name} wildcard entries must be '*' or start with '*.'")
 
 
+def _validate_path_prefixes(*, setting_name: str, values: list[str]) -> None:
+    for value in values:
+        if not value.startswith("/"):
+            raise ValueError(f"{setting_name} entries must start with '/'")
+
+
 class AppSettings(BaseSettings):
     APP_NAME: str = "FastAPI app"
     APP_DESCRIPTION: str | None = None
@@ -837,6 +843,105 @@ class ProxyHeadersSettings(BaseSettings):
         return self
 
 
+class RequestBodyLimitSettings(BaseSettings):
+    REQUEST_BODY_LIMIT_ENABLED: bool = True
+    REQUEST_BODY_MAX_BYTES: int = Field(default=1_048_576, ge=1)
+    REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_request_body_limit_settings(self) -> Self:
+        self.REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES = _normalize_string_list(
+            setting_name="REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES",
+            values=self.REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES,
+        )
+        _validate_path_prefixes(
+            setting_name="REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES",
+            values=self.REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES,
+        )
+
+        return self
+
+
+class RequestTimeoutSettings(BaseSettings):
+    REQUEST_TIMEOUT_ENABLED: bool = False
+    REQUEST_TIMEOUT_SECONDS: float = Field(default=30.0, gt=0)
+    REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_request_timeout_settings(self) -> Self:
+        self.REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES = _normalize_string_list(
+            setting_name="REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES",
+            values=self.REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES,
+        )
+        _validate_path_prefixes(
+            setting_name="REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES",
+            values=self.REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES,
+        )
+
+        return self
+
+
+class LogRedactionSettings(BaseSettings):
+    LOG_REDACTION_ENABLED: bool = True
+    LOG_REDACTION_EXACT_FIELDS: list[str] = Field(
+        default_factory=lambda: [
+            "authorization",
+            "cookie",
+            "set-cookie",
+            "x-api-key",
+            "api_key",
+            "apikey",
+            "password",
+            "refresh_token",
+            "access_token",
+            "client_secret",
+            "email",
+            "phone",
+            "ssn",
+        ]
+    )
+    LOG_REDACTION_SUBSTRING_FIELDS: list[str] = Field(
+        default_factory=lambda: [
+            "token",
+            "secret",
+            "password",
+            "passwd",
+            "authorization",
+            "cookie",
+            "api_key",
+            "apikey",
+            "session",
+            "email",
+            "phone",
+            "ssn",
+        ]
+    )
+    LOG_REDACTION_REPLACEMENT: str = "[REDACTED]"
+
+    @model_validator(mode="after")
+    def validate_log_redaction_settings(self) -> Self:
+        self.LOG_REDACTION_EXACT_FIELDS = [
+            value.casefold()
+            for value in _normalize_string_list(
+                setting_name="LOG_REDACTION_EXACT_FIELDS",
+                values=self.LOG_REDACTION_EXACT_FIELDS,
+            )
+        ]
+        self.LOG_REDACTION_SUBSTRING_FIELDS = [
+            value.casefold()
+            for value in _normalize_string_list(
+                setting_name="LOG_REDACTION_SUBSTRING_FIELDS",
+                values=self.LOG_REDACTION_SUBSTRING_FIELDS,
+            )
+        ]
+
+        self.LOG_REDACTION_REPLACEMENT = self.LOG_REDACTION_REPLACEMENT.strip()
+        if not self.LOG_REDACTION_REPLACEMENT:
+            raise ValueError("LOG_REDACTION_REPLACEMENT must not be empty")
+
+        return self
+
+
 class Settings(
     AppSettings,
     SQLiteSettings,
@@ -862,6 +967,9 @@ class Settings(
     RefreshTokenCookieSettings,
     TrustedHostSettings,
     ProxyHeadersSettings,
+    RequestBodyLimitSettings,
+    RequestTimeoutSettings,
+    LogRedactionSettings,
     LogVerbositySettings,
     FileLoggerSettings,
     ConsoleLoggerSettings,

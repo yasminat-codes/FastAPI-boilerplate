@@ -261,11 +261,11 @@ The template now includes two shared automation persistence ledgers: inbound web
 - [x] Standardize request IDs and correlation IDs across all requests.
 - [x] Propagate correlation context into background jobs and outbound integrations.
 - [x] Add trusted proxy handling.
-- [ ] Add request size limits for large or malicious bodies.
-- [ ] Add body parsing guidance for raw-body webhook verification.
-- [ ] Add timeout policy guidance for inbound requests.
-- [ ] Add standardized error payloads with machine-readable error codes.
-- [ ] Add safe logging redaction rules for headers, tokens, secrets, and PII.
+- [x] Add request size limits for large or malicious bodies.
+- [x] Add body parsing guidance for raw-body webhook verification.
+- [x] Add timeout policy guidance for inbound requests.
+- [x] Add standardized error payloads with machine-readable error codes.
+- [x] Add safe logging redaction rules for headers, tokens, secrets, and PII.
 
 ### Wave 3.3: Health, Readiness, And Ops Endpoints
 
@@ -836,6 +836,35 @@ Phase 2 is now complete. The template includes reusable persistence ledgers for 
 - [ ] Define a consistent router structure for public, internal, ops, admin, and webhook endpoints.
 - [ ] Define versioning rules for the API.
 - [ ] Add standard request and response envelope guidance where appropriate.
+
+---
+
+## Session Report — 2026-04-03
+
+### What was built
+- Added reusable request-safety settings and middleware for request body limits, optional inbound request timeouts, and structured-log redaction.
+- Added canonical raw-body webhook helpers for signature-first verification flows and documented the new request-safety contract under the API and configuration guides.
+- Expanded regression coverage for `413 payload_too_large`, `504 request_timeout`, request-safety middleware behavior, log redaction, and raw-body webhook helpers, then synced the Wave 3.2 roadmap checklist.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The first large edit pass failed because one `core/setup.py` patch hunk no longer matched the current file context. | Split the work into smaller patches aligned to the live file contents, then resumed implementation without overwriting unrelated changes. |
+| `mypy` rejected a generic sequence-conversion branch in the new log-redaction helper. | Simplified the helper to recurse over the concrete container types the template actually logs and reran the full verification stack on the final implementation. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 197 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 3 Wave 3.2 is now complete. The request pipeline has verified request and correlation IDs, trusted proxy handling, request-body guardrails, optional request timeouts, canonical raw-body helpers for future webhook verification, machine-readable `413` and `504` error payloads, and default structured-log redaction for common secrets and PII-like fields. The next major API-platform gaps now shift to Wave 3.3, where liveness, deeper readiness visibility, worker health, and internal ops surfaces still need to be formalized.
+
+### What remains
+- [ ] Keep a lightweight liveness endpoint.
+- [ ] Expand readiness checks to include DB, Redis, queue, and other critical runtime dependencies.
+- [ ] Add worker health visibility.
 
 ---
 

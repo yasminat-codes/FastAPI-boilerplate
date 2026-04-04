@@ -23,6 +23,8 @@ from ..core.logger import logging
 from ..core.utils.rate_limit import rate_limiter
 from ..middleware.client_cache_middleware import ClientCacheMiddleware
 from ..middleware.logger_middleware import RequestContextMiddleware
+from ..middleware.request_body_limit_middleware import RequestBodyLimitMiddleware
+from ..middleware.request_timeout_middleware import RequestTimeoutMiddleware
 from ..middleware.security_headers_middleware import SecurityHeadersMiddleware, build_security_headers
 from ..models import *  # noqa: F403
 from .config import (
@@ -37,6 +39,8 @@ from .config import (
     RedisCacheSettings,
     RedisQueueSettings,
     RedisRateLimiterSettings,
+    RequestBodyLimitSettings,
+    RequestTimeoutSettings,
     SecurityHeadersSettings,
     SentrySettings,
     TrustedHostSettings,
@@ -327,6 +331,8 @@ def lifespan_factory(
         | SecurityHeadersSettings
         | TrustedHostSettings
         | ProxyHeadersSettings
+        | RequestBodyLimitSettings
+        | RequestTimeoutSettings
     ),
 ) -> Callable[[FastAPI], _AsyncGeneratorContextManager[Any]]:
     """Factory to create a lifespan async context manager for a FastAPI app."""
@@ -389,6 +395,8 @@ def create_application(
         | SecurityHeadersSettings
         | TrustedHostSettings
         | ProxyHeadersSettings
+        | RequestBodyLimitSettings
+        | RequestTimeoutSettings
     ),
     lifespan: Callable[[FastAPI], _AsyncGeneratorContextManager[Any]] | None = None,
     **kwargs: Any,
@@ -416,6 +424,8 @@ def create_application(
         - SecurityHeadersSettings: Applies template-owned HTTP security headers through middleware.
         - TrustedHostSettings: Enables host-header allowlisting when trusted hosts are configured.
         - ProxyHeadersSettings: Honors forwarded client IP and scheme only from explicitly trusted proxies.
+        - RequestBodyLimitSettings: Enforces a configurable request-body byte limit with path-prefix exemptions.
+        - RequestTimeoutSettings: Optionally aborts long-running inbound requests with a consistent timeout payload.
         - GracefulShutdownMiddleware: Tracks in-flight requests and rejects new work once shutdown begins.
         - RequestContextMiddleware: Standardizes request and correlation IDs for request state, logs, and responses.
         - RedisQueueSettings: Sets up event handlers for creating and closing a Redis queue pool.
@@ -485,6 +495,20 @@ def create_application(
             TrustedHostMiddleware,
             allowed_hosts=settings.TRUSTED_HOSTS,
             www_redirect=settings.TRUSTED_HOSTS_WWW_REDIRECT,
+        )
+
+    if isinstance(settings, RequestBodyLimitSettings) and settings.REQUEST_BODY_LIMIT_ENABLED:
+        application.add_middleware(
+            RequestBodyLimitMiddleware,
+            max_bytes=settings.REQUEST_BODY_MAX_BYTES,
+            exempt_path_prefixes=settings.REQUEST_BODY_LIMIT_EXEMPT_PATH_PREFIXES,
+        )
+
+    if isinstance(settings, RequestTimeoutSettings) and settings.REQUEST_TIMEOUT_ENABLED:
+        application.add_middleware(
+            RequestTimeoutMiddleware,
+            timeout_seconds=settings.REQUEST_TIMEOUT_SECONDS,
+            exempt_path_prefixes=settings.REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES,
         )
 
     application.add_middleware(RequestContextMiddleware)

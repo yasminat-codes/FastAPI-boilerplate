@@ -21,8 +21,11 @@ STATUS_CODE_ERROR_CODES = {
     status.HTTP_403_FORBIDDEN: "forbidden",
     status.HTTP_404_NOT_FOUND: "not_found",
     status.HTTP_409_CONFLICT: "conflict",
+    status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: "payload_too_large",
     status.HTTP_422_UNPROCESSABLE_ENTITY: "validation_error",
     status.HTTP_429_TOO_MANY_REQUESTS: "rate_limited",
+    status.HTTP_408_REQUEST_TIMEOUT: "request_timeout",
+    status.HTTP_504_GATEWAY_TIMEOUT: "request_timeout",
     status.HTTP_500_INTERNAL_SERVER_ERROR: "internal_server_error",
 }
 
@@ -53,19 +56,24 @@ def _resolve_error_code(exc: Exception, *, status_code: int) -> str:
     return STATUS_CODE_ERROR_CODES[status.HTTP_500_INTERNAL_SERVER_ERROR]
 
 
-def _build_error_response(
+def build_api_error_response(
     *,
     status_code: int,
     code: str,
     message: str,
     details: list[dict[str, Any]] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     payload = ApiErrorResponse(error=ApiErrorDetail(code=code, message=message, details=details))
-    return JSONResponse(status_code=status_code, content=payload.model_dump(exclude_none=True))
+    return JSONResponse(
+        status_code=status_code,
+        content=payload.model_dump(exclude_none=True),
+        headers=headers,
+    )
 
 
 async def custom_exception_handler(_: Request, exc: CustomException) -> JSONResponse:
-    return _build_error_response(
+    return build_api_error_response(
         status_code=exc.status_code,
         code=_resolve_error_code(exc, status_code=exc.status_code),
         message=_extract_error_message(exc.detail, default="Request failed."),
@@ -73,7 +81,7 @@ async def custom_exception_handler(_: Request, exc: CustomException) -> JSONResp
 
 
 async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
-    return _build_error_response(
+    return build_api_error_response(
         status_code=exc.status_code,
         code=_resolve_error_code(exc, status_code=exc.status_code),
         message=_extract_error_message(exc.detail, default="Request failed."),
@@ -82,7 +90,7 @@ async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse
 
 async def request_validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
     details = [dict(item) for item in exc.errors()]
-    return _build_error_response(
+    return build_api_error_response(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         code=_resolve_error_code(exc, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY),
         message="Request validation failed.",
@@ -92,7 +100,7 @@ async def request_validation_exception_handler(_: Request, exc: RequestValidatio
 
 async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     LOGGER.exception("Unhandled API exception for %s %s", request.method, request.url.path)
-    return _build_error_response(
+    return build_api_error_response(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         code=_resolve_error_code(exc, status_code=status.HTTP_500_INTERNAL_SERVER_ERROR),
         message="Internal server error.",
@@ -109,5 +117,6 @@ def register_api_exception_handlers(application: FastAPI) -> None:
 
 
 __all__ = [
+    "build_api_error_response",
     "register_api_exception_handlers",
 ]

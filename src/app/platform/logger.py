@@ -10,6 +10,7 @@ from ..core.logger import (
     file_handler,
     file_log_filter_processors,
     logging,
+    redact_sensitive_log_fields,
     root_logger,
     timestamper,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "file_handler",
     "file_log_filter_processors",
     "logging",
+    "redact_sensitive_log_fields",
     "root_logger",
     "timestamper",
 ]

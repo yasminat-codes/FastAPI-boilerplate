@@ -7,6 +7,7 @@ The template's API boundary is now organized around a small set of reusable plat
 - thin routers that delegate reusable orchestration to domain services
 - typed pagination, filtering, and sorting query models
 - consistent machine-readable error payloads
+- request-safety guardrails for size limits, timeouts, raw-body verification, and log redaction
 
 ## Canonical API Surface
 
@@ -62,6 +63,7 @@ The application factory registers the template's exception handlers automaticall
 ## Next Guides
 
 - [Architecture](architecture.md): route groups, versioning rules, services, repositories, and list-endpoint conventions
+- [Request Safety](request-safety.md): request size limits, timeout guidance, raw-body webhook verification, and log redaction
 - [Endpoints](endpoints.md): endpoint examples and resource patterns
 - [Pagination](pagination.md): typed pagination, filtering, and sorting helpers
 - [Exceptions](exceptions.md): standardized error payloads and custom exceptions

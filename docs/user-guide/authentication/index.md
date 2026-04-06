@@ -1,6 +1,6 @@
 # Authentication & Security
 
-Learn how to implement secure authentication in your FastAPI application. The template currently standardizes on a stateless dual-JWT model: short-lived access tokens in the `Authorization` header plus longer-lived refresh tokens delivered through an HTTP-only cookie. A blacklist table handles explicit revocation and logout while later Phase 4 tasks harden the model further.
+Learn how to implement secure authentication in your FastAPI application. The template currently standardizes on a stateless dual-JWT model: short-lived access tokens in the `Authorization` header plus longer-lived refresh tokens delivered through an HTTP-only cookie. A blacklist table handles explicit revocation and logout, and the baseline now supports optional issuer and audience claims plus key-id-based signing-key rotation.
 
 ## What You'll Learn
 
@@ -15,6 +15,7 @@ Phase 4 Wave 4.1 now formally keeps the template on a stateless JWT-only posture
 - **Access tokens** remain short-lived signed JWTs for API requests.
 - **Refresh tokens** remain signed JWTs, but are delivered through an HTTP-only cookie instead of JavaScript-accessible storage.
 - **Revocation** is handled through blacklist records for logout and explicit invalidation flows.
+- **Hardening hooks included**: optional `iss`/`aud` claims and a `kid`-driven verification key ring for secret rotation.
 - **Not included by default**: server-backed refresh-session tables, per-device session management, or mandatory hybrid-session infrastructure.
 
 This means the next auth-hardening roadmap items build on the existing token model rather than replacing it wholesale.
@@ -117,6 +118,10 @@ SECRET_KEY="your-super-secret-key-here"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_ISSUER="https://api.example.com"
+JWT_AUDIENCE="template-api"
+JWT_ACTIVE_KEY_ID="2026-04"
+JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
 ```
 
 ### Security Settings

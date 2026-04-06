@@ -470,6 +470,43 @@ def test_refresh_token_cookie_settings_require_secure_for_samesite_none() -> Non
         )
 
 
+def test_crypt_settings_support_jwt_claims_and_rotation_keys() -> None:
+    settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        JWT_ISSUER="https://auth.example.com",
+        JWT_AUDIENCE="template-api",
+        JWT_ACTIVE_KEY_ID="2026-04",
+        JWT_VERIFICATION_KEYS={"2026-01": "b" * 64},
+    )
+
+    assert settings.JWT_ISSUER == "https://auth.example.com"
+    assert settings.JWT_AUDIENCE == "template-api"
+    assert settings.JWT_ACTIVE_KEY_ID == "2026-04"
+    assert settings.JWT_VERIFICATION_KEYS["2026-01"].get_secret_value() == "b" * 64
+
+
+def test_crypt_settings_reject_blank_jwt_issuer() -> None:
+    with pytest.raises(ValidationError, match="JWT_ISSUER must not be empty when provided"):
+        load_settings(
+            _env_file=None,
+            JWT_ISSUER="   ",
+        )
+
+
+def test_crypt_settings_reject_active_key_id_redefinition() -> None:
+    with pytest.raises(
+        ValidationError,
+        match="JWT_VERIFICATION_KEYS must not redefine JWT_ACTIVE_KEY_ID; SECRET_KEY already owns the active key",
+    ):
+        load_settings(
+            _env_file=None,
+            SECRET_KEY="a" * 64,
+            JWT_ACTIVE_KEY_ID="2026-04",
+            JWT_VERIFICATION_KEYS={"2026-04": "b" * 64},
+        )
+
+
 def test_feature_flags_settings_cover_optional_template_modules() -> None:
     settings = load_settings(
         _env_file=None,

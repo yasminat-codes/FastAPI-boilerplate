@@ -116,6 +116,10 @@ SECRET_KEY="your-super-secret-key-here"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_ISSUER="https://api.example.com"
+JWT_AUDIENCE="template-api"
+JWT_ACTIVE_KEY_ID="2026-04"
+JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
 ```
 
 **Variables Explained:**
@@ -124,6 +128,10 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 - `ALGORITHM`: JWT signing algorithm (HS256 recommended)
 - `ACCESS_TOKEN_EXPIRE_MINUTES`: How long access tokens remain valid
 - `REFRESH_TOKEN_EXPIRE_DAYS`: How long refresh tokens remain valid
+- `JWT_ISSUER`: Optional issuer claim added to new tokens and enforced during verification
+- `JWT_AUDIENCE`: Optional audience claim added to new tokens and enforced during verification
+- `JWT_ACTIVE_KEY_ID`: `kid` header assigned to newly issued tokens
+- `JWT_VERIFICATION_KEYS`: JSON object of previous signing secrets keyed by `kid` for zero-downtime key rotation
 
 !!! danger "Security Warning"
 Never use default values in production. Generate a strong secret key:

@@ -3,6 +3,9 @@
 from ..core.security import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
+    JWT_ACTIVE_KEY_ID,
+    JWT_AUDIENCE,
+    JWT_ISSUER,
     REFRESH_TOKEN_EXPIRE_DAYS,
     SECRET_KEY,
     TokenType,
@@ -24,6 +27,9 @@ from ..core.security import (
 __all__ = [
     "ACCESS_TOKEN_EXPIRE_MINUTES",
     "ALGORITHM",
+    "JWT_ACTIVE_KEY_ID",
+    "JWT_AUDIENCE",
+    "JWT_ISSUER",
     "REFRESH_TOKEN_EXPIRE_DAYS",
     "SECRET_KEY",
     "TokenType",

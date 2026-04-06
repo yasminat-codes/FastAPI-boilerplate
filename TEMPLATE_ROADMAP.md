@@ -281,7 +281,7 @@ The template now includes two shared automation persistence ledgers: inbound web
 ### Wave 4.1: Auth Hardening
 
 - [x] Review JWT design and decide whether to keep stateless JWT-only, session-backed refresh, or hybrid.
-- [ ] Add explicit issuer, audience, and key rotation support if JWT remains the default.
+- [x] Add explicit issuer, audience, and key rotation support if JWT remains the default.
 - [ ] Add refresh token rotation strategy.
 - [ ] Add secure password hashing policy and future-proofing.
 - [ ] Add login throttling and lockout policy guidance.
@@ -1059,3 +1059,30 @@ Phase 4 is now started with an explicit auth-architecture decision instead of an
 - [ ] Add explicit issuer, audience, and key rotation support if JWT remains the default.
 - [ ] Add refresh token rotation strategy.
 - [ ] Add secure password hashing policy and future-proofing.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed Phase 4 Wave 4.1 support for explicit JWT issuer and audience claims plus `kid`-based signing-key rotation while keeping the template on its stateless dual-JWT baseline.
+- Added validated JWT settings for `JWT_ISSUER`, `JWT_AUDIENCE`, `JWT_ACTIVE_KEY_ID`, and `JWT_VERIFICATION_KEYS`, then wired token creation, verification, and blacklist flows to use the configured claim contract and verification key ring.
+- Expanded auth/configuration docs and regression tests so the new JWT hardening surface is documented, verified, and covered by strict docs build validation.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run mypy src --config-file pyproject.toml` initially flagged the new JWT decode helper for returning `Any`. | Cast the decoded payload to `dict[str, Any]` at the helper boundary so the dynamic jose decode result is typed explicitly and mypy stays clean. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 210 passed, 0 failed
+
+### Current state of the template
+The Phase 4 auth baseline is now stronger without becoming client-specific: the template still uses stateless access and refresh JWTs, but it can now stamp and enforce issuer and audience claims and support zero-downtime signing-secret rotation through `kid`-based verification keys. The auth layer is documented, regression-tested, and verified by the standard code gates plus a strict docs build. Refresh-token rotation, password-policy hardening, and broader authorization/security controls still remain for later Phase 4 work.
+
+### What remains
+- [ ] Add refresh token rotation strategy.
+- [ ] Add secure password hashing policy and future-proofing.
+- [ ] Add login throttling and lockout policy guidance.

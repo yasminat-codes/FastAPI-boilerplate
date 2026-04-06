@@ -128,6 +128,32 @@ async def test_stateless_tokens_embed_subject_and_type_claims() -> None:
 
 
 @pytest.mark.asyncio
+async def test_tokens_embed_configured_issuer_audience_and_key_id() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        JWT_ISSUER="https://auth.example.com",
+        JWT_AUDIENCE="template-api",
+        JWT_ACTIVE_KEY_ID="2026-04",
+    )
+
+    access_token = await create_access_token(data={"sub": "template-user"}, crypt_settings=custom_settings)
+
+    access_header = jwt.get_unverified_header(access_token)
+    access_payload = jwt.decode(
+        access_token,
+        custom_settings.SECRET_KEY.get_secret_value(),
+        algorithms=[custom_settings.ALGORITHM],
+        audience=custom_settings.JWT_AUDIENCE,
+        issuer=custom_settings.JWT_ISSUER,
+    )
+
+    assert access_header["kid"] == "2026-04"
+    assert access_payload["iss"] == "https://auth.example.com"
+    assert access_payload["aud"] == "template-api"
+
+
+@pytest.mark.asyncio
 async def test_verify_token_accepts_matching_token_type() -> None:
     access_token = await create_access_token(data={"sub": "template-user"})
 
@@ -136,6 +162,85 @@ async def test_verify_token_accepts_matching_token_type() -> None:
             access_token,
             TokenType.ACCESS,
             cast(AsyncSession, object()),
+        )
+
+    assert token_data is not None
+    assert token_data.username_or_email == "template-user"
+
+
+@pytest.mark.asyncio
+async def test_verify_token_enforces_configured_issuer_and_audience() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        JWT_ISSUER="https://auth.example.com",
+        JWT_AUDIENCE="template-api",
+        JWT_ACTIVE_KEY_ID="2026-04",
+    )
+    access_token = await create_access_token(data={"sub": "template-user"}, crypt_settings=custom_settings)
+
+    with patch("src.app.core.security.crud_token_blacklist.exists", new=AsyncMock(return_value=False)):
+        verified = await verify_token(
+            access_token,
+            TokenType.ACCESS,
+            cast(AsyncSession, object()),
+            crypt_settings=custom_settings,
+        )
+        wrong_audience = await verify_token(
+            access_token,
+            TokenType.ACCESS,
+            cast(AsyncSession, object()),
+            crypt_settings=load_settings(
+                _env_file=None,
+                SECRET_KEY="a" * 64,
+                JWT_ISSUER="https://auth.example.com",
+                JWT_AUDIENCE="different-audience",
+                JWT_ACTIVE_KEY_ID="2026-04",
+            ),
+        )
+        wrong_issuer = await verify_token(
+            access_token,
+            TokenType.ACCESS,
+            cast(AsyncSession, object()),
+            crypt_settings=load_settings(
+                _env_file=None,
+                SECRET_KEY="a" * 64,
+                JWT_ISSUER="https://different.example.com",
+                JWT_AUDIENCE="template-api",
+                JWT_ACTIVE_KEY_ID="2026-04",
+            ),
+        )
+
+    assert verified is not None
+    assert wrong_audience is None
+    assert wrong_issuer is None
+
+
+@pytest.mark.asyncio
+async def test_verify_token_accepts_legacy_key_ids_from_rotation_ring() -> None:
+    current_settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        JWT_ISSUER="https://auth.example.com",
+        JWT_AUDIENCE="template-api",
+        JWT_ACTIVE_KEY_ID="2026-04",
+        JWT_VERIFICATION_KEYS={"2026-01": "b" * 64},
+    )
+    legacy_settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="b" * 64,
+        JWT_ISSUER="https://auth.example.com",
+        JWT_AUDIENCE="template-api",
+        JWT_ACTIVE_KEY_ID="2026-01",
+    )
+    legacy_access_token = await create_access_token(data={"sub": "template-user"}, crypt_settings=legacy_settings)
+
+    with patch("src.app.core.security.crud_token_blacklist.exists", new=AsyncMock(return_value=False)):
+        token_data = await verify_token(
+            legacy_access_token,
+            TokenType.ACCESS,
+            cast(AsyncSession, object()),
+            crypt_settings=current_settings,
         )
 
     assert token_data is not None

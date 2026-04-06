@@ -175,6 +175,49 @@ class CryptSettings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    JWT_ISSUER: str | None = None
+    JWT_AUDIENCE: str | None = None
+    JWT_ACTIVE_KEY_ID: str = "primary"
+    JWT_VERIFICATION_KEYS: dict[str, SecretStr] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_crypt_settings(self) -> Self:
+        self.ALGORITHM = self.ALGORITHM.strip()
+        if not self.ALGORITHM:
+            raise ValueError("ALGORITHM must not be empty")
+
+        if self.JWT_ISSUER is not None:
+            self.JWT_ISSUER = self.JWT_ISSUER.strip()
+            if not self.JWT_ISSUER:
+                raise ValueError("JWT_ISSUER must not be empty when provided")
+
+        if self.JWT_AUDIENCE is not None:
+            self.JWT_AUDIENCE = self.JWT_AUDIENCE.strip()
+            if not self.JWT_AUDIENCE:
+                raise ValueError("JWT_AUDIENCE must not be empty when provided")
+
+        self.JWT_ACTIVE_KEY_ID = self.JWT_ACTIVE_KEY_ID.strip()
+        if not self.JWT_ACTIVE_KEY_ID:
+            raise ValueError("JWT_ACTIVE_KEY_ID must not be empty")
+
+        normalized_verification_keys: dict[str, SecretStr] = {}
+        for key_id, secret in self.JWT_VERIFICATION_KEYS.items():
+            normalized_key_id = key_id.strip()
+            if not normalized_key_id:
+                raise ValueError("JWT_VERIFICATION_KEYS keys must not be empty")
+            if normalized_key_id == self.JWT_ACTIVE_KEY_ID:
+                raise ValueError(
+                    "JWT_VERIFICATION_KEYS must not redefine JWT_ACTIVE_KEY_ID; SECRET_KEY already owns the active key"
+                )
+
+            secret_value = secret.get_secret_value().strip()
+            if not secret_value:
+                raise ValueError(f"JWT_VERIFICATION_KEYS[{normalized_key_id!r}] must not be empty")
+
+            normalized_verification_keys[normalized_key_id] = SecretStr(secret_value)
+
+        self.JWT_VERIFICATION_KEYS = normalized_verification_keys
+        return self
 
 
 class LogLevel(str, Enum):

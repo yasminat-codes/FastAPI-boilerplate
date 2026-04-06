@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import bcrypt
 from fastapi import Response
@@ -12,7 +12,7 @@ from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..crud.crud_users import crud_users
-from .config import RefreshTokenCookieSettings, settings
+from .config import CryptSettings, RefreshTokenCookieSettings, settings
 from .db.crud_token_blacklist import crud_token_blacklist
 from .schemas import TokenBlacklistCreate, TokenData
 
@@ -20,6 +20,9 @@ SECRET_KEY: SecretStr = settings.SECRET_KEY
 ALGORITHM = settings.ALGORITHM
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
+JWT_ISSUER = settings.JWT_ISSUER
+JWT_AUDIENCE = settings.JWT_AUDIENCE
+JWT_ACTIVE_KEY_ID = settings.JWT_ACTIVE_KEY_ID
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
@@ -104,29 +107,136 @@ async def authenticate_user(username_or_email: str, password: str, db: AsyncSess
     return db_user
 
 
-async def create_access_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
+def _get_jwt_key_ring(*, crypt_settings: CryptSettings) -> dict[str, SecretStr]:
+    return {
+        crypt_settings.JWT_ACTIVE_KEY_ID: crypt_settings.SECRET_KEY,
+        **crypt_settings.JWT_VERIFICATION_KEYS,
+    }
+
+
+def _build_jwt_decode_kwargs(*, crypt_settings: CryptSettings) -> dict[str, Any]:
+    decode_kwargs: dict[str, Any] = {
+        "options": {
+            "verify_aud": crypt_settings.JWT_AUDIENCE is not None,
+            "verify_iss": crypt_settings.JWT_ISSUER is not None,
+        }
+    }
+    if crypt_settings.JWT_AUDIENCE is not None:
+        decode_kwargs["audience"] = crypt_settings.JWT_AUDIENCE
+    if crypt_settings.JWT_ISSUER is not None:
+        decode_kwargs["issuer"] = crypt_settings.JWT_ISSUER
+    return decode_kwargs
+
+
+def _get_jwt_verification_secrets(*, token: str, crypt_settings: CryptSettings) -> list[str]:
+    key_ring = _get_jwt_key_ring(crypt_settings=crypt_settings)
+    header = jwt.get_unverified_header(token)
+    key_id = header.get("kid")
+    if key_id is None:
+        return [secret.get_secret_value() for secret in key_ring.values()]
+
+    secret = key_ring.get(key_id)
+    if secret is None:
+        raise JWTError("Unknown JWT key id")
+
+    return [secret.get_secret_value()]
+
+
+def _decode_token_payload(*, token: str, crypt_settings: CryptSettings) -> dict[str, Any]:
+    last_error: JWTError | None = None
+    for secret in _get_jwt_verification_secrets(token=token, crypt_settings=crypt_settings):
+        try:
+            payload = jwt.decode(
+                token,
+                secret,
+                algorithms=[crypt_settings.ALGORITHM],
+                **_build_jwt_decode_kwargs(crypt_settings=crypt_settings),
+            )
+            return cast(dict[str, Any], payload)
+        except JWTError as exc:
+            last_error = exc
+
+    if last_error is not None:
+        raise last_error
+
+    raise JWTError("No JWT verification keys are configured")
+
+
+def _build_token_claims(
+    *,
+    data: dict[str, Any],
+    expire: datetime,
+    token_type: TokenType,
+    crypt_settings: CryptSettings,
+) -> dict[str, Any]:
+    claims = data.copy()
+    claims.update({"exp": expire, "token_type": token_type})
+    if crypt_settings.JWT_ISSUER is not None:
+        claims["iss"] = crypt_settings.JWT_ISSUER
+    if crypt_settings.JWT_AUDIENCE is not None:
+        claims["aud"] = crypt_settings.JWT_AUDIENCE
+    return claims
+
+
+async def create_access_token(
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None,
+    *,
+    crypt_settings: CryptSettings = settings,
+) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(UTC).replace(tzinfo=None) + expires_delta
     else:
-        expire = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "token_type": TokenType.ACCESS})
-    encoded_jwt: str = jwt.encode(to_encode, SECRET_KEY.get_secret_value(), algorithm=ALGORITHM)
+        expire = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=crypt_settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode = _build_token_claims(
+        data=to_encode,
+        expire=expire,
+        token_type=TokenType.ACCESS,
+        crypt_settings=crypt_settings,
+    )
+    encoded_jwt: str = jwt.encode(
+        to_encode,
+        crypt_settings.SECRET_KEY.get_secret_value(),
+        algorithm=crypt_settings.ALGORITHM,
+        headers={"kid": crypt_settings.JWT_ACTIVE_KEY_ID},
+    )
     return encoded_jwt
 
 
-async def create_refresh_token(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
+async def create_refresh_token(
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None,
+    *,
+    crypt_settings: CryptSettings = settings,
+) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(UTC).replace(tzinfo=None) + expires_delta
     else:
-        expire = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire, "token_type": TokenType.REFRESH})
-    encoded_jwt: str = jwt.encode(to_encode, SECRET_KEY.get_secret_value(), algorithm=ALGORITHM)
+        expire = datetime.now(UTC).replace(tzinfo=None) + timedelta(days=crypt_settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode = _build_token_claims(
+        data=to_encode,
+        expire=expire,
+        token_type=TokenType.REFRESH,
+        crypt_settings=crypt_settings,
+    )
+    encoded_jwt: str = jwt.encode(
+        to_encode,
+        crypt_settings.SECRET_KEY.get_secret_value(),
+        algorithm=crypt_settings.ALGORITHM,
+        headers={"kid": crypt_settings.JWT_ACTIVE_KEY_ID},
+    )
     return encoded_jwt
 
 
-async def verify_token(token: str, expected_token_type: TokenType, db: AsyncSession) -> TokenData | None:
+async def verify_token(
+    token: str,
+    expected_token_type: TokenType,
+    db: AsyncSession,
+    *,
+    crypt_settings: CryptSettings = settings,
+) -> TokenData | None:
     """Verify a JWT token and return TokenData if valid.
 
     Parameters
@@ -148,7 +258,7 @@ async def verify_token(token: str, expected_token_type: TokenType, db: AsyncSess
         return None
 
     try:
-        payload = jwt.decode(token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+        payload = _decode_token_payload(token=token, crypt_settings=crypt_settings)
         username_or_email: str | None = payload.get("sub")
         token_type: str | None = payload.get("token_type")
 
@@ -161,7 +271,13 @@ async def verify_token(token: str, expected_token_type: TokenType, db: AsyncSess
         return None
 
 
-async def blacklist_tokens(access_token: str, refresh_token: str, db: AsyncSession) -> None:
+async def blacklist_tokens(
+    access_token: str,
+    refresh_token: str,
+    db: AsyncSession,
+    *,
+    crypt_settings: CryptSettings = settings,
+) -> None:
     """Blacklist both access and refresh tokens.
 
     Parameters
@@ -174,15 +290,20 @@ async def blacklist_tokens(access_token: str, refresh_token: str, db: AsyncSessi
         Database session for performing database operations.
     """
     for token in [access_token, refresh_token]:
-        payload = jwt.decode(token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+        payload = _decode_token_payload(token=token, crypt_settings=crypt_settings)
         exp_timestamp = payload.get("exp")
         if exp_timestamp is not None:
             expires_at = datetime.fromtimestamp(exp_timestamp)
             await crud_token_blacklist.create(db, object=TokenBlacklistCreate(token=token, expires_at=expires_at))
 
 
-async def blacklist_token(token: str, db: AsyncSession) -> None:
-    payload = jwt.decode(token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+async def blacklist_token(
+    token: str,
+    db: AsyncSession,
+    *,
+    crypt_settings: CryptSettings = settings,
+) -> None:
+    payload = _decode_token_payload(token=token, crypt_settings=crypt_settings)
     exp_timestamp = payload.get("exp")
     if exp_timestamp is not None:
         expires_at = datetime.fromtimestamp(exp_timestamp)

@@ -13,7 +13,8 @@ Phase 4 Wave 4.1 formally keeps the default template posture as stateless JWT-on
 - **Access tokens**: short-lived JWTs sent in `Authorization` headers.
 - **Refresh tokens**: longer-lived JWTs stored in an HTTP-only cookie.
 - **Revocation path**: blacklist records for logout and other explicit invalidation events.
-- **Deferred hardening**: issuer/audience claims, key rotation, refresh-token rotation, and broader revocation retention are later Wave 4 tasks.
+- **Built-in hardening hooks**: optional issuer/audience claims and key-id-based verification key rotation.
+- **Still deferred**: refresh-token rotation and broader revocation retention remain later Wave 4 tasks.
 
 This choice keeps the base template reusable and lightweight for cloned projects while staying honest about what the scaffold does and does not own today.
 
@@ -104,6 +105,8 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
 {
     "sub": "username",  # Subject (user identifier)
     "exp": 1234567890,  # Expiration timestamp (Unix)
+    "iss": "https://api.example.com",  # Optional configured issuer
+    "aud": "template-api",  # Optional configured audience
     "token_type": "access",  # Distinguishes from refresh tokens
 }
 
@@ -111,6 +114,8 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
 {
     "sub": "username",  # Same user identifier
     "exp": 1234567890,  # Longer expiration time
+    "iss": "https://api.example.com",  # Optional configured issuer
+    "aud": "template-api",  # Optional configured audience
     "token_type": "refresh",  # Prevents confusion/misuse
 }
 ```
@@ -119,9 +124,11 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
 
 - **`sub` (Subject)**: Identifies the user - can be username, email, or user ID
 - **`exp` (Expiration)**: Unix timestamp when token becomes invalid
+- **`iss` (Issuer)**: Optional issuer string enforced when `JWT_ISSUER` is configured
+- **`aud` (Audience)**: Optional audience string enforced when `JWT_AUDIENCE` is configured
 - **`token_type`**: Custom field preventing tokens from being used incorrectly
 
-The current scaffold keeps the claim set intentionally small. Additional claims such as `iss`, `aud`, `iat`, `jti`, or key identifiers are part of later auth-hardening roadmap work rather than the default baseline.
+The template still keeps the claim set intentionally lean, but it now supports optional `iss` and `aud` claims plus a `kid` header for signing-key rotation. Claims such as `iat` and `jti`, along with refresh-token rotation, remain opt-in follow-on hardening work.
 
 ## Token Verification
 
@@ -172,8 +179,8 @@ async def verify_token(token: str, expected_token_type: TokenType, db: AsyncSess
         return None
 
     try:
-        # 2. Verify signature and decode payload
-        payload = jwt.decode(token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+        # 2. Verify signature, issuer, and audience with the configured key ring
+        payload = decode_token_payload(token)
 
         # 3. Extract and validate claims
         username_or_email: str | None = payload.get("sub")
@@ -195,6 +202,7 @@ async def verify_token(token: str, expected_token_type: TokenType, db: AsyncSess
 
 1. **Blacklist Check**: Prevents use of tokens from logged-out users
 1. **Signature Verification**: Ensures token hasn't been tampered with
+1. **Issuer / Audience Validation**: Enforced whenever `JWT_ISSUER` or `JWT_AUDIENCE` are configured
 1. **Expiration Check**: Automatically handled by JWT library
 1. **Type Validation**: Prevents refresh tokens from being used as access tokens
 1. **Subject Validation**: Ensures token contains valid user identifier
@@ -512,6 +520,10 @@ SECRET_KEY=your-secret-key-here
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_ISSUER=https://api.example.com
+JWT_AUDIENCE=template-api
+JWT_ACTIVE_KEY_ID=2026-04
+JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
 
 # Security Headers
 SECURE_COOKIES=true
@@ -527,6 +539,10 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    JWT_ISSUER: str | None = None
+    JWT_AUDIENCE: str | None = None
+    JWT_ACTIVE_KEY_ID: str = "primary"
+    JWT_VERIFICATION_KEYS: dict[str, SecretStr] = {}
 
     # Cookie settings
     SECURE_COOKIES: bool = True
@@ -539,7 +555,7 @@ class Settings(BaseSettings):
 ### Token Security
 
 - **Use strong secrets**: Generate cryptographically secure SECRET_KEY
-- **Rotate secrets**: Regularly change SECRET_KEY in production
+- **Rotate secrets deliberately**: Move the current signing secret into `JWT_VERIFICATION_KEYS`, assign a new `SECRET_KEY`, and update `JWT_ACTIVE_KEY_ID`
 - **Environment separation**: Different secrets for dev/staging/production
 - **Secure transmission**: Always use HTTPS in production
 

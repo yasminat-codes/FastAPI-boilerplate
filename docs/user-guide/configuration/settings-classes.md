@@ -111,13 +111,16 @@ class CryptSettings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    JWT_ISSUER: str | None = None
+    JWT_AUDIENCE: str | None = None
+    JWT_ACTIVE_KEY_ID: str = "primary"
+    JWT_VERIFICATION_KEYS: dict[str, SecretStr] = Field(default_factory=dict)
 
-    @field_validator("SECRET_KEY")
-    @classmethod
-    def validate_secret_key(cls, v: str) -> str:
-        if len(v) < 32:
-            raise ValueError("SECRET_KEY must be at least 32 characters")
-        return v
+    @model_validator(mode="after")
+    def validate_crypt_settings(self) -> Self:
+        # Trim optional issuer/audience, require a non-empty active key id,
+        # and keep rotation secrets in a kid -> SecretStr verification map.
+        ...
 ```
 
 ### Redis Settings

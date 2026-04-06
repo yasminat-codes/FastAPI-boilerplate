@@ -87,6 +87,10 @@ SECRET_KEY="your-super-secret-key-here"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+JWT_ISSUER="https://api.example.com"
+JWT_AUDIENCE="template-api"
+JWT_ACTIVE_KEY_ID="2026-04"
+JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
 ```
 
 ### Database Configuration

@@ -190,6 +190,7 @@ The docs also include an environment settings matrix for `local`, `staging`, and
 * `WEBHOOK_*` settings define generic verification, replay-window, and payload-retention defaults for future provider adapters
 * `SENTRY_*`, `METRICS_*`, `TRACING_*`, and `*_LOG_LEVEL` settings define the template observability contract
 * `FEATURE_*` settings provide high-level toggles for optional route groups and template-owned modules such as admin and client cache
+* `JWT_*` settings add optional issuer/audience enforcement and `kid`-based signing-key rotation on top of the default stateless token flow
 * `CORS_*` settings now default to a fail-closed allowlist outside local development and support credentials, exposed headers, and max-age tuning
 * `SECURITY_HEADERS_*`, `REFRESH_TOKEN_COOKIE_*`, and `SESSION_SECURE_COOKIES` control baseline response-header hardening and template-owned cookie behavior
 * `TRUSTED_HOSTS` and `PROXY_HEADERS_*` settings provide optional host-header protection and safe forwarded-header trust controls for reverse-proxy deployments

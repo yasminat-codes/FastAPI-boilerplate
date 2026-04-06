@@ -18,7 +18,7 @@ Inside a version, the template now reserves these route groups:
 | `public` | none | External application APIs such as users, posts, tiers, auth, and similar resource routes | Route-specific auth as needed |
 | `ops` | none | Lightweight liveness and readiness endpoints | Public infrastructure probes |
 | `admin` | `/admin` | Future admin-only HTTP surfaces | `require_admin_access(...)` |
-| `internal` | `/internal` | Trusted internal endpoints such as runtime diagnostics and future service-to-service hooks | `require_internal_access(...)` |
+| `internal` | `/internal` | Trusted internal endpoints such as runtime diagnostics and future service-to-service hooks | `require_internal_access(...)` via bearer auth or a configured machine API key |
 | `webhooks` | `/webhooks` | Future inbound webhook receivers | Provider verification, not end-user JWT auth |
 
 The current code wires this through:
@@ -143,7 +143,7 @@ The template now reserves three distinct runtime-health surfaces:
 - `/api/v1/ready` is the API readiness endpoint. It checks the template-owned dependencies the API process needs before it should receive traffic: database connectivity, cache Redis, queue Redis, and rate-limiter Redis.
 - `/api/v1/internal/health` is the internal diagnostics endpoint. It returns the same readiness posture plus safe per-dependency summaries and the current ARQ worker heartbeat state from the configured queue, and it now sits behind the template's internal-access permission boundary.
 
-Use the internal endpoint only for trusted operators and automation. Public load balancers, uptime checks, and browser clients should stay on `/health` or `/ready`; deeper diagnostics now require an authenticated caller with `platform:internal:access` or an equivalent project-specific grant.
+Use the internal endpoint only for trusted operators and automation. Public load balancers, uptime checks, and browser clients should stay on `/health` or `/ready`; deeper diagnostics now require either a bearer-authenticated subject or a configured machine principal with `platform:internal:access` or an equivalent project-specific grant.
 
 The dependency summaries are intentionally safe. They explain which probe succeeded or failed without echoing DSNs, hostnames, usernames, secrets, or raw exception payloads.
 

@@ -27,6 +27,11 @@ class DependencyHealthDetail(BaseModel):
     summary: str
 
 
+class TenantContext(BaseModel):
+    tenant_id: str | None = None
+    organization_id: str | None = None
+
+
 class WorkerHealthCheck(BaseModel):
     status: str
     summary: str

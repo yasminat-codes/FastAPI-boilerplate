@@ -4,6 +4,7 @@ from ..core.config import (
     DEFAULT_ENV_FILE,
     PRODUCTION_UNSAFE_PASSWORD_VALUES,
     PRODUCTION_UNSAFE_SECRET_VALUES,
+    APIKeyPrincipalSettings,
     AppSettings,
     ClientSideCacheSettings,
     ConsoleLoggerSettings,
@@ -26,6 +27,7 @@ from ..core.config import (
     LogLevel,
     LogRedactionSettings,
     LogVerbositySettings,
+    MachineAuthSettings,
     MetricsSettings,
     MySQLSettings,
     PasswordHashScheme,
@@ -59,6 +61,7 @@ from ..core.config import (
 )
 
 __all__ = [
+    "APIKeyPrincipalSettings",
     "AppSettings",
     "CORSSettings",
     "CRUDAdminSettings",
@@ -80,7 +83,9 @@ __all__ = [
     "FirstUserSettings",
     "LocalSettings",
     "LogLevel",
+    "LogRedactionSettings",
     "LogVerbositySettings",
+    "MachineAuthSettings",
     "MetricsSettings",
     "MySQLSettings",
     "PasswordHashScheme",
@@ -97,7 +102,6 @@ __all__ = [
     "RedisQueueSettings",
     "RedisSSLCertRequirements",
     "RedisRateLimiterSettings",
-    "LogRedactionSettings",
     "SecurityHeadersSettings",
     "SQLiteSettings",
     "SentrySettings",

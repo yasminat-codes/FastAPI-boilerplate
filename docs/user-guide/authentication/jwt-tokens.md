@@ -516,6 +516,38 @@ async def get_current_user(db: AsyncSession = Depends(async_get_db), token: str 
     return user
 ```
 
+### get_current_principal
+
+Routes that use the shared authorization helpers now authenticate either a bearer-token user or a configured machine principal:
+
+```python
+async def get_current_principal(
+    request: Request,
+    db: AsyncSession = Depends(async_get_db),
+) -> dict[str, Any]:
+    api_key = request.headers.get(settings.API_KEY_HEADER_NAME)
+    if api_key is not None:
+        principal = resolve_api_key_principal(api_key)
+        if principal is None:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        return principal
+
+    authorization = request.headers.get("Authorization")
+    if authorization:
+        token_type, _, token_value = authorization.partition(" ")
+        if token_type.lower() != "bearer" or not token_value:
+            raise HTTPException(status_code=401, detail="Invalid Authorization header")
+        return await get_current_user(token=token_value, db=db)
+
+    raise HTTPException(status_code=401, detail="Authentication required")
+```
+
+Keep this distinction in mind:
+
+- `get_current_user(...)` remains the reusable user-only JWT dependency.
+- `get_current_principal(...)` is the template's mixed auth boundary for permission-protected routes and internal hooks.
+- `get_current_superuser(...)` still assumes a human user model, not a machine principal.
+
 ### get_optional_user
 
 ```python
@@ -555,6 +587,11 @@ JWT_AUDIENCE=template-api
 JWT_ACTIVE_KEY_ID=2026-04
 JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
 
+# Optional machine-principal auth
+API_KEY_ENABLED=true
+API_KEY_HEADER_NAME=X-API-Key
+API_KEY_PRINCIPALS='{"internal-worker":{"key":"change-me-machine-secret","permissions":["platform:internal:access"],"tenant_id":"tenant-123","organization_id":"org-123"}}'
+
 # Security Headers
 SECURE_COOKIES=true
 CORS_ORIGINS=["http://localhost:3000","https://yourapp.com"]
@@ -576,6 +613,9 @@ class Settings(BaseSettings):
     JWT_AUDIENCE: str | None = None
     JWT_ACTIVE_KEY_ID: str = "primary"
     JWT_VERIFICATION_KEYS: dict[str, SecretStr] = {}
+    API_KEY_ENABLED: bool = False
+    API_KEY_HEADER_NAME: str = "X-API-Key"
+    API_KEY_PRINCIPALS: dict[str, APIKeyPrincipalSettings] = {}
 
     # Cookie settings
     REFRESH_TOKEN_COOKIE_SECURE: bool = True
@@ -611,40 +651,67 @@ class Settings(BaseSettings):
 
 ### API Key Authentication
 
-For service-to-service communication:
+For internal hooks, workers, and machine clients that do not need an end-user session, the template now provides a settings-backed API-key pattern instead of assuming a client-specific database table.
+
+Configure named machine principals with explicit permissions and optional tenant context:
 
 ```python
-async def get_api_key_user(api_key: str = Header(None), db: AsyncSession = Depends(async_get_db)) -> dict:
-    if not api_key:
-        raise HTTPException(status_code=401, detail="API key required")
+from pydantic import SecretStr
 
-    # Verify API key
-    user = await crud_users.get(db=db, api_key=api_key)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid API key")
+from app.core.config import APIKeyPrincipalSettings, MachineAuthSettings
 
-    return user
+
+machine_auth_settings = MachineAuthSettings(
+    API_KEY_ENABLED=True,
+    API_KEY_PRINCIPALS={
+        "internal-worker": APIKeyPrincipalSettings(
+            key=SecretStr("change-me-machine-secret"),
+            permissions=["platform:internal:access"],
+            scopes=["jobs:enqueue"],
+            tenant_id="tenant-123",
+            organization_id="org-123",
+        )
+    },
+)
 ```
 
-### Multiple Authentication Methods
+At request time, the shared auth layer resolves those principals without touching the user table:
 
 ```python
-async def get_authenticated_user(
-    db: AsyncSession = Depends(async_get_db), token: str = Depends(optional_oauth2_scheme), api_key: str = Header(None)
-) -> dict:
-    # Try JWT token first
-    if token:
-        try:
-            return await get_current_user(db=db, token=token)
-        except HTTPException:
-            pass
+from app.core.security import build_api_key_auth_headers, resolve_api_key_principal
 
-    # Fall back to API key
-    if api_key:
-        return await get_api_key_user(api_key=api_key, db=db)
 
-    raise HTTPException(status_code=401, detail="Authentication required")
+headers = build_api_key_auth_headers(
+    api_key="change-me-machine-secret",
+    machine_auth_settings=machine_auth_settings,
+)
+
+principal = resolve_api_key_principal(
+    headers["X-API-Key"],
+    machine_auth_settings=machine_auth_settings,
+)
+
+assert principal == {
+    "id": "service:internal-worker",
+    "username": "internal-worker",
+    "principal_type": "service",
+    "permissions": ["platform:internal:access"],
+    "scopes": ["jobs:enqueue"],
+    "tenant_context": {
+        "tenant_id": "tenant-123",
+        "organization_id": "org-123",
+    },
+    ...
+}
 ```
+
+Use this pattern when:
+
+- an internal diagnostic or operator endpoint should allow either bearer auth or a trusted machine caller
+- a worker or scheduler needs stable service-to-service credentials
+- a cloned project wants to carry tenant or organization context through machine auth before a full tenant-membership model exists
+
+Avoid treating this baseline pattern as a full API-key product. The template does not yet ship rotation workflows, persistent key storage, per-key auditing, or lifecycle management.
 
 ## Troubleshooting
 

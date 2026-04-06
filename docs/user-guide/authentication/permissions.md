@@ -8,7 +8,7 @@ Phase 4 Wave 4.2 now gives the template a reusable permission-policy layer inste
 
 The shared authorization surface lives in `src/app/platform/authorization.py` and gives cloned projects a generic starting point without forcing one client's role model into the template.
 
-- `AuthorizationSubject`: normalized actor context with `roles`, `permissions`, `user_id`, `tier_id`, and the raw user payload
+- `AuthorizationSubject`: normalized actor context with `roles`, `permissions`, `principal_type`, optional tenant context, `user_id`, `tier_id`, and the raw user payload
 - `PermissionPolicy`: reusable role-to-permission mapping with simple inheritance support
 - `DEFAULT_PERMISSION_POLICY`: the built-in policy for the template's own platform routes
 - `TemplateRole`: default shared roles for the base template
@@ -17,6 +17,7 @@ The shared authorization surface lives in `src/app/platform/authorization.py` an
 The API layer now exposes dependency helpers in `src/app/api/dependencies.py`:
 
 - `get_current_authorization_subject`
+- `get_current_tenant_context`
 - `require_admin_access(...)`
 - `require_internal_access(...)`
 - `require_roles(...)`
@@ -58,6 +59,16 @@ Phase 4 Wave 4.2 now makes the route-surface boundary explicit:
 - `webhooks` remain external machine-to-machine ingress. They should rely on signature verification and replay controls instead of end-user JWTs.
 
 The built-in `admin` role receives both `platform:admin:access` and `platform:internal:access`, but cloned projects can split those concerns by extending the permission policy with a dedicated operator or service role later.
+
+## Machine clients and tenant hooks
+
+Phase 4 Wave 4.2 now also gives the template a reusable machine-auth extension point instead of leaving service-to-service hooks undocumented:
+
+- `API_KEY_PRINCIPALS` can register named machine principals in settings, each with its own key, roles, permissions, scopes, and optional tenant or organization context.
+- `get_current_authorization_subject(...)` now works for either bearer-authenticated users or configured machine principals on routes that depend on the shared permission layer.
+- `get_current_tenant_context(...)` exposes normalized `tenant_id` and `organization_id` values so cloned projects can thread tenant-aware policy or queue context through one place later.
+
+This keeps the template generic: there is no baked-in client account table or per-tenant membership model yet, but the auth boundary now has a consistent place to carry that context once a cloned project defines it.
 
 ## Route-level authorization
 
@@ -154,8 +165,8 @@ That pattern keeps route contracts readable while avoiding fragile authorization
 
 This new template layer is intentionally generic. It does not yet provide:
 
-- tenant or organization membership resolution
-- API key or service-to-service policy mapping
+- tenant or organization membership resolution from domain tables
+- database-backed API key storage, rotation, or per-key lifecycle management
 - time-based or contextual business authorization rules
 - automatic conversion from database role tables into permission grants
 

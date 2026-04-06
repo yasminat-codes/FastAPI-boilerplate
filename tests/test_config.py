@@ -520,6 +520,54 @@ def test_crypt_settings_cover_password_hashing_policy() -> None:
     assert settings.PASSWORD_HASH_REHASH_ON_LOGIN is False
 
 
+def test_machine_auth_settings_cover_api_key_principals_and_tenant_context() -> None:
+    settings = load_settings(
+        _env_file=None,
+        API_KEY_ENABLED=True,
+        API_KEY_HEADER_NAME=" X-Service-Key ",
+        API_KEY_PRINCIPALS={
+            " internal-worker ": {
+                "key": "machine-secret-value",
+                "roles": [" service "],
+                "permissions": [" platform:internal:access "],
+                "scopes": ["jobs:dispatch"],
+                "tenant_id": " tenant-123 ",
+                "organization_id": " org-123 ",
+            }
+        },
+    )
+
+    assert settings.API_KEY_ENABLED is True
+    assert settings.API_KEY_HEADER_NAME == "X-Service-Key"
+    principal = settings.API_KEY_PRINCIPALS["internal-worker"]
+    assert principal.key.get_secret_value() == "machine-secret-value"
+    assert principal.roles == ["service"]
+    assert principal.permissions == ["platform:internal:access"]
+    assert principal.scopes == ["jobs:dispatch"]
+    assert principal.tenant_id == "tenant-123"
+    assert principal.organization_id == "org-123"
+
+
+def test_machine_auth_settings_require_principals_when_enabled() -> None:
+    with pytest.raises(ValidationError, match="API_KEY_PRINCIPALS must not be empty when API_KEY_ENABLED is true"):
+        load_settings(
+            _env_file=None,
+            API_KEY_ENABLED=True,
+        )
+
+
+def test_machine_auth_settings_reject_duplicate_api_keys() -> None:
+    with pytest.raises(ValidationError, match="API_KEY_PRINCIPALS must not reuse the same key"):
+        load_settings(
+            _env_file=None,
+            API_KEY_ENABLED=True,
+            API_KEY_PRINCIPALS={
+                "worker-a": {"key": "shared-secret"},
+                "worker-b": {"key": "shared-secret"},
+            },
+        )
+
+
 def test_feature_flags_settings_cover_optional_template_modules() -> None:
     settings = load_settings(
         _env_file=None,

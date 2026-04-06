@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from enum import Enum
+from hmac import compare_digest
 from typing import Any, Literal, cast
 
 import bcrypt
@@ -14,7 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from uuid6 import uuid7
 
 from ..crud.crud_users import crud_users
-from .config import CryptSettings, PasswordHashScheme, RefreshTokenCookieSettings, settings
+from .config import (
+    APIKeyPrincipalSettings,
+    CryptSettings,
+    MachineAuthSettings,
+    PasswordHashScheme,
+    RefreshTokenCookieSettings,
+    settings,
+)
 from .db.crud_token_blacklist import crud_token_blacklist
 from .schemas import TokenBlacklistCreate, TokenData
 
@@ -32,6 +40,56 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 class TokenType(str, Enum):
     ACCESS = "access"
     REFRESH = "refresh"
+
+
+def build_api_key_auth_headers(
+    *,
+    api_key: str,
+    machine_auth_settings: MachineAuthSettings | None = None,
+) -> dict[str, str]:
+    configured_settings = settings if machine_auth_settings is None else machine_auth_settings
+    return {configured_settings.API_KEY_HEADER_NAME: api_key}
+
+
+def _build_api_key_principal_payload(
+    *,
+    principal_name: str,
+    principal_settings: APIKeyPrincipalSettings,
+) -> dict[str, Any]:
+    return {
+        "id": f"service:{principal_name}",
+        "username": principal_name,
+        "name": principal_name,
+        "email": None,
+        "is_superuser": False,
+        "principal_type": "service",
+        "roles": list(principal_settings.roles),
+        "permissions": list(principal_settings.permissions),
+        "scopes": list(principal_settings.scopes),
+        "tenant_context": {
+            "tenant_id": principal_settings.tenant_id,
+            "organization_id": principal_settings.organization_id,
+        },
+    }
+
+
+def resolve_api_key_principal(
+    api_key: str | None,
+    *,
+    machine_auth_settings: MachineAuthSettings | None = None,
+) -> dict[str, Any] | None:
+    configured_settings = settings if machine_auth_settings is None else machine_auth_settings
+    if not configured_settings.API_KEY_ENABLED or api_key is None:
+        return None
+
+    for principal_name, principal_settings in configured_settings.API_KEY_PRINCIPALS.items():
+        if compare_digest(principal_settings.key.get_secret_value(), api_key):
+            return _build_api_key_principal_payload(
+                principal_name=principal_name,
+                principal_settings=principal_settings,
+            )
+
+    return None
 
 
 def build_refresh_token_cookie_kwargs(

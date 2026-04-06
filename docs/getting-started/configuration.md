@@ -289,6 +289,29 @@ PASSWORD_HASH_REHASH_ON_LOGIN=true
 !!! warning "Secure Environment Cookie Defaults"
     Staging and production profiles reject `REFRESH_TOKEN_COOKIE_SECURE=false`. They also reject `SESSION_SECURE_COOKIES=false` while CRUD admin is enabled, so secure deployments cannot silently fall back to insecure cookie transport.
 
+### Machine Authentication For Internal Hooks
+
+Use `API_KEY_*` settings when a cloned project wants optional machine-to-machine authentication for internal hooks, automation, or infrastructure callers without introducing a client-specific database table first:
+
+```env
+API_KEY_ENABLED=true
+API_KEY_HEADER_NAME="X-API-Key"
+API_KEY_PRINCIPALS='{
+  "internal-worker": {
+    "key": "change-me-machine-secret",
+    "permissions": ["platform:internal:access"],
+    "scopes": ["jobs:dispatch"],
+    "tenant_id": "tenant-123",
+    "organization_id": "org-123"
+  }
+}'
+```
+
+- `API_KEY_ENABLED` turns on header-based machine-principal resolution for the shared auth layer.
+- `API_KEY_HEADER_NAME` lets template adopters choose the inbound header name their infrastructure will send.
+- `API_KEY_PRINCIPALS` is a JSON object keyed by machine-principal name. Each principal can declare its secret key, roles, permissions, scopes, and optional tenant or organization context.
+- Route dependencies that use `require_permissions(...)`, `require_internal_access(...)`, or `get_current_authorization_subject(...)` can now work with either a bearer-authenticated user or one of these configured machine principals.
+
 ### Feature Flags And Optional Modules
 
 Use `FEATURE_*` settings to disable template-owned route groups or modules without editing application code:

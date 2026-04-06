@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.app.api import SUPPORTED_API_VERSIONS, ApiVersion, build_api_router, build_version_router
-from src.app.api.dependencies import get_current_user
+from src.app.api.dependencies import get_current_principal
 from src.app.api.routing import ApiRouteGroup, build_route_group_router
 from src.app.api.v1 import build_v1_internal_router
 from src.app.core.schemas import DependencyHealthDetail, InternalHealthCheck, WorkerHealthCheck
@@ -102,7 +102,7 @@ def test_internal_health_route_allows_authenticated_internal_access() -> None:
     async def override_redis() -> object:
         return object()
 
-    async def override_current_user() -> dict[str, object]:
+    async def override_current_principal() -> dict[str, object]:
         return {
             "id": 1,
             "permissions": [TemplatePermission.INTERNAL_ACCESS.value],
@@ -110,7 +110,7 @@ def test_internal_health_route_allows_authenticated_internal_access() -> None:
 
     application.dependency_overrides[async_get_db] = override_db
     application.dependency_overrides[async_get_redis] = override_redis
-    application.dependency_overrides[get_current_user] = override_current_user
+    application.dependency_overrides[get_current_principal] = override_current_principal
 
     diagnostics = InternalHealthCheck(
         status="healthy",
@@ -137,6 +137,64 @@ def test_internal_health_route_allows_authenticated_internal_access() -> None:
         TestClient(application) as client,
     ):
         response = client.get("/internal/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+
+
+def test_internal_health_route_allows_machine_api_key_access() -> None:
+    application = FastAPI()
+    application.include_router(build_v1_internal_router())
+
+    async def override_db() -> object:
+        return object()
+
+    async def override_redis() -> object:
+        return object()
+
+    application.dependency_overrides[async_get_db] = override_db
+    application.dependency_overrides[async_get_redis] = override_redis
+
+    custom_settings = load_settings(
+        _env_file=None,
+        API_KEY_ENABLED=True,
+        API_KEY_PRINCIPALS={
+            "internal-worker": {
+                "key": "machine-secret-value",
+                "permissions": [TemplatePermission.INTERNAL_ACCESS.value],
+            }
+        },
+    )
+    diagnostics = InternalHealthCheck(
+        status="healthy",
+        environment="local",
+        version="0.1.0",
+        app="healthy",
+        dependencies={"database": "healthy"},
+        dependency_details={
+            "database": DependencyHealthDetail(status="healthy", summary="Database probe succeeded."),
+        },
+        worker=WorkerHealthCheck(
+            status="healthy",
+            summary="Recent worker heartbeat observed on the configured queue.",
+            queue_name="arq:queue",
+        ),
+        timestamp="2026-04-06T12:00:00+00:00",
+    )
+    contract = Mock()
+    contract.evaluate_internal = AsyncMock(return_value=diagnostics)
+
+    with (
+        patch("src.app.api.dependencies.settings", custom_settings),
+        patch("src.app.core.security.settings", custom_settings),
+        patch("src.app.api.v1.internal_health.build_runtime_readiness_contract", return_value=contract),
+        patch("src.app.api.v1.internal_health.check_worker_health", new=AsyncMock(return_value=diagnostics.worker)),
+        TestClient(application) as client,
+    ):
+        response = client.get(
+            "/internal/health",
+            headers={custom_settings.API_KEY_HEADER_NAME: "machine-secret-value"},
+        )
 
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"

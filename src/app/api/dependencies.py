@@ -20,7 +20,8 @@ from ..platform.database import async_get_db
 from ..platform.exceptions import RateLimitException, UnauthorizedException
 from ..platform.logger import logging
 from ..platform.rate_limit import rate_limiter
-from ..platform.security import TokenType, oauth2_scheme, verify_token
+from ..platform.schemas import TenantContext
+from ..platform.security import TokenType, oauth2_scheme, resolve_api_key_principal, verify_token
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,27 @@ async def get_current_user(
         return user
 
     raise UnauthorizedException("User not authenticated.")
+
+
+async def get_current_principal(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(async_get_db)],
+) -> dict[str, Any]:
+    api_key = request.headers.get(settings.API_KEY_HEADER_NAME)
+    if api_key is not None:
+        principal = resolve_api_key_principal(api_key)
+        if principal is None:
+            raise UnauthorizedException("Invalid API key.")
+        return principal
+
+    authorization = request.headers.get("Authorization")
+    if authorization:
+        token_type, _, token_value = authorization.partition(" ")
+        if token_type.lower() != "bearer" or not token_value:
+            raise UnauthorizedException("Invalid Authorization header.")
+        return await get_current_user(token_value, db=db)
+
+    raise UnauthorizedException("Authentication required.")
 
 
 async def get_optional_user(request: Request, db: AsyncSession = Depends(async_get_db)) -> dict | None:
@@ -79,9 +101,15 @@ async def get_current_superuser(current_user: Annotated[dict, Depends(get_curren
 
 
 async def get_current_authorization_subject(
-    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+    current_principal: Annotated[dict[str, Any], Depends(get_current_principal)],
 ) -> AuthorizationSubject:
-    return build_authorization_subject(current_user)
+    return build_authorization_subject(current_principal)
+
+
+async def get_current_tenant_context(
+    subject: Annotated[AuthorizationSubject, Depends(get_current_authorization_subject)],
+) -> TenantContext:
+    return subject.tenant_context
 
 
 def require_roles(
@@ -89,13 +117,15 @@ def require_roles(
     require_all: bool = False,
     policy: PermissionPolicy = DEFAULT_PERMISSION_POLICY,
 ):
-    async def dependency(current_user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, Any]:
+    async def dependency(
+        current_principal: Annotated[dict[str, Any], Depends(get_current_principal)],
+    ) -> dict[str, Any]:
         ensure_roles(
-            build_authorization_subject(current_user, policy=policy),
+            build_authorization_subject(current_principal, policy=policy),
             roles,
             require_all=require_all,
         )
-        return current_user
+        return current_principal
 
     return dependency
 
@@ -105,13 +135,15 @@ def require_permissions(
     require_all: bool = True,
     policy: PermissionPolicy = DEFAULT_PERMISSION_POLICY,
 ):
-    async def dependency(current_user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, Any]:
+    async def dependency(
+        current_principal: Annotated[dict[str, Any], Depends(get_current_principal)],
+    ) -> dict[str, Any]:
         ensure_permissions(
-            build_authorization_subject(current_user, policy=policy),
+            build_authorization_subject(current_principal, policy=policy),
             permissions,
             require_all=require_all,
         )
-        return current_user
+        return current_principal
 
     return dependency
 

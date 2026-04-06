@@ -1,6 +1,6 @@
 # Authentication & Security
 
-Learn how to implement secure authentication in your FastAPI application. The template currently standardizes on a stateless dual-JWT model: short-lived access tokens in the `Authorization` header plus longer-lived refresh tokens delivered through an HTTP-only cookie. A blacklist table handles explicit revocation and logout, and the baseline now supports optional issuer and audience claims plus key-id-based signing-key rotation.
+Learn how to implement secure authentication in your FastAPI application. The template currently standardizes on a stateless dual-JWT model for user auth: short-lived access tokens in the `Authorization` header plus longer-lived refresh tokens delivered through an HTTP-only cookie. A blacklist table handles explicit revocation and logout, and the baseline now supports optional issuer and audience claims plus key-id-based signing-key rotation. For internal hooks and machine clients, the same auth layer can also resolve optional API-key-backed machine principals from settings.
 
 ## What You'll Learn
 
@@ -56,6 +56,8 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
 - **Default shared roles**: Every authenticated user gets `authenticated`; `is_superuser=True` adds `admin`
 - **Explicit permission dependencies**: Built-in routes can depend on named platform permissions instead of one hard-coded admin check
 - **Internal versus external boundary**: `/api/v1/internal/*` now requires the template's internal-access permission, while `/health` and `/ready` stay safe for unauthenticated infrastructure probes
+- **Machine principal support**: internal hooks and other machine clients can authenticate with configured `API_KEY_PRINCIPALS` instead of end-user JWTs
+- **Tenant/org hook support**: normalized tenant and organization context can flow through the authorization subject when a cloned project needs tenant-aware policy later
 - **Custom claims support**: `role`, `roles`, `permissions`, and `scopes` claims are normalized automatically when projects extend the auth payload
 - **Ownership stays explicit**: Fine-grained self-versus-other checks remain in services instead of being hidden in route decorators
 
@@ -150,6 +152,11 @@ SESSION_SECURE_COOKIES=true
 PASSWORD_HASH_SCHEME="bcrypt"
 PASSWORD_BCRYPT_ROUNDS=12
 PASSWORD_HASH_REHASH_ON_LOGIN=true
+
+# Optional machine-principal auth
+API_KEY_ENABLED=true
+API_KEY_HEADER_NAME="X-API-Key"
+API_KEY_PRINCIPALS='{"internal-worker":{"key":"change-me-machine-secret","permissions":["platform:internal:access"]}}'
 ```
 
 ## Login Throttling Guidance

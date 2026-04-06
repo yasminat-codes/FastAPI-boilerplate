@@ -12,6 +12,7 @@ from src.app.core.security import (
     SECRET_KEY,
     TokenType,
     authenticate_user,
+    build_api_key_auth_headers,
     build_refresh_token_cookie_delete_kwargs,
     build_refresh_token_cookie_kwargs,
     clear_refresh_token_cookie,
@@ -19,6 +20,7 @@ from src.app.core.security import (
     create_refresh_token,
     get_password_hash,
     password_hash_needs_rehash,
+    resolve_api_key_principal,
     set_refresh_token_cookie,
     verify_token,
 )
@@ -115,6 +117,62 @@ def test_refresh_token_cookie_helpers_apply_runtime_settings_to_response_headers
     assert "Path=/auth" in clear_cookie_header
     assert "SameSite=none" in clear_cookie_header
     assert "Secure" in clear_cookie_header
+
+
+def test_build_api_key_auth_headers_use_runtime_settings() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        API_KEY_HEADER_NAME="X-Service-Key",
+    )
+
+    headers = build_api_key_auth_headers(
+        api_key="machine-secret-value",
+        machine_auth_settings=custom_settings,
+    )
+
+    assert headers == {"X-Service-Key": "machine-secret-value"}
+
+
+def test_resolve_api_key_principal_returns_configured_machine_subject() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        API_KEY_ENABLED=True,
+        API_KEY_PRINCIPALS={
+            "internal-worker": {
+                "key": "machine-secret-value",
+                "roles": ["service"],
+                "permissions": ["platform:internal:access"],
+                "scopes": ["jobs:dispatch"],
+                "tenant_id": "tenant-123",
+                "organization_id": "org-123",
+            }
+        },
+    )
+
+    principal = resolve_api_key_principal(
+        "machine-secret-value",
+        machine_auth_settings=custom_settings,
+    )
+
+    assert principal is not None
+    assert principal["id"] == "service:internal-worker"
+    assert principal["principal_type"] == "service"
+    assert principal["permissions"] == ["platform:internal:access"]
+    assert principal["scopes"] == ["jobs:dispatch"]
+    assert principal["tenant_context"] == {
+        "tenant_id": "tenant-123",
+        "organization_id": "org-123",
+    }
+
+
+def test_resolve_api_key_principal_returns_none_for_unknown_key() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        API_KEY_ENABLED=True,
+        API_KEY_PRINCIPALS={"internal-worker": {"key": "machine-secret-value"}},
+    )
+
+    assert resolve_api_key_principal("unknown", machine_auth_settings=custom_settings) is None
 
 
 @pytest.mark.asyncio

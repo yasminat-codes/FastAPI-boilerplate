@@ -8,6 +8,7 @@ from enum import Enum, StrEnum
 from typing import Any
 
 from .exceptions.http_exceptions import ForbiddenException
+from .schemas import TenantContext
 
 WILDCARD_PERMISSION = "*"
 AUTHENTICATED_ROLE = "authenticated"
@@ -87,20 +88,56 @@ def _normalize_scope_values(value: Any) -> frozenset[str]:
     return _normalize_claim_values(value)
 
 
+def _normalize_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+
+    raw_value = value.value if isinstance(value, Enum) else value
+    normalized = str(raw_value).strip()
+    return normalized or None
+
+
+def build_tenant_context(subject: Mapping[str, Any]) -> TenantContext:
+    nested_context = subject.get("tenant_context")
+    tenant_id: str | None = None
+    organization_id: str | None = None
+
+    if isinstance(nested_context, Mapping):
+        tenant_id = _normalize_optional_string(nested_context.get("tenant_id"))
+        organization_id = _normalize_optional_string(nested_context.get("organization_id"))
+
+    if tenant_id is None:
+        tenant_id = _normalize_optional_string(subject.get("tenant_id"))
+    if organization_id is None:
+        organization_id = _normalize_optional_string(subject.get("organization_id"))
+
+    return TenantContext(tenant_id=tenant_id, organization_id=organization_id)
+
+
 @dataclass(frozen=True, slots=True)
 class AuthorizationSubject:
     user_id: Any | None = None
     username: str | None = None
     email: str | None = None
+    principal_type: str = "user"
     roles: frozenset[str] = field(default_factory=frozenset)
     permissions: frozenset[str] = field(default_factory=frozenset)
     is_superuser: bool = False
     tier_id: Any | None = None
+    tenant_context: TenantContext = field(default_factory=TenantContext)
     raw_user: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def subject_id(self) -> Any | None:
         return self.user_id
+
+    @property
+    def tenant_id(self) -> str | None:
+        return self.tenant_context.tenant_id
+
+    @property
+    def organization_id(self) -> str | None:
+        return self.tenant_context.organization_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -184,10 +221,12 @@ class PermissionPolicy:
             user_id=current_user.get("id"),
             username=current_user.get("username"),
             email=current_user.get("email"),
+            principal_type=_normalize_optional_string(current_user.get("principal_type")) or "user",
             roles=expanded_roles,
             permissions=frozenset(permissions),
             is_superuser=bool(current_user.get("is_superuser")),
             tier_id=current_user.get("tier_id"),
+            tenant_context=build_tenant_context(current_user),
             raw_user=current_user,
         )
 
@@ -402,6 +441,7 @@ __all__ = [
     "authorize_owner_or_permission",
     "authorize_permission",
     "build_authorization_subject",
+    "build_tenant_context",
     "ensure_permissions",
     "ensure_roles",
     "has_permission",

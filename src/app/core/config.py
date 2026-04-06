@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Any, Self, TypeAlias, cast
 from urllib.parse import quote
 
-from pydantic import AliasChoices, Field, SecretStr, computed_field, model_validator
+from pydantic import AliasChoices, BaseModel, Field, SecretStr, computed_field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL, make_url
 
@@ -224,6 +224,75 @@ class CryptSettings(BaseSettings):
             normalized_verification_keys[normalized_key_id] = SecretStr(secret_value)
 
         self.JWT_VERIFICATION_KEYS = normalized_verification_keys
+        return self
+
+
+class APIKeyPrincipalSettings(BaseModel):
+    key: SecretStr
+    roles: list[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
+    scopes: list[str] = Field(default_factory=list)
+    tenant_id: str | None = None
+    organization_id: str | None = None
+    description: str | None = None
+
+    @model_validator(mode="after")
+    def validate_api_key_principal_settings(self) -> Self:
+        self.roles = _normalize_string_list(setting_name="API_KEY_PRINCIPALS.roles", values=self.roles)
+        self.permissions = _normalize_string_list(
+            setting_name="API_KEY_PRINCIPALS.permissions",
+            values=self.permissions,
+        )
+        self.scopes = _normalize_string_list(setting_name="API_KEY_PRINCIPALS.scopes", values=self.scopes)
+
+        for attribute_name in ("tenant_id", "organization_id", "description"):
+            value = getattr(self, attribute_name)
+            if value is None:
+                continue
+
+            stripped = value.strip()
+            if not stripped:
+                raise ValueError(f"{attribute_name} must not be empty when provided")
+            setattr(self, attribute_name, stripped)
+
+        secret_value = self.key.get_secret_value().strip()
+        if not secret_value:
+            raise ValueError("API key principal key must not be empty")
+        self.key = SecretStr(secret_value)
+
+        return self
+
+
+class MachineAuthSettings(BaseSettings):
+    API_KEY_ENABLED: bool = False
+    API_KEY_HEADER_NAME: str = "X-API-Key"
+    API_KEY_PRINCIPALS: dict[str, APIKeyPrincipalSettings] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_machine_auth_settings(self) -> Self:
+        self.API_KEY_HEADER_NAME = self.API_KEY_HEADER_NAME.strip()
+        if not self.API_KEY_HEADER_NAME:
+            raise ValueError("API_KEY_HEADER_NAME must not be empty")
+
+        normalized_principals: dict[str, APIKeyPrincipalSettings] = {}
+        seen_key_values: set[str] = set()
+        for principal_name, principal in self.API_KEY_PRINCIPALS.items():
+            normalized_name = principal_name.strip()
+            if not normalized_name:
+                raise ValueError("API_KEY_PRINCIPALS keys must not be empty")
+
+            key_value = principal.key.get_secret_value()
+            if key_value in seen_key_values:
+                raise ValueError("API_KEY_PRINCIPALS must not reuse the same key across multiple principals")
+
+            seen_key_values.add(key_value)
+            normalized_principals[normalized_name] = principal
+
+        self.API_KEY_PRINCIPALS = normalized_principals
+
+        if self.API_KEY_ENABLED and not self.API_KEY_PRINCIPALS:
+            raise ValueError("API_KEY_PRINCIPALS must not be empty when API_KEY_ENABLED is true")
+
         return self
 
 
@@ -997,6 +1066,7 @@ class Settings(
     SQLiteSettings,
     PostgresSettings,
     CryptSettings,
+    MachineAuthSettings,
     FirstUserSettings,
     TestSettings,
     RedisCacheSettings,

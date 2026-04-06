@@ -191,6 +191,7 @@ The docs also include an environment settings matrix for `local`, `staging`, and
 * `SENTRY_*`, `METRICS_*`, `TRACING_*`, and `*_LOG_LEVEL` settings define the template observability contract
 * `FEATURE_*` settings provide high-level toggles for optional route groups and template-owned modules such as admin and client cache
 * `JWT_*` settings add optional issuer/audience enforcement and `kid`-based signing-key rotation on top of the default stateless token flow
+* `API_KEY_*` settings register optional machine principals for internal hooks and other machine clients without forcing a client-specific auth table into the template
 * `CORS_*` settings now default to a fail-closed allowlist outside local development and support credentials, exposed headers, and max-age tuning
 * `SECURITY_HEADERS_*`, `REFRESH_TOKEN_COOKIE_*`, and `SESSION_SECURE_COOKIES` control baseline response-header hardening and template-owned cookie behavior
 * `PASSWORD_*` settings control the shared bcrypt policy, including work-factor increases and automatic rehash-on-login

@@ -292,9 +292,9 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 - [x] Add a reusable RBAC or permission policy layer.
 - [x] Define internal versus external endpoint access rules.
-- [ ] Add service-to-service authentication guidance for internal hooks.
-- [ ] Add optional API key pattern for machine clients.
-- [ ] Add tenant/org scoping hooks if tenant-aware support is desired.
+- [x] Add service-to-service authentication guidance for internal hooks.
+- [x] Add optional API key pattern for machine clients.
+- [x] Add tenant/org scoping hooks if tenant-aware support is desired.
 
 ### Wave 4.3: Platform Security Controls
 
@@ -1169,3 +1169,31 @@ Phase 4 Wave 4.2 now has an explicit boundary between public and internal HTTP s
 - [ ] Add service-to-service authentication guidance for internal hooks.
 - [ ] Add optional API key pattern for machine clients.
 - [ ] Add tenant/org scoping hooks if tenant-aware support is desired.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the remaining Phase 4 Wave 4.2 work by adding reusable machine-principal authentication support for internal hooks and other machine clients through settings-backed API key principals.
+- Extended the shared authorization subject with normalized tenant and organization context, then exposed that context through dependency helpers so cloned projects have a clean tenant-aware hook without baking in a client-specific membership model.
+- Updated authentication, API architecture, configuration, and README documentation plus regression coverage so the new service-to-service auth guidance and machine-client contract match the verified runtime behavior.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The first `ruff` pass flagged two long dependency-closure signatures after the new mixed-principal auth path was wired in. | Wrapped those signatures across multiple lines in `src/app/api/dependencies.py` and reran the full gate stack so the final reported results reflect the final tree. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 250 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 4 Wave 4.2 is now complete and verified. The template has a reusable permission-policy layer, explicit public versus internal route boundaries, optional settings-backed API key principals for machine callers, and normalized tenant or organization context that can flow through authorization without hardcoding a client-specific tenancy model. It still stops short of a full API key lifecycle product or tenant membership system, so cloned projects can extend those surfaces deliberately in their own domain layer.
+
+### What remains
+- [ ] Add security headers middleware.
+- [ ] Add TrustedHost middleware or equivalent protection.
+- [ ] Add rate limiting strategy for auth, API, and webhook endpoints.

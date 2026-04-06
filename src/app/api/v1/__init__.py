@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends
 
 from ...platform.config import FeatureFlagsSettings, settings
-from ..dependencies import require_admin_access, require_internal_access
+from ..dependencies import (
+    rate_limiter_dependency,
+    require_admin_access,
+    require_internal_access,
+    webhook_rate_limiter_dependency,
+)
 from ..routing import ApiRouteGroup, ApiVersion, build_route_group_router, build_version_prefix_router
 from .health import router as health_router
 from .internal_health import router as internal_health_router
@@ -21,16 +26,16 @@ def build_v1_public_router(feature_settings: FeatureFlagsSettings) -> APIRouter:
         router.include_router(logout_router)
 
     if feature_settings.FEATURE_API_USERS_ENABLED:
-        router.include_router(users_router)
+        router.include_router(users_router, dependencies=[Depends(rate_limiter_dependency)])
 
     if feature_settings.FEATURE_API_POSTS_ENABLED:
-        router.include_router(posts_router)
+        router.include_router(posts_router, dependencies=[Depends(rate_limiter_dependency)])
 
     if feature_settings.FEATURE_API_TIERS_ENABLED:
-        router.include_router(tiers_router)
+        router.include_router(tiers_router, dependencies=[Depends(rate_limiter_dependency)])
 
     if feature_settings.FEATURE_API_RATE_LIMITS_ENABLED:
-        router.include_router(rate_limits_router)
+        router.include_router(rate_limits_router, dependencies=[Depends(rate_limiter_dependency)])
 
     return router
 
@@ -58,7 +63,10 @@ def build_v1_internal_router() -> APIRouter:
 
 
 def build_v1_webhooks_router() -> APIRouter:
-    return build_route_group_router(ApiRouteGroup.WEBHOOKS)
+    return build_route_group_router(
+        ApiRouteGroup.WEBHOOKS,
+        dependencies=[Depends(webhook_rate_limiter_dependency)],
+    )
 
 
 def build_v1_router(feature_settings: FeatureFlagsSettings) -> APIRouter:

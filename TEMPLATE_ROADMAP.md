@@ -298,11 +298,11 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 4.3: Platform Security Controls
 
-- [ ] Add security headers middleware.
-- [ ] Add TrustedHost middleware or equivalent protection.
-- [ ] Add rate limiting strategy for auth, API, and webhook endpoints.
-- [ ] Add request validation limits for untrusted payloads.
-- [ ] Add secret redaction in logs and error reports.
+- [x] Add security headers middleware.
+- [x] Add TrustedHost middleware or equivalent protection.
+- [x] Add rate limiting strategy for auth, API, and webhook endpoints.
+- [x] Add request validation limits for untrusted payloads.
+- [x] Add secret redaction in logs and error reports.
 - [ ] Add secure admin defaults or make admin disabled by default.
 - [ ] Review CSRF implications for any cookie-based flows.
 - [ ] Add dependency vulnerability scanning to CI.
@@ -1197,3 +1197,31 @@ Phase 4 Wave 4.2 is now complete and verified. The template has a reusable permi
 - [ ] Add security headers middleware.
 - [ ] Add TrustedHost middleware or equivalent protection.
 - [ ] Add rate limiting strategy for auth, API, and webhook endpoints.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the Phase 4 Wave 4.3 rate-limiting strategy by adding reusable public-API, auth-route, and webhook-route dependencies plus settings-backed budgets for each surface.
+- Wired the built-in `/login`, `/refresh`, `/logout`, public resource routers, and webhook route group to the shared rate-limit strategy, and added focused regression coverage for dependency behavior, router wiring, and the new settings surface.
+- Synced the Phase 4.3 roadmap for already-verified platform controls that were present in code and docs: security headers middleware, trusted-host protection, request-body limits, and structured log redaction.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The new route-introspection regression test initially assumed every FastAPI dependency callable had a `__name__`, which broke when `OAuth2PasswordBearer` appeared in the dependency graph. | Normalized the assertion to fall back to the dependency class name when the callable is class-based, then reran the full gate stack. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 258 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 4 Wave 4.3 is now partially complete and verified. The template already had reusable security headers, trusted-host protection, request-body limits, and structured log redaction, and it now also applies a concrete rate-limiting strategy across built-in auth, public API, and webhook surfaces with configurable budgets. Secure admin defaults, a documented CSRF review for cookie flows, and CI-level security scanning are still pending, so the security posture is stronger but not yet complete for the phase.
+
+### What remains
+- [ ] Add secure admin defaults or make admin disabled by default.
+- [ ] Review CSRF implications for any cookie-based flows.
+- [ ] Add dependency vulnerability scanning to CI.

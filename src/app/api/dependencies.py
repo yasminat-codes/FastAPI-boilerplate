@@ -1,6 +1,8 @@
+from hashlib import sha256
 from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..domain.repositories import rate_limit_repository, tier_repository, user_repository
@@ -24,9 +26,6 @@ from ..platform.schemas import TenantContext
 from ..platform.security import TokenType, oauth2_scheme, resolve_api_key_principal, verify_token
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_LIMIT = settings.DEFAULT_RATE_LIMIT_LIMIT
-DEFAULT_PERIOD = settings.DEFAULT_RATE_LIMIT_PERIOD
 
 
 async def get_current_user(
@@ -156,15 +155,63 @@ def require_internal_access(*, policy: PermissionPolicy = DEFAULT_PERMISSION_POL
     return require_permissions(TemplatePermission.INTERNAL_ACCESS, policy=policy)
 
 
+def _normalize_rate_limit_identity(value: str | None, *, fallback: str) -> str:
+    if value is None:
+        return fallback
+
+    normalized = "".join(character if character.isalnum() else "-" for character in value.strip().casefold())
+    normalized = normalized.strip("-")
+    return normalized or fallback
+
+
+def _resolve_client_rate_limit_identity(request: Request) -> str:
+    client_host = request.client.host if request.client is not None else None
+    return _normalize_rate_limit_identity(client_host, fallback="unknown-client")
+
+
+def _fingerprint_rate_limit_credential(value: str | None) -> str:
+    normalized = _normalize_rate_limit_identity(value, fallback="anonymous")
+    return sha256(normalized.encode("utf-8")).hexdigest()
+
+
+async def _wait_for_rate_limit_runtime(request: Request) -> None:
+    application = request.scope.get("app")
+    state = getattr(application, "state", None)
+    initialization_complete = getattr(state, "initialization_complete", None)
+    if initialization_complete is not None:
+        await initialization_complete.wait()
+
+
+async def _enforce_rate_limit(
+    *,
+    request: Request,
+    db: AsyncSession,
+    subject_id: str,
+    limit: int,
+    period: int,
+) -> None:
+    await _wait_for_rate_limit_runtime(request)
+
+    is_limited = await rate_limiter.is_rate_limited(
+        db=db,
+        subject_id=subject_id,
+        path=request.url.path,
+        limit=limit,
+        period=period,
+    )
+    if is_limited:
+        raise RateLimitException("Rate limit exceeded.")
+
+
 async def rate_limiter_dependency(
     request: Request, db: Annotated[AsyncSession, Depends(async_get_db)], user: dict | None = Depends(get_optional_user)
 ) -> None:
-    if hasattr(request.app.state, "initialization_complete"):
-        await request.app.state.initialization_complete.wait()
+    if not settings.API_RATE_LIMIT_ENABLED:
+        return
 
     path = sanitize_path(request.url.path)
     if user:
-        user_id = user["id"]
+        subject_id = str(user["id"])
         tier = await tier_repository.get(db=db, id=user["tier_id"], schema_to_select=TierRead)
         if tier:
             rate_limit = await rate_limit_repository.get(
@@ -174,17 +221,92 @@ async def rate_limiter_dependency(
                 limit, period = rate_limit["limit"], rate_limit["period"]
             else:
                 logger.warning(
-                    f"User {user_id} with tier '{tier['name']}' has no specific rate limit for path '{path}'. \
+                    f"User {subject_id} with tier '{tier['name']}' has no specific rate limit for path '{path}'. \
                         Applying default rate limit."
                 )
-                limit, period = DEFAULT_LIMIT, DEFAULT_PERIOD
+                limit, period = settings.DEFAULT_RATE_LIMIT_LIMIT, settings.DEFAULT_RATE_LIMIT_PERIOD
         else:
-            logger.warning(f"User {user_id} has no assigned tier. Applying default rate limit.")
-            limit, period = DEFAULT_LIMIT, DEFAULT_PERIOD
+            logger.warning(f"User {subject_id} has no assigned tier. Applying default rate limit.")
+            limit, period = settings.DEFAULT_RATE_LIMIT_LIMIT, settings.DEFAULT_RATE_LIMIT_PERIOD
     else:
-        user_id = request.client.host if request.client else "unknown"
-        limit, period = DEFAULT_LIMIT, DEFAULT_PERIOD
+        subject_id = _resolve_client_rate_limit_identity(request)
+        limit, period = settings.DEFAULT_RATE_LIMIT_LIMIT, settings.DEFAULT_RATE_LIMIT_PERIOD
 
-    is_limited = await rate_limiter.is_rate_limited(db=db, user_id=user_id, path=path, limit=limit, period=period)
-    if is_limited:
-        raise RateLimitException("Rate limit exceeded.")
+    await _enforce_rate_limit(
+        request=request,
+        db=db,
+        subject_id=subject_id,
+        limit=limit,
+        period=period,
+    )
+
+
+async def auth_login_rate_limiter_dependency(
+    request: Request,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Annotated[AsyncSession, Depends(async_get_db)],
+) -> None:
+    if not settings.AUTH_RATE_LIMIT_ENABLED:
+        return
+
+    subject_id = (
+        f"{_resolve_client_rate_limit_identity(request)}:"
+        f"{_fingerprint_rate_limit_credential(form_data.username)}"
+    )
+    await _enforce_rate_limit(
+        request=request,
+        db=db,
+        subject_id=subject_id,
+        limit=settings.AUTH_RATE_LIMIT_LOGIN_LIMIT,
+        period=settings.AUTH_RATE_LIMIT_LOGIN_PERIOD,
+    )
+
+
+async def auth_refresh_rate_limiter_dependency(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(async_get_db)],
+) -> None:
+    if not settings.AUTH_RATE_LIMIT_ENABLED:
+        return
+
+    await _enforce_rate_limit(
+        request=request,
+        db=db,
+        subject_id=_resolve_client_rate_limit_identity(request),
+        limit=settings.AUTH_RATE_LIMIT_REFRESH_LIMIT,
+        period=settings.AUTH_RATE_LIMIT_REFRESH_PERIOD,
+    )
+
+
+async def auth_logout_rate_limiter_dependency(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(async_get_db)],
+    user: dict | None = Depends(get_optional_user),
+) -> None:
+    if not settings.AUTH_RATE_LIMIT_ENABLED:
+        return
+
+    subject_id = str(user["id"]) if user else _resolve_client_rate_limit_identity(request)
+    await _enforce_rate_limit(
+        request=request,
+        db=db,
+        subject_id=subject_id,
+        limit=settings.AUTH_RATE_LIMIT_LOGOUT_LIMIT,
+        period=settings.AUTH_RATE_LIMIT_LOGOUT_PERIOD,
+    )
+
+
+async def webhook_rate_limiter_dependency(
+    request: Request,
+    db: Annotated[AsyncSession, Depends(async_get_db)],
+) -> None:
+    if not settings.WEBHOOK_RATE_LIMIT_ENABLED:
+        return
+
+    await _enforce_rate_limit(
+        request=request,
+        db=db,
+        subject_id=_resolve_client_rate_limit_identity(request),
+        limit=settings.WEBHOOK_RATE_LIMIT_LIMIT,
+        period=settings.WEBHOOK_RATE_LIMIT_PERIOD,
+    )

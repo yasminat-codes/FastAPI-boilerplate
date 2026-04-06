@@ -414,9 +414,22 @@ Default rate limiting configuration:
 
 ```python
 class DefaultRateLimitSettings(BaseSettings):
+    API_RATE_LIMIT_ENABLED: bool = True
     DEFAULT_RATE_LIMIT_LIMIT: int = 10
     DEFAULT_RATE_LIMIT_PERIOD: int = 3600  # 1 hour
+    AUTH_RATE_LIMIT_ENABLED: bool = True
+    AUTH_RATE_LIMIT_LOGIN_LIMIT: int = 5
+    AUTH_RATE_LIMIT_LOGIN_PERIOD: int = 300
+    AUTH_RATE_LIMIT_REFRESH_LIMIT: int = 30
+    AUTH_RATE_LIMIT_REFRESH_PERIOD: int = 300
+    AUTH_RATE_LIMIT_LOGOUT_LIMIT: int = 30
+    AUTH_RATE_LIMIT_LOGOUT_PERIOD: int = 300
+    WEBHOOK_RATE_LIMIT_ENABLED: bool = True
+    WEBHOOK_RATE_LIMIT_LIMIT: int = 120
+    WEBHOOK_RATE_LIMIT_PERIOD: int = 60
 ```
+
+These settings let the template apply separate budgets to three surfaces without hardcoding client-specific rules: public API routes use the shared tier/path lookup plus `DEFAULT_RATE_LIMIT_*` fallback values, auth routes use dedicated login/refresh/logout budgets, and the webhook route group gets its own isolated budget.
 
 ### Admin User Settings
 

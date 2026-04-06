@@ -283,6 +283,39 @@ def test_webhook_payload_retention_can_be_disabled_when_raw_storage_is_off() -> 
     assert settings.WEBHOOK_PAYLOAD_RETENTION_DAYS == 0
 
 
+def test_rate_limit_strategy_settings_cover_api_auth_and_webhook_budgets() -> None:
+    settings = load_settings(
+        _env_file=None,
+        API_RATE_LIMIT_ENABLED=False,
+        DEFAULT_RATE_LIMIT_LIMIT=25,
+        DEFAULT_RATE_LIMIT_PERIOD=120,
+        AUTH_RATE_LIMIT_ENABLED=True,
+        AUTH_RATE_LIMIT_LOGIN_LIMIT=6,
+        AUTH_RATE_LIMIT_LOGIN_PERIOD=300,
+        AUTH_RATE_LIMIT_REFRESH_LIMIT=20,
+        AUTH_RATE_LIMIT_REFRESH_PERIOD=180,
+        AUTH_RATE_LIMIT_LOGOUT_LIMIT=12,
+        AUTH_RATE_LIMIT_LOGOUT_PERIOD=120,
+        WEBHOOK_RATE_LIMIT_ENABLED=True,
+        WEBHOOK_RATE_LIMIT_LIMIT=240,
+        WEBHOOK_RATE_LIMIT_PERIOD=60,
+    )
+
+    assert settings.API_RATE_LIMIT_ENABLED is False
+    assert settings.DEFAULT_RATE_LIMIT_LIMIT == 25
+    assert settings.DEFAULT_RATE_LIMIT_PERIOD == 120
+    assert settings.AUTH_RATE_LIMIT_ENABLED is True
+    assert settings.AUTH_RATE_LIMIT_LOGIN_LIMIT == 6
+    assert settings.AUTH_RATE_LIMIT_LOGIN_PERIOD == 300
+    assert settings.AUTH_RATE_LIMIT_REFRESH_LIMIT == 20
+    assert settings.AUTH_RATE_LIMIT_REFRESH_PERIOD == 180
+    assert settings.AUTH_RATE_LIMIT_LOGOUT_LIMIT == 12
+    assert settings.AUTH_RATE_LIMIT_LOGOUT_PERIOD == 120
+    assert settings.WEBHOOK_RATE_LIMIT_ENABLED is True
+    assert settings.WEBHOOK_RATE_LIMIT_LIMIT == 240
+    assert settings.WEBHOOK_RATE_LIMIT_PERIOD == 60
+
+
 def test_cors_settings_use_explicit_allowlists_and_runtime_controls() -> None:
     settings = load_settings(
         _env_file=None,

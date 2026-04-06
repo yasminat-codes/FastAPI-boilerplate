@@ -398,14 +398,32 @@ Default rate limiting configuration:
 
 ```env
 # ------------- default rate limit settings -------------
+API_RATE_LIMIT_ENABLED=true
 DEFAULT_RATE_LIMIT_LIMIT=10      # requests per period
 DEFAULT_RATE_LIMIT_PERIOD=3600   # period in seconds (1 hour)
+AUTH_RATE_LIMIT_ENABLED=true
+AUTH_RATE_LIMIT_LOGIN_LIMIT=5
+AUTH_RATE_LIMIT_LOGIN_PERIOD=300
+AUTH_RATE_LIMIT_REFRESH_LIMIT=30
+AUTH_RATE_LIMIT_REFRESH_PERIOD=300
+AUTH_RATE_LIMIT_LOGOUT_LIMIT=30
+AUTH_RATE_LIMIT_LOGOUT_PERIOD=300
+WEBHOOK_RATE_LIMIT_ENABLED=true
+WEBHOOK_RATE_LIMIT_LIMIT=120
+WEBHOOK_RATE_LIMIT_PERIOD=60
 ```
 
 **Variables Explained:**
 
+- `API_RATE_LIMIT_ENABLED`: Enable or disable the shared public-API rate-limit dependency
 - `DEFAULT_RATE_LIMIT_LIMIT`: Number of requests allowed per period
 - `DEFAULT_RATE_LIMIT_PERIOD`: Time window in seconds
+- `AUTH_RATE_LIMIT_ENABLED`: Enable or disable the template-owned auth-route rate limits
+- `AUTH_RATE_LIMIT_LOGIN_LIMIT` / `AUTH_RATE_LIMIT_LOGIN_PERIOD`: Budget for `/api/v1/login`
+- `AUTH_RATE_LIMIT_REFRESH_LIMIT` / `AUTH_RATE_LIMIT_REFRESH_PERIOD`: Budget for `/api/v1/refresh`
+- `AUTH_RATE_LIMIT_LOGOUT_LIMIT` / `AUTH_RATE_LIMIT_LOGOUT_PERIOD`: Budget for `/api/v1/logout`
+- `WEBHOOK_RATE_LIMIT_ENABLED`: Enable or disable the default webhook route-group rate limit
+- `WEBHOOK_RATE_LIMIT_LIMIT` / `WEBHOOK_RATE_LIMIT_PERIOD`: Budget for `/api/v1/webhooks/*`
 
 ### Admin User
 

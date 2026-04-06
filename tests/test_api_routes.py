@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from src.app.api import SUPPORTED_API_VERSIONS, ApiVersion, build_api_router, build_version_router
 from src.app.api.dependencies import get_current_principal
 from src.app.api.routing import ApiRouteGroup, build_route_group_router
-from src.app.api.v1 import build_v1_internal_router
+from src.app.api.v1 import build_v1_internal_router, build_v1_public_router, build_v1_webhooks_router
 from src.app.core.schemas import DependencyHealthDetail, InternalHealthCheck, WorkerHealthCheck
 from src.app.main import app, create_app
 from src.app.platform.authorization import TemplatePermission
@@ -71,6 +71,33 @@ def test_route_group_builders_use_expected_prefixes() -> None:
     assert build_route_group_router(ApiRouteGroup.ADMIN).prefix == "/admin"
     assert build_route_group_router(ApiRouteGroup.INTERNAL).prefix == "/internal"
     assert build_route_group_router(ApiRouteGroup.WEBHOOKS).prefix == "/webhooks"
+
+
+def test_public_router_applies_rate_limit_strategy_to_auth_and_public_api_routes() -> None:
+    router = build_v1_public_router(load_settings(_env_file=None))
+    route_dependencies = {
+        route.path: {
+            getattr(dependency.call, "__name__", dependency.call.__class__.__name__)
+            for dependency in route.dependant.dependencies
+        }
+        for route in router.routes
+        if hasattr(route, "dependant")
+    }
+
+    assert "auth_login_rate_limiter_dependency" in route_dependencies["/login"]
+    assert "auth_refresh_rate_limiter_dependency" in route_dependencies["/refresh"]
+    assert "auth_logout_rate_limiter_dependency" in route_dependencies["/logout"]
+    assert "rate_limiter_dependency" in route_dependencies["/user"]
+    assert "rate_limiter_dependency" in route_dependencies["/users"]
+    assert "rate_limiter_dependency" in route_dependencies["/{username}/posts"]
+
+
+def test_webhook_router_reserves_a_dedicated_rate_limit_dependency() -> None:
+    router = build_v1_webhooks_router()
+
+    assert len(router.dependencies) == 1
+    assert router.dependencies[0].dependency is not None
+    assert router.dependencies[0].dependency.__name__ == "webhook_rate_limiter_dependency"
 
 
 def test_internal_health_route_rejects_requests_without_internal_access() -> None:

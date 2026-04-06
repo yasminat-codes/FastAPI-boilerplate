@@ -196,10 +196,30 @@ You may use the same Redis instance for caching and queues while developing, but
 ### Rate Limiting Defaults
 
 ```env
-# Default Rate Limits
-DEFAULT_RATE_LIMIT_LIMIT=10      # Default: 10 requests
+# Public API fallback rate limits
+API_RATE_LIMIT_ENABLED=true
+DEFAULT_RATE_LIMIT_LIMIT=10      # Fallback requests per period when no tier/path rule exists
 DEFAULT_RATE_LIMIT_PERIOD=3600   # Default: 3600 seconds (1 hour)
+
+# Built-in auth route budgets
+AUTH_RATE_LIMIT_ENABLED=true
+AUTH_RATE_LIMIT_LOGIN_LIMIT=5
+AUTH_RATE_LIMIT_LOGIN_PERIOD=300
+AUTH_RATE_LIMIT_REFRESH_LIMIT=30
+AUTH_RATE_LIMIT_REFRESH_PERIOD=300
+AUTH_RATE_LIMIT_LOGOUT_LIMIT=30
+AUTH_RATE_LIMIT_LOGOUT_PERIOD=300
+
+# Webhook route-group budget
+WEBHOOK_RATE_LIMIT_ENABLED=true
+WEBHOOK_RATE_LIMIT_LIMIT=120
+WEBHOOK_RATE_LIMIT_PERIOD=60
 ```
+
+- `API_RATE_LIMIT_ENABLED` applies the shared API rate-limit dependency to the template's public resource routers.
+- `DEFAULT_RATE_LIMIT_*` is the fallback budget for anonymous callers or authenticated routes without a tier-specific path rule.
+- `AUTH_RATE_LIMIT_*` gives `/login`, `/refresh`, and `/logout` separate budgets so interactive sign-in is not coupled to token refresh traffic.
+- `WEBHOOK_RATE_LIMIT_*` reserves a distinct bucket for the `/api/v1/webhooks/*` route group.
 
 ### CORS Configuration
 

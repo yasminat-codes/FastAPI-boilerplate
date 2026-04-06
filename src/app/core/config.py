@@ -691,8 +691,19 @@ class RedisRateLimiterSettings(BaseSettings):
 
 
 class DefaultRateLimitSettings(BaseSettings):
+    API_RATE_LIMIT_ENABLED: bool = True
     DEFAULT_RATE_LIMIT_LIMIT: int = 10
     DEFAULT_RATE_LIMIT_PERIOD: int = 3600
+    AUTH_RATE_LIMIT_ENABLED: bool = True
+    AUTH_RATE_LIMIT_LOGIN_LIMIT: int = Field(default=5, ge=1)
+    AUTH_RATE_LIMIT_LOGIN_PERIOD: int = Field(default=300, ge=1)
+    AUTH_RATE_LIMIT_REFRESH_LIMIT: int = Field(default=30, ge=1)
+    AUTH_RATE_LIMIT_REFRESH_PERIOD: int = Field(default=300, ge=1)
+    AUTH_RATE_LIMIT_LOGOUT_LIMIT: int = Field(default=30, ge=1)
+    AUTH_RATE_LIMIT_LOGOUT_PERIOD: int = Field(default=300, ge=1)
+    WEBHOOK_RATE_LIMIT_ENABLED: bool = True
+    WEBHOOK_RATE_LIMIT_LIMIT: int = Field(default=120, ge=1)
+    WEBHOOK_RATE_LIMIT_PERIOD: int = Field(default=60, ge=1)
 
 
 class CRUDAdminSettings(BaseSettings):

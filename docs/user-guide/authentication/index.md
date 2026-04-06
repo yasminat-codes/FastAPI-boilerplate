@@ -161,7 +161,13 @@ API_KEY_PRINCIPALS='{"internal-worker":{"key":"change-me-machine-secret","permis
 
 ## Login Throttling Guidance
 
-The template does not hardcode one login-throttling product policy, but it now documents the recommended pattern for cloned projects:
+The template now ships a reusable baseline rate-limit strategy for `/login`, `/refresh`, and `/logout`:
+
+- `/login` uses its own budget keyed by client identity plus a fingerprinted username or email hint, so repeated sign-in attempts do not consume the same bucket as token refresh traffic
+- `/refresh` and `/logout` use separate auth-route budgets so browser token lifecycle traffic stays isolated from interactive password entry
+- all three budgets are controlled through `AUTH_RATE_LIMIT_*` settings and can be tuned without route rewrites
+
+The template still does not hardcode one full lockout product policy, so cloned projects should extend the baseline with the following pattern when needed:
 
 - use the existing Redis-backed rate-limit foundation for login-attempt counters keyed by normalized username or email plus client IP or proxy-aware network identity
 - enforce a short rolling-attempt budget and a separate temporary lockout window instead of relying on one unbounded counter

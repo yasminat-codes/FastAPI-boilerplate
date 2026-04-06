@@ -11,11 +11,19 @@ Rate limiting controls how many requests users can make within a specific time p
 - **Path-Specific Limits**: Granular control per API endpoint
 - **Fallback Protection**: Default limits for unauthenticated users
 
+## Template-Owned Default Policy
+
+The template now applies three distinct rate-limit surfaces out of the box:
+
+- **Public API routes**: the built-in user, post, tier, and rate-limit management routers use `rate_limiter_dependency`, which resolves authenticated requests through tier + path rules and falls back to `DEFAULT_RATE_LIMIT_*` when no specific rule exists
+- **Auth routes**: `/login`, `/refresh`, and `/logout` have separate budgets controlled by `AUTH_RATE_LIMIT_*`, so interactive sign-in is isolated from token lifecycle traffic
+- **Webhook routes**: the `/api/v1/webhooks/*` route group reserves its own budget through `WEBHOOK_RATE_LIMIT_*`, which keeps provider traffic separate from public API callers
+
 ## Quick Example
 
 ```python
 from fastapi import Depends
-from app.api.dependencies import rate_limiter_dependency
+from app.api.dependencies import auth_login_rate_limiter_dependency, rate_limiter_dependency
 
 @router.post("/api/v1/posts", dependencies=[Depends(rate_limiter_dependency)])
 async def create_post(post_data: PostCreate):
@@ -24,6 +32,11 @@ async def create_post(post_data: PostCreate):
     # - Specific limits for the /posts endpoint
     # - Default limits for unauthenticated users
     return await crud_posts.create(db=db, object=post_data)
+
+@router.post("/api/v1/login", dependencies=[Depends(auth_login_rate_limiter_dependency)])
+async def login_for_access_token():
+    # Login attempts use a separate auth-specific budget.
+    ...
 ```
 
 ## Architecture
@@ -110,16 +123,15 @@ async def protected_endpoint():
 # 3. Checks Redis counter
 # 4. Allows or blocks the request
 ```
-#### Example Dependency Implementation
+#### Current Dependency Implementation
 
-To make the rate limiting dependency functional, you must implement how user tiers and paths resolve to actual rate limits.
-Below is a complete example using Redis and the database to determine per-tier and per-path restrictions.
+The shipped dependency already resolves tier-specific limits and anonymous fallbacks for the template-owned public routes:
 
 ```python
 async def rate_limiter_dependency(
     request: Request,
     db: AsyncSession = Depends(async_get_db),
-    user=Depends(get_current_user_optional),
+    user=Depends(get_optional_user),
 ):
     """
     Enforces rate limits per user tier and API path.
@@ -129,30 +141,28 @@ async def rate_limiter_dependency(
     - Checks Redis counter to determine if request should be allowed
     """
     path = sanitize_path(request.url.path)
-    user_id = getattr(user, "id", None) or request.client.host or "anonymous"
+    subject_id = str(user["id"]) if user else request.client.host or "anonymous"
 
     # Determine user tier (default to "free" or anonymous)
-    if user and getattr(user, "tier_id", None):
-        tier = await crud_tiers.get(db=db, id=user.tier_id)
+    if user and user.get("tier_id") is not None:
+        tier = await tier_repository.get(db=db, id=user["tier_id"], schema_to_select=TierRead)
+        rate_limit_rule = await rate_limit_repository.get(
+            db=db,
+            tier_id=tier["id"],
+            path=path,
+            schema_to_select=RateLimitRead,
+        ) if tier else None
     else:
-        tier = await crud_tiers.get(db=db, name="free")
+        tier = None
+        rate_limit_rule = None
 
-    if not tier:
-        raise RateLimitException("Tier configuration not found")
-
-    # Find specific rate limit rule for this path + tier
-    rate_limit_rule = await crud_rate_limits.get_by_path_and_tier(
-        db=db, path=path, tier_id=tier.id
-    )
-
-    # Use default limits if no specific rule is found
-    limit = getattr(rate_limit_rule, "limit", 100)
-    period = getattr(rate_limit_rule, "period", 3600)
+    limit = rate_limit_rule["limit"] if rate_limit_rule else settings.DEFAULT_RATE_LIMIT_LIMIT
+    period = rate_limit_rule["period"] if rate_limit_rule else settings.DEFAULT_RATE_LIMIT_PERIOD
 
     # Check rate limit in Redis
     is_limited = await rate_limiter.is_rate_limited(
         db=db,
-        user_id=user_id,
+        subject_id=subject_id,
         path=path,
         limit=limit,
         period=period,
@@ -207,13 +217,24 @@ def sanitize_path(path: str) -> str:
 
 ```bash
 # Rate Limiting Settings
+API_RATE_LIMIT_ENABLED=true
 DEFAULT_RATE_LIMIT_LIMIT=100      # Default requests per period
 DEFAULT_RATE_LIMIT_PERIOD=3600    # Default period (1 hour)
+AUTH_RATE_LIMIT_ENABLED=true
+AUTH_RATE_LIMIT_LOGIN_LIMIT=5
+AUTH_RATE_LIMIT_LOGIN_PERIOD=300
+AUTH_RATE_LIMIT_REFRESH_LIMIT=30
+AUTH_RATE_LIMIT_REFRESH_PERIOD=300
+AUTH_RATE_LIMIT_LOGOUT_LIMIT=30
+AUTH_RATE_LIMIT_LOGOUT_PERIOD=300
+WEBHOOK_RATE_LIMIT_ENABLED=true
+WEBHOOK_RATE_LIMIT_LIMIT=120
+WEBHOOK_RATE_LIMIT_PERIOD=60
 
 # Redis Rate Limiter Settings  
-REDIS_RATE_LIMITER_HOST=localhost
-REDIS_RATE_LIMITER_PORT=6379
-REDIS_RATE_LIMITER_DB=2           # Separate from cache/queue
+REDIS_RATE_LIMIT_HOST=localhost
+REDIS_RATE_LIMIT_PORT=6379
+REDIS_RATE_LIMIT_DB=2           # Separate from cache/queue
 ```
 
 ### Creating User Tiers

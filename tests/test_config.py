@@ -30,6 +30,7 @@ def test_local_settings_allow_template_defaults() -> None:
     assert settings.SENTRY_ENVIRONMENT == "local"
     assert "http://localhost:3000" in settings.CORS_ORIGINS
     assert settings.CORS_ALLOW_CREDENTIALS is True
+    assert settings.CRUD_ADMIN_ENABLED is False
     assert settings.REFRESH_TOKEN_COOKIE_SECURE is False
     assert settings.SESSION_SECURE_COOKIES is False
 
@@ -758,6 +759,7 @@ def test_production_settings_reject_insecure_admin_session_cookies() -> None:
             ENVIRONMENT="production",
             SECRET_KEY="a" * 64,
             POSTGRES_PASSWORD="database-password-123",
+            CRUD_ADMIN_ENABLED=True,
             ADMIN_PASSWORD="admin-password-123",
             SESSION_SECURE_COOKIES=False,
             CORS_ORIGINS=["https://app.example.com"],
@@ -819,6 +821,20 @@ def test_production_settings_allow_fail_closed_cors_defaults() -> None:
     assert isinstance(settings, ProductionSettings)
     assert settings.CORS_ORIGINS == []
     assert settings.CORS_METHODS == ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+
+
+def test_production_settings_allow_placeholder_admin_password_when_crud_admin_is_disabled() -> None:
+    settings = load_settings(
+        _env_file=None,
+        ENVIRONMENT="production",
+        SECRET_KEY="a" * 64,
+        POSTGRES_PASSWORD="database-password-123",
+        ADMIN_PASSWORD="!Ch4ng3Th1sP4ssW0rd!",
+        CORS_ORIGINS=["https://app.example.com"],
+    )
+
+    assert isinstance(settings, ProductionSettings)
+    assert settings.CRUD_ADMIN_ENABLED is False
 
 
 def test_production_settings_validate_direct_database_url_password() -> None:

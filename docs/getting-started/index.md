@@ -62,7 +62,8 @@ REDIS_CACHE_PORT=6379
 REDIS_QUEUE_HOST="redis"
 REDIS_QUEUE_PORT=6379
 
-# Admin User
+# Optional admin bootstrap
+CRUD_ADMIN_ENABLED=false
 ADMIN_NAME="Admin"
 ADMIN_EMAIL="admin@example.com"
 ADMIN_USERNAME="admin"
@@ -117,7 +118,7 @@ Congratulations! You now have a fully functional FastAPI application with:
 - JWT authentication system
 - Background task processing
 - Rate limiting
-- Admin user created
+- Optional admin bootstrap settings
 
 ## Test Your API
 

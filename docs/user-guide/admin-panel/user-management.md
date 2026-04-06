@@ -8,9 +8,12 @@ Learn how to manage admin users in your FastAPI boilerplate's admin panel. The b
 
 ### Configure Admin Credentials
 
-Set your admin credentials in your `.env` file:
+Set your admin credentials in your `.env` file and opt the browser admin in explicitly:
 
 ```bash
+# Enable the browser admin surface
+CRUD_ADMIN_ENABLED=true
+
 # Required admin credentials
 ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="SecurePassword123!"
@@ -32,7 +35,7 @@ uv run fastapi dev
 # Login with your ADMIN_USERNAME and ADMIN_PASSWORD
 ```
 
-The boilerplate automatically creates the initial admin user from your environment variables when the application starts.
+When `CRUD_ADMIN_ENABLED=true`, the boilerplate automatically creates the initial admin user from your environment variables when the application starts.
 
 ## Managing Admin Users
 

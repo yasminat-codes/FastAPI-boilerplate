@@ -333,6 +333,27 @@ response.set_cookie(
 - **`Strict`**: Maximum security but may break some user flows
 - **`None`**: Required for cross-origin requests (must use with Secure)
 
+### CSRF Review For Refresh Cookies
+
+The template keeps cookie usage intentionally narrow: `/login` can set the refresh cookie, `/refresh` rotates it, and `/logout` clears it. The rest of the built-in API auth surface uses the `Authorization` header instead of a browser session cookie.
+
+That baseline reduces CSRF exposure, but it is important to understand the limits:
+
+- `HttpOnly` protects the refresh cookie from JavaScript, which is an XSS mitigation, not a CSRF mitigation
+- `SameSite="lax"` is the default because it blocks common cross-site POST-style attacks while remaining usable for same-site browser apps
+- `SameSite="strict"` is safer when your frontend does not need cross-site or top-level-navigation cookie behavior
+- `SameSite="none"` should be treated as an opt-in escape hatch for a different-site frontend, and it should always be paired with explicit CSRF defenses
+
+`CORS` controls whether a browser exposes a response to frontend code; it does not stop the browser from sending a cookie on a forged request.
+
+If a cloned project needs cookie-authenticated requests from a different site or adds additional cookie-authenticated `POST`, `PUT`, `PATCH`, or `DELETE` routes, add one of these reusable patterns before expanding the surface:
+
+- strict `Origin` and `Referer` validation against an explicit allowlist
+- a double-submit or synchronizer CSRF token
+- a design change that keeps mutation auth in `Authorization` headers instead of cookies
+
+For the built-in defaults, the recommended posture is to keep `REFRESH_TOKEN_COOKIE_SAMESITE="lax"` or move to `"strict"` where possible, leave the admin UI disabled unless it is needed, and keep machine clients on headers or API keys rather than cookies.
+
 ## Token Blacklisting
 
 Token blacklisting solves a fundamental problem with JWT tokens: once issued, they remain valid until expiration, even if the user logs out. Blacklisting provides immediate token revocation.

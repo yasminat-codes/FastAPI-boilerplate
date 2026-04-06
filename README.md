@@ -158,6 +158,8 @@ docker compose up
 docker compose run --rm create_superuser
 ```
 
+The browser-based CRUD admin UI stays disabled until you explicitly set `CRUD_ADMIN_ENABLED=true`.
+
 **Run database migrations before serving traffic:**
 ```bash
 # repo-aware wrapper around the canonical Alembic config
@@ -190,13 +192,14 @@ The docs also include an environment settings matrix for `local`, `staging`, and
 * `WEBHOOK_*` settings define generic verification, replay-window, and payload-retention defaults for future provider adapters
 * `SENTRY_*`, `METRICS_*`, `TRACING_*`, and `*_LOG_LEVEL` settings define the template observability contract
 * `FEATURE_*` settings provide high-level toggles for optional route groups and template-owned modules such as admin and client cache
+* `CRUD_ADMIN_ENABLED=false` keeps the built-in browser admin surface off until you explicitly opt in
 * `JWT_*` settings add optional issuer/audience enforcement and `kid`-based signing-key rotation on top of the default stateless token flow
 * `API_KEY_*` settings register optional machine principals for internal hooks and other machine clients without forcing a client-specific auth table into the template
 * `CORS_*` settings now default to a fail-closed allowlist outside local development and support credentials, exposed headers, and max-age tuning
 * `SECURITY_HEADERS_*`, `REFRESH_TOKEN_COOKIE_*`, and `SESSION_SECURE_COOKIES` control baseline response-header hardening and template-owned cookie behavior
 * `PASSWORD_*` settings control the shared bcrypt policy, including work-factor increases and automatic rehash-on-login
 * `TRUSTED_HOSTS` and `PROXY_HEADERS_*` settings provide optional host-header protection and safe forwarded-header trust controls for reverse-proxy deployments
-* Set `ADMIN_*` to enable the first admin user
+* `ADMIN_*` supply bootstrap credentials for the opt-in CRUD admin UI and the `create_superuser` helper
 
 ## Common tasks
 

@@ -707,7 +707,7 @@ class DefaultRateLimitSettings(BaseSettings):
 
 
 class CRUDAdminSettings(BaseSettings):
-    CRUD_ADMIN_ENABLED: bool = True
+    CRUD_ADMIN_ENABLED: bool = False
     CRUD_ADMIN_MOUNT_PATH: str = "/admin"
 
     CRUD_ADMIN_ALLOWED_IPS_LIST: list[str] | None = None

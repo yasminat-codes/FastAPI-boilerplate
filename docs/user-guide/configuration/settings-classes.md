@@ -274,6 +274,7 @@ class RefreshTokenCookieSettings(BaseSettings):
 ```
 
 The `LocalSettings` profile overrides `REFRESH_TOKEN_COOKIE_SECURE` to `False` so the built-in auth flow still works over local HTTP. Staging and production profiles reject insecure refresh-cookie transport before the app boots.
+That settings group only covers cookie transport. If a cloned project needs `SameSite=None` or adds more cookie-authenticated mutations, it should layer explicit CSRF protection on top because `HttpOnly` and `CORS` alone are not enough.
 
 ### Trusted Host Settings
 

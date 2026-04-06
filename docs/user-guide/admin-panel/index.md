@@ -96,11 +96,11 @@ Configure your admin login in your `.env` file:
 
 ```bash
 # Admin Panel Access
+CRUD_ADMIN_ENABLED=true
 ADMIN_USERNAME="your-admin-username"
 ADMIN_PASSWORD="YourSecurePassword123!"
 
 # Basic Configuration
-CRUD_ADMIN_ENABLED=true
 CRUD_ADMIN_MOUNT_PATH="/admin"
 ```
 
@@ -123,12 +123,13 @@ uv run fastapi dev
 ## Environment Configuration
 
 The admin panel is configured entirely through environment variables, making it easy to adapt for different deployment environments.
+The browser admin surface is disabled by default, so enable it explicitly in each environment that needs it.
 
 ### Basic Settings
 
 ```bash
 # Enable/disable admin panel
-CRUD_ADMIN_ENABLED=true                    # Set to false to disable completely
+CRUD_ADMIN_ENABLED=true                    # Default is false; set to true to enable
 
 # Admin interface path
 CRUD_ADMIN_MOUNT_PATH="/admin"             # Change the URL path
@@ -292,4 +293,4 @@ Ready to start using your admin panel? Follow this path:
 2. **[Adding Models](adding-models.md)** - Add your new models to the admin interface  
 3. **[User Management](user-management.md)** - Implement secure admin authentication
 
-The admin panel is ready to use immediately with sensible defaults, and each guide shows you how to customize it for your specific needs. 
+The admin panel is ready once you opt in with `CRUD_ADMIN_ENABLED=true`, and each guide shows you how to customize it for your specific needs.

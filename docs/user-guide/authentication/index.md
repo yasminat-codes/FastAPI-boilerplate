@@ -126,6 +126,32 @@ async def update_post(post_id: int, current_user: dict = Depends(get_current_use
 - Input validation prevents injection attacks
 - Consistent error messages prevent information disclosure
 
+## CSRF Review For Cookie-Based Flows
+
+The template currently exposes two browser cookie surfaces:
+
+- the refresh-token cookie used by `/login`, `/refresh`, and `/logout`
+- the optional CRUDAdmin session cookie when `CRUD_ADMIN_ENABLED=true`
+
+The default posture is intentionally narrow:
+
+- access tokens stay in the `Authorization` header, so normal API mutations are not cookie-authenticated by default
+- the refresh-token cookie is `HttpOnly` and defaults to `SameSite="lax"`
+- secure environments require `Secure` transport for the refresh cookie, and also for the admin session cookie when the admin UI is enabled
+- the browser admin surface stays disabled until you opt in
+
+That baseline is a good start, but it is not a complete CSRF solution for every deployment shape:
+
+- `SameSite="lax"` helps with common cross-site CSRF, but it does not cover every same-site cross-origin scenario, such as sibling subdomains you do not fully trust
+- `CORS` is not a CSRF defense; it only controls whether browser JavaScript can read the response
+- if a cloned project changes the refresh cookie to `SameSite="none"` for a frontend hosted on a different site, it should add explicit CSRF controls before relying on that cookie for state-changing requests
+
+Recommended template posture:
+
+- keep cookie auth limited to refresh/logout and the opt-in admin surface
+- prefer bearer tokens or API keys for machine clients and cross-site integrations
+- if you add more cookie-authenticated mutation routes, layer Origin/Referer validation or double-submit CSRF tokens on top
+
 ## Configuration
 
 ### JWT Settings

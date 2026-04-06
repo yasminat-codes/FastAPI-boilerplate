@@ -303,8 +303,8 @@ The template now includes two shared automation persistence ledgers: inbound web
 - [x] Add rate limiting strategy for auth, API, and webhook endpoints.
 - [x] Add request validation limits for untrusted payloads.
 - [x] Add secret redaction in logs and error reports.
-- [ ] Add secure admin defaults or make admin disabled by default.
-- [ ] Review CSRF implications for any cookie-based flows.
+- [x] Add secure admin defaults or make admin disabled by default.
+- [x] Review CSRF implications for any cookie-based flows.
 - [ ] Add dependency vulnerability scanning to CI.
 - [ ] Add secret scanning to CI and local hooks.
 
@@ -1225,3 +1225,59 @@ Phase 4 Wave 4.3 is now partially complete and verified. The template already ha
 - [ ] Add secure admin defaults or make admin disabled by default.
 - [ ] Review CSRF implications for any cookie-based flows.
 - [ ] Add dependency vulnerability scanning to CI.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the remaining secure-admin-defaults item in Phase 4 Wave 4.3 by making the built-in CRUD admin surface opt-in: `CRUD_ADMIN_ENABLED` now defaults to `false`.
+- Added regression coverage for the new contract so default settings no longer construct the CRUD admin mount, secure environments still reject insecure admin cookies when the admin surface is explicitly enabled, and placeholder admin passwords remain allowed when the browser admin stays disabled.
+- Updated the README plus the getting-started, configuration, and admin-panel docs so template users now see the admin UI as an explicit per-environment choice instead of a default-on surface.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| No material implementation issues surfaced once the scope was narrowed to the opt-in admin baseline. | Kept the change limited to settings, regression tests, and the affected documentation, then verified the full gate stack. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 260 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 4 Wave 4.3 is now further hardened: the browser-based CRUD admin surface is no longer exposed by default, and secure-environment validation only enforces admin-session-cookie and placeholder-password rules when that surface is explicitly enabled. The security baseline still needs a documented CSRF review for cookie-based flows plus CI-level dependency and secret scanning before Phase 4 can be considered complete.
+
+### What remains
+- [ ] Review CSRF implications for any cookie-based flows.
+- [ ] Add dependency vulnerability scanning to CI.
+- [ ] Add secret scanning to CI and local hooks.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the Phase 4 Wave 4.3 CSRF review item by documenting the template's cookie-authenticated surfaces, their current protections, and the limits of those protections.
+- Updated the auth, JWT, configuration, and admin docs so template adopters can see when the default `SameSite="lax"` posture is sufficient and when they must add explicit CSRF controls.
+- Captured the recommended reusable extension patterns for higher-risk deployments: `Origin` or `Referer` validation, double-submit tokens, or keeping mutation auth on headers instead of cookies.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| None | None |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 260 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 4 Wave 4.3 now documents the real CSRF posture of the template instead of leaving cookie-based assumptions implicit. The refresh-token flow still keeps cookie usage narrow, the CRUD admin surface stays opt-in, and the docs now explain where `SameSite`, secure-cookie transport, and CORS stop being enough. CI-level dependency and secret scanning are still pending, so the security baseline is clearer and stronger but not yet complete for the phase.
+
+### What remains
+- [ ] Add dependency vulnerability scanning to CI.
+- [ ] Add secret scanning to CI and local hooks.
+- [ ] Create a dedicated webhook module structure.

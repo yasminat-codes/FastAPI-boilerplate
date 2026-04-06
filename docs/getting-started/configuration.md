@@ -105,15 +105,20 @@ ACCESS_TOKEN_EXPIRE_MINUTES=30               # Default: 30
 REFRESH_TOKEN_EXPIRE_DAYS=7                  # Default: 7
 ```
 
-### First Admin User
+### Optional Admin Bootstrap Settings
 
 ```env
-# Admin User
+# Built-in CRUD admin stays off until you opt in
+CRUD_ADMIN_ENABLED=false
+
+# Admin bootstrap user
 ADMIN_NAME="your_name"
 ADMIN_EMAIL="your_email"
 ADMIN_USERNAME="your_username"
 ADMIN_PASSWORD="your_password"
 ```
+
+Set `CRUD_ADMIN_ENABLED=true` only in environments where you want the browser admin mounted. The `ADMIN_*` credentials also feed the `create_first_superuser` helper.
 
 ### Redis Configuration
 
@@ -309,6 +314,9 @@ PASSWORD_HASH_REHASH_ON_LOGIN=true
 !!! warning "Secure Environment Cookie Defaults"
     Staging and production profiles reject `REFRESH_TOKEN_COOKIE_SECURE=false`. They also reject `SESSION_SECURE_COOKIES=false` while CRUD admin is enabled, so secure deployments cannot silently fall back to insecure cookie transport.
 
+!!! info "CSRF Review For Cookie-Based Flows"
+    The built-in refresh-token flow uses an HTTP-only cookie with `REFRESH_TOKEN_COOKIE_SAMESITE="lax"` by default, and the optional CRUD admin uses its own session cookie when enabled. That baseline works well for same-site browser apps, but it is not a complete CSRF defense for sibling subdomains you do not fully trust or deployments that switch refresh cookies to `SameSite="none"`. `CORS` does not replace CSRF protection. If you expand cookie-authenticated mutation routes, add Origin/Referer validation or a CSRF-token pattern first.
+
 ### Machine Authentication For Internal Hooks
 
 Use `API_KEY_*` settings when a cloned project wants optional machine-to-machine authentication for internal hooks, automation, or infrastructure callers without introducing a client-specific database table first:
@@ -346,7 +354,7 @@ FEATURE_API_TIERS_ENABLED=true
 FEATURE_API_RATE_LIMITS_ENABLED=true
 ```
 
-- `FEATURE_ADMIN_ENABLED` short-circuits the built-in admin mount even if admin settings remain configured.
+- `FEATURE_ADMIN_ENABLED` short-circuits the built-in admin mount even if `CRUD_ADMIN_ENABLED=true`.
 - `FEATURE_CLIENT_CACHE_ENABLED` disables the template’s client-cache middleware while leaving cache configuration values available.
 - The `FEATURE_API_*` flags control whether the corresponding starter route groups are registered under `/api/v1`.
 
@@ -369,7 +377,7 @@ ENVIRONMENT="local"  # local, staging, or production
 - **staging**: API docs available to superusers only
 - **production**: API docs completely disabled
 
-When `ENVIRONMENT="staging"` or `ENVIRONMENT="production"`, the template loads an environment-specific settings profile before boot. Both secure profiles fail fast if `SECRET_KEY`, the resolved database password, or `ADMIN_PASSWORD` still use placeholder values. CORS now defaults to a fail-closed allowlist in secure environments, and wildcard origins are rejected when credentials are enabled.
+When `ENVIRONMENT="staging"` or `ENVIRONMENT="production"`, the template loads an environment-specific settings profile before boot. Both secure profiles fail fast if `SECRET_KEY`, the resolved database password, or `ADMIN_PASSWORD` (when CRUD admin is enabled) still use placeholder values. CORS now defaults to a fail-closed allowlist in secure environments, and wildcard origins are rejected when credentials are enabled.
 
 For a side-by-side matrix covering docs exposure, cookies, CORS, trusted hosts, proxy trust, observability, and example env files, see [User Guide - Environment-Specific Configuration](../user-guide/configuration/environment-specific.md).
 

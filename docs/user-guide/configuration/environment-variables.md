@@ -427,9 +427,13 @@ WEBHOOK_RATE_LIMIT_PERIOD=60
 
 ### Admin User
 
-First superuser account configuration:
+Opt-in CRUD admin and bootstrap credential configuration:
 
 ```env
+# ------------- CRUD admin -------------
+CRUD_ADMIN_ENABLED=false
+CRUD_ADMIN_MOUNT_PATH="/admin"
+
 # ------------- admin -------------
 ADMIN_NAME="Admin User"
 ADMIN_EMAIL="admin@example.com"
@@ -439,10 +443,12 @@ ADMIN_PASSWORD="secure_admin_password"
 
 **Variables Explained:**
 
+- `CRUD_ADMIN_ENABLED`: Enable the built-in CRUD admin UI. Defaults to `false` so the browser admin surface is opt-in.
+- `CRUD_ADMIN_MOUNT_PATH`: Mount path for the built-in CRUD admin UI when enabled
 - `ADMIN_NAME`: Display name for the admin user
 - `ADMIN_EMAIL`: Email address for the admin account
 - `ADMIN_USERNAME`: Username for admin login
-- `ADMIN_PASSWORD`: Initial password (change after first login)
+- `ADMIN_PASSWORD`: Initial password used by the opt-in CRUD admin UI and the `create_first_superuser` helper (change after first login)
 
 ### CORS Configuration
 
@@ -568,6 +574,9 @@ SESSION_SECURE_COOKIES=true
 
 !!! danger "Security Warning"
 Secure environments reject `REFRESH_TOKEN_COOKIE_SECURE=false`, and they also reject `SESSION_SECURE_COOKIES=false` when the built-in CRUD admin surface is enabled. Browsers additionally require `REFRESH_TOKEN_COOKIE_SECURE=true` when `REFRESH_TOKEN_COOKIE_SAMESITE="none"`.
+
+!!! warning "CSRF Review For Cookie-Authenticated Routes"
+`REFRESH_TOKEN_COOKIE_SAMESITE="lax"` is the template default because it keeps the built-in cookie surface on a safer browser baseline. If you move to `SameSite="none"` for a frontend hosted on a different site, or if you introduce more cookie-authenticated mutation endpoints, add explicit CSRF protection such as `Origin`/`Referer` validation or a double-submit token. `CORS_ALLOW_CREDENTIALS` and explicit origin allowlists do not replace CSRF protection.
 
 ### Trusted Hosts And Proxy Headers
 

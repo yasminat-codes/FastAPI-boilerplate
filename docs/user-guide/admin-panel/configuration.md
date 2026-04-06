@@ -2,6 +2,8 @@
 
 Learn how to configure the admin panel (powered by [CRUDAdmin](https://github.com/benavlabs/crudadmin)) using the FastAPI boilerplate's built-in environment variable system. The admin panel is fully integrated with your application's configuration and requires no additional setup files or complex initialization.
 
+The browser admin surface is disabled by default. Opt into it only in environments where you explicitly want the mount exposed.
+
 > **About CRUDAdmin**: For complete configuration options and advanced features, see the [CRUDAdmin documentation](https://benavlabs.github.io/crudadmin/).
 
 ## Environment-Based Configuration
@@ -30,7 +32,7 @@ The configuration system automatically:
 Control whether the admin panel is available:
 
 ```bash
-# Enable admin panel (default: true)
+# Enable admin panel (default: false)
 CRUD_ADMIN_ENABLED=true
 
 # Disable admin panel completely
@@ -55,7 +57,8 @@ ADMIN_EMAIL="admin@yourcompany.com"         # Admin email (from FirstUserSetting
 
 **How this works:**
 
-- The admin user is created automatically when the application starts
+- The admin mount is created only when `CRUD_ADMIN_ENABLED=true`
+- When enabled, the admin user is created automatically when the application starts
 - Only created if no admin users exist (safe for restarts)
 - Uses your application's existing password hashing system
 - Credentials are validated according to CRUDAdmin requirements
@@ -94,6 +97,16 @@ SESSION_SECURE_COOKIES=true                 # Require HTTPS for cookies (product
 - Sessions expire after the timeout period of inactivity
 - When max sessions are exceeded, oldest sessions are removed
 - Session cookies are HTTP-only and secure (when HTTPS is enabled)
+
+### CSRF Considerations
+
+The admin panel authenticates with browser session cookies. `SESSION_SECURE_COOKIES` protects transport and HTTPS delivery, but cookie transport alone does not eliminate CSRF risk if you expose the admin to a broader browser surface.
+
+Recommended template posture:
+
+- keep `CRUD_ADMIN_ENABLED=false` by default and enable the admin only on operator-controlled environments
+- avoid embedding the admin under a frontend hosted on a different site
+- if you relax the admin cookie posture or expose it through a cross-site browser workflow, add explicit CSRF or `Origin`/`Referer` protections in the app or proxy layer before doing so
 
 ### Memory Sessions (Development)
 

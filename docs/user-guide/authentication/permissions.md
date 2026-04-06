@@ -17,6 +17,8 @@ The shared authorization surface lives in `src/app/platform/authorization.py` an
 The API layer now exposes dependency helpers in `src/app/api/dependencies.py`:
 
 - `get_current_authorization_subject`
+- `require_admin_access(...)`
+- `require_internal_access(...)`
 - `require_roles(...)`
 - `require_permissions(...)`
 - `get_current_superuser(...)`
@@ -37,12 +39,25 @@ That means the template works today with the existing `User` model, while still 
 The template currently reserves these default permission names for its own platform routes:
 
 - `platform:admin:access`
+- `platform:internal:access`
 - `platform:posts:manage`
 - `platform:rate-limits:manage`
 - `platform:tiers:manage`
 - `platform:users:manage`
 
 These are template-owned permissions for the reusable starter surface. Cloned projects can add their own permission names on top of them.
+
+## Internal versus external route access
+
+Phase 4 Wave 4.2 now makes the route-surface boundary explicit:
+
+- `public` routes are external application APIs. Protect individual endpoints as needed with auth and permission dependencies.
+- `ops` routes stay external and unauthenticated so load balancers and orchestrators can use `/health` and `/ready` safely.
+- `internal` routes are trusted operator or automation surfaces. The template now protects that group with `require_internal_access(...)`, which defaults to `platform:internal:access`.
+- `admin` routes are reserved for admin-only HTTP surfaces and use `require_admin_access(...)`, which defaults to `platform:admin:access`.
+- `webhooks` remain external machine-to-machine ingress. They should rely on signature verification and replay controls instead of end-user JWTs.
+
+The built-in `admin` role receives both `platform:admin:access` and `platform:internal:access`, but cloned projects can split those concerns by extending the permission policy with a dedicated operator or service role later.
 
 ## Route-level authorization
 

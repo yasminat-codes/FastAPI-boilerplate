@@ -112,7 +112,7 @@ The template provides a reusable worker job base out of the box. Define a job by
 
 The default registry also includes `WorkerProbeJob`, a minimal internal job that keeps the worker runtime bootable and available for smoke checks without shipping demo business behavior in the shared template.
 
-The API now exposes `/api/v1/internal/health` as a safe operator-facing diagnostics surface. It reads the ARQ heartbeat sentinel from the configured queue so you can confirm that a worker has checked in recently without shipping a demo job endpoint in the shared template.
+The API now exposes `/api/v1/internal/health` as a safe operator-facing diagnostics surface. It reads the ARQ heartbeat sentinel from the configured queue so you can confirm that a worker has checked in recently without shipping a demo job endpoint in the shared template, and it now requires the template's internal-access permission instead of being a public endpoint.
 
 ## Configuration
 

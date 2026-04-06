@@ -71,10 +71,11 @@ Expected response:
 
 **Internal Diagnostics:**
 ```bash
-curl http://localhost:8000/api/v1/internal/health
+curl -H "Authorization: Bearer <access-token-with-platform:internal:access>" \
+  http://localhost:8000/api/v1/internal/health
 ```
 
-Use this endpoint for trusted operator diagnostics, not public browser clients. It keeps the same dependency statuses as `/ready`, adds safe summaries for each probe, and reports whether the configured ARQ worker heartbeat is visible on the queue.
+Use this endpoint for trusted operator diagnostics, not public browser clients. It keeps the same dependency statuses as `/ready`, adds safe summaries for each probe, reports whether the configured ARQ worker heartbeat is visible on the queue, and now requires an authenticated caller with internal access.
 
 Expected response:
 ```json

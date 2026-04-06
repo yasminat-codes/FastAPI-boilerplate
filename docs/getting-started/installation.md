@@ -334,7 +334,7 @@ After installation, verify everything works:
 1. **API Documentation**: http://localhost:8000/docs
 1. **Health Check**: http://localhost:8000/api/v1/health
 1. **Ready Check**: http://localhost:8000/api/v1/ready
-1. **Internal Diagnostics**: http://localhost:8000/api/v1/internal/health
+1. **Internal Diagnostics**: http://localhost:8000/api/v1/internal/health (requires an access token with internal access)
 1. **Database Connection**: Check logs for successful connection
 1. **Redis Connection**: Test caching functionality
 1. **Background Tasks**: Submit a test job

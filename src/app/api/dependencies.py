@@ -9,6 +9,7 @@ from ..platform.authorization import (
     DEFAULT_PERMISSION_POLICY,
     AuthorizationSubject,
     PermissionPolicy,
+    TemplatePermission,
     TemplateRole,
     build_authorization_subject,
     ensure_permissions,
@@ -113,6 +114,14 @@ def require_permissions(
         return current_user
 
     return dependency
+
+
+def require_admin_access(*, policy: PermissionPolicy = DEFAULT_PERMISSION_POLICY):
+    return require_permissions(TemplatePermission.ADMIN_ACCESS, policy=policy)
+
+
+def require_internal_access(*, policy: PermissionPolicy = DEFAULT_PERMISSION_POLICY):
+    return require_permissions(TemplatePermission.INTERNAL_ACCESS, policy=policy)
 
 
 async def rate_limiter_dependency(

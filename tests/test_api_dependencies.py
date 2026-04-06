@@ -3,6 +3,8 @@ import pytest
 from src.app.api.dependencies import (
     get_current_authorization_subject,
     get_current_superuser,
+    require_admin_access,
+    require_internal_access,
     require_permissions,
     require_roles,
 )
@@ -57,6 +59,29 @@ async def test_require_permissions_allows_direct_permission_claims(current_user_
 async def test_require_permissions_allows_default_admin_policy(current_user_dict) -> None:
     dependency = require_permissions(TemplatePermission.MANAGE_RATE_LIMITS)
     current_user = {**current_user_dict, "is_superuser": True}
+
+    result = await dependency(current_user=current_user)
+
+    assert result == current_user
+
+
+@pytest.mark.asyncio
+async def test_require_admin_access_allows_default_admin_policy(current_user_dict) -> None:
+    dependency = require_admin_access()
+    current_user = {**current_user_dict, "is_superuser": True}
+
+    result = await dependency(current_user=current_user)
+
+    assert result == current_user
+
+
+@pytest.mark.asyncio
+async def test_require_internal_access_allows_direct_permission_claim(current_user_dict) -> None:
+    dependency = require_internal_access()
+    current_user = {
+        **current_user_dict,
+        "permissions": [TemplatePermission.INTERNAL_ACCESS.value],
+    }
 
     result = await dependency(current_user=current_user)
 

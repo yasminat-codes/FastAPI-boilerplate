@@ -105,7 +105,7 @@ Visit these URLs to confirm everything is working:
 - **Alternative Docs**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 - **Health Check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 - **Ready Check**: [http://localhost:8000/api/v1/ready](http://localhost:8000/api/v1/ready)
-- **Internal Diagnostics**: [http://localhost:8000/api/v1/internal/health](http://localhost:8000/api/v1/internal/health)
+- **Internal Diagnostics**: [http://localhost:8000/api/v1/internal/health](http://localhost:8000/api/v1/internal/health) after you have an access token with internal access
 
 ## You're Ready!
 
@@ -135,7 +135,8 @@ curl http://localhost:8000/api/v1/ready
 
 ### 3. Internal Diagnostics
 ```bash
-curl http://localhost:8000/api/v1/internal/health
+curl -H "Authorization: Bearer <access-token-with-platform:internal:access>" \
+  http://localhost:8000/api/v1/internal/health
 ```
 
 ### 4. Create a User

@@ -24,6 +24,7 @@ class TemplateRole(StrEnum):
 
 class Permission(StrEnum):
     ADMIN_ACCESS = "platform:admin:access"
+    INTERNAL_ACCESS = "platform:internal:access"
     MANAGE_POSTS = "platform:posts:manage"
     MANAGE_RATE_LIMITS = "platform:rate-limits:manage"
     MANAGE_TIERS = "platform:tiers:manage"
@@ -197,11 +198,12 @@ RolePermissionPolicy = PermissionPolicy
 DEFAULT_ROLE_PERMISSION_GRANTS: dict[str, frozenset[str]] = {
     AUTHENTICATED_ROLE: frozenset(),
     ADMIN_ROLE: frozenset(
-            {
-                Permission.ADMIN_ACCESS,
-                Permission.MANAGE_POSTS,
-                Permission.MANAGE_RATE_LIMITS,
-                Permission.MANAGE_TIERS,
+        {
+            Permission.ADMIN_ACCESS,
+            Permission.INTERNAL_ACCESS,
+            Permission.MANAGE_POSTS,
+            Permission.MANAGE_RATE_LIMITS,
+            Permission.MANAGE_TIERS,
             Permission.MANAGE_USERS,
         }
     ),

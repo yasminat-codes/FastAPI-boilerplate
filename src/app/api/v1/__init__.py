@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from ...platform.config import FeatureFlagsSettings, settings
+from ..dependencies import require_admin_access, require_internal_access
 from ..routing import ApiRouteGroup, ApiVersion, build_route_group_router, build_version_prefix_router
 from .health import router as health_router
 from .internal_health import router as internal_health_router
@@ -41,11 +42,17 @@ def build_v1_ops_router() -> APIRouter:
 
 
 def build_v1_admin_router() -> APIRouter:
-    return build_route_group_router(ApiRouteGroup.ADMIN)
+    return build_route_group_router(
+        ApiRouteGroup.ADMIN,
+        dependencies=[Depends(require_admin_access())],
+    )
 
 
 def build_v1_internal_router() -> APIRouter:
-    router = build_route_group_router(ApiRouteGroup.INTERNAL)
+    router = build_route_group_router(
+        ApiRouteGroup.INTERNAL,
+        dependencies=[Depends(require_internal_access())],
+    )
     router.include_router(internal_health_router)
     return router
 

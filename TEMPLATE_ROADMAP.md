@@ -291,7 +291,7 @@ The template now includes two shared automation persistence ledgers: inbound web
 ### Wave 4.2: Authorization And Access Control
 
 - [x] Add a reusable RBAC or permission policy layer.
-- [ ] Define internal versus external endpoint access rules.
+- [x] Define internal versus external endpoint access rules.
 - [ ] Add service-to-service authentication guidance for internal hooks.
 - [ ] Add optional API key pattern for machine clients.
 - [ ] Add tenant/org scoping hooks if tenant-aware support is desired.
@@ -1142,3 +1142,30 @@ Phase 4 Wave 4.2 is now started with a reusable authorization baseline instead o
 - [ ] Define internal versus external endpoint access rules.
 - [ ] Add service-to-service authentication guidance for internal hooks.
 - [ ] Add optional API key pattern for machine clients.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Defined reusable internal versus external endpoint access rules by introducing a dedicated `platform:internal:access` permission and protecting the `/api/v1/internal/*` route group with a shared dependency helper.
+- Carried the same route-group access pattern into the reserved admin surface, keeping `/api/v1/health` and `/api/v1/ready` public while making deeper diagnostics an authenticated operator-only contract.
+- Updated the API, auth, getting-started, and background-task docs plus regression coverage so `/api/v1/internal/health` usage now matches the implemented access boundary.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The first `ruff` pass auto-fixed a minor formatting/import-order issue after the new access helpers and route wiring were added. | Re-ran `uv run ruff check src tests` after Ruff's fix so the final reported lint result reflects a clean tree. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 240 passed, 0 failed
+
+### Current state of the template
+Phase 4 Wave 4.2 now has an explicit boundary between public and internal HTTP surfaces instead of relying on convention alone. The template keeps liveness and readiness probes externally safe, while the internal diagnostics surface now requires authenticated internal access and the default admin role inherits that grant. Service-to-service auth, API-key support, and tenant-aware authorization hooks are still not implemented, so non-user internal automation remains a future extension point.
+
+### What remains
+- [ ] Add service-to-service authentication guidance for internal hooks.
+- [ ] Add optional API key pattern for machine clients.
+- [ ] Add tenant/org scoping hooks if tenant-aware support is desired.

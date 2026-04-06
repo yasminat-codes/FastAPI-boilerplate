@@ -19,6 +19,7 @@ def test_build_authorization_subject_grants_default_roles_and_admin_permissions(
     assert subject.is_superuser is True
     assert TemplateRole.AUTHENTICATED.value in subject.roles
     assert TemplateRole.ADMIN.value in subject.roles
+    assert TemplatePermission.INTERNAL_ACCESS.value in subject.permissions
     assert TemplatePermission.MANAGE_USERS.value in subject.permissions
     assert TemplatePermission.MANAGE_TIERS.value in subject.permissions
 

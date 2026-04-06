@@ -55,6 +55,7 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
 ### Permission System
 - **Default shared roles**: Every authenticated user gets `authenticated`; `is_superuser=True` adds `admin`
 - **Explicit permission dependencies**: Built-in routes can depend on named platform permissions instead of one hard-coded admin check
+- **Internal versus external boundary**: `/api/v1/internal/*` now requires the template's internal-access permission, while `/health` and `/ready` stay safe for unauthenticated infrastructure probes
 - **Custom claims support**: `role`, `roles`, `permissions`, and `scopes` claims are normalized automatically when projects extend the auth payload
 - **Ownership stays explicit**: Fine-grained self-versus-other checks remain in services instead of being hidden in route decorators
 

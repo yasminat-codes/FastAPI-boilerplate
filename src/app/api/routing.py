@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 from fastapi import APIRouter
 
@@ -46,9 +47,9 @@ def build_version_prefix_router(*, version: ApiVersion) -> APIRouter:
     return APIRouter(prefix=f"/{version.value}")
 
 
-def build_route_group_router(group: ApiRouteGroup) -> APIRouter:
+def build_route_group_router(group: ApiRouteGroup, *, dependencies: list[Any] | None = None) -> APIRouter:
     definition = ROUTE_GROUP_DEFINITIONS[group]
-    return APIRouter(prefix=definition.prefix)
+    return APIRouter(prefix=definition.prefix, dependencies=dependencies or [])
 
 
 __all__ = [

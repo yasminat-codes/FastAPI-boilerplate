@@ -29,7 +29,7 @@ At runtime the default template mounts:
 
 - `/api/v1/...` for version 1 endpoints
 - `/api/v1/health` and `/api/v1/ready` as lightweight ops endpoints
-- `/api/v1/internal/health` for worker-aware internal diagnostics with safe dependency summaries
+- `/api/v1/internal/health` for worker-aware internal diagnostics with safe dependency summaries and authenticated internal access
 - public resource routes such as `/api/v1/users` and `/api/v1/{username}/posts`
 
 Dedicated `/admin`, `/internal`, and `/webhooks` route-group prefixes are reserved inside each version so cloned projects can grow into those surfaces without inventing a second routing pattern later.
@@ -38,7 +38,7 @@ The health contract is intentionally split:
 
 - `/api/v1/health` stays cheap and always answers process liveness.
 - `/api/v1/ready` checks template-owned runtime dependencies that the API process needs before serving traffic.
-- `/api/v1/internal/health` adds safe dependency summaries plus worker-heartbeat visibility for operators and trusted internal tooling.
+- `/api/v1/internal/health` adds safe dependency summaries plus worker-heartbeat visibility for operators and trusted internal tooling, and now requires the template's internal-access permission.
 
 ## How Routers Should Work
 

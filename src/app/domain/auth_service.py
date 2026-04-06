@@ -18,6 +18,7 @@ from ..platform.security import (
     clear_refresh_token_cookie,
     create_access_token,
     create_refresh_token,
+    rotate_refresh_token,
     set_refresh_token_cookie,
     verify_token,
 )
@@ -53,16 +54,37 @@ class AuthService:
 
         return {"access_token": access_token, "token_type": "bearer"}
 
-    async def refresh_access_token(self, *, refresh_token: str | None, db: AsyncSession) -> dict[str, str]:
+    async def refresh_access_token(
+        self,
+        *,
+        response: Response,
+        refresh_token: str | None,
+        db: AsyncSession,
+    ) -> dict[str, str]:
         if not refresh_token:
             raise UnauthorizedException("Refresh token missing.")
 
-        user_data = await verify_token(refresh_token, TokenType.REFRESH, db)
-        if not user_data:
-            raise UnauthorizedException("Invalid refresh token.")
+        try:
+            user_data = await verify_token(refresh_token, TokenType.REFRESH, db)
+            if not user_data:
+                raise UnauthorizedException("Invalid refresh token.")
 
-        new_access_token = await create_access_token(data={"sub": user_data.username_or_email})
-        return {"access_token": new_access_token, "token_type": "bearer"}
+            new_access_token, new_refresh_token = await rotate_refresh_token(
+                refresh_token=refresh_token,
+                subject=user_data.username_or_email,
+                db=db,
+                crypt_settings=settings,
+            )
+            max_age = settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+            set_refresh_token_cookie(
+                response,
+                refresh_token=new_refresh_token,
+                max_age=max_age,
+                cookie_settings=settings,
+            )
+            return {"access_token": new_access_token, "token_type": "bearer"}
+        except JWTError as exc:
+            raise UnauthorizedException("Invalid refresh token.") from exc
 
     async def logout(
         self,

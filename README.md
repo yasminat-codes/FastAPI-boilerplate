@@ -193,6 +193,7 @@ The docs also include an environment settings matrix for `local`, `staging`, and
 * `JWT_*` settings add optional issuer/audience enforcement and `kid`-based signing-key rotation on top of the default stateless token flow
 * `CORS_*` settings now default to a fail-closed allowlist outside local development and support credentials, exposed headers, and max-age tuning
 * `SECURITY_HEADERS_*`, `REFRESH_TOKEN_COOKIE_*`, and `SESSION_SECURE_COOKIES` control baseline response-header hardening and template-owned cookie behavior
+* `PASSWORD_*` settings control the shared bcrypt policy, including work-factor increases and automatic rehash-on-login
 * `TRUSTED_HOSTS` and `PROXY_HEADERS_*` settings provide optional host-header protection and safe forwarded-header trust controls for reverse-proxy deployments
 * Set `ADMIN_*` to enable the first admin user
 
@@ -204,6 +205,9 @@ uv sync && uv run db-migrate upgrade head && uv run uvicorn src.app.main:app --r
 
 # create and apply Alembic migrations
 uv run db-migrate revision --autogenerate && uv run db-migrate upgrade head
+
+# prune expired token blacklist rows
+uv run cleanup-token-blacklist
 
 # run the ARQ worker runtime
 uv run arq src.app.workers.settings.WorkerSettings

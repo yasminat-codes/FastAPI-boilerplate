@@ -282,11 +282,11 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 - [x] Review JWT design and decide whether to keep stateless JWT-only, session-backed refresh, or hybrid.
 - [x] Add explicit issuer, audience, and key rotation support if JWT remains the default.
-- [ ] Add refresh token rotation strategy.
-- [ ] Add secure password hashing policy and future-proofing.
-- [ ] Add login throttling and lockout policy guidance.
-- [ ] Add secure cookie policy defaults where cookies are used.
-- [ ] Add token revocation cleanup and retention strategy.
+- [x] Add refresh token rotation strategy.
+- [x] Add secure password hashing policy and future-proofing.
+- [x] Add login throttling and lockout policy guidance.
+- [x] Add secure cookie policy defaults where cookies are used.
+- [x] Add token revocation cleanup and retention strategy.
 
 ### Wave 4.2: Authorization And Access Control
 
@@ -1086,3 +1086,32 @@ The Phase 4 auth baseline is now stronger without becoming client-specific: the 
 - [ ] Add refresh token rotation strategy.
 - [ ] Add secure password hashing policy and future-proofing.
 - [ ] Add login throttling and lockout policy guidance.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the remaining Phase 4 Wave 4.1 auth-hardening work: refresh tokens now rotate on `/refresh`, replayed refresh cookies are rejected after blacklist consumption, and JWT revocation now has a reusable expired-row cleanup command.
+- Added a stronger password-hash policy surface with configurable bcrypt rounds and automatic rehash-on-login so cloned projects can raise password cost without rewriting auth flows.
+- Updated the authentication and configuration docs to reflect the verified runtime contract, including secure cookie defaults and template-oriented guidance for login throttling and temporary lockouts.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The new `cleanup-token-blacklist` console entrypoint initially wrapped the async maintenance function incorrectly. | Replaced it with a synchronous `main()` wrapper that calls `asyncio.run(async_main())`, so the registered script now executes properly. |
+| The new auth/runtime tests initially had a couple of style issues during the first lint pass. | Tightened the long mock setup lines and reran the full verification stack. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 220 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 4 Wave 4.1 is now complete and verified. The template still uses a reusable stateless JWT baseline, but it now has issuer/audience/key-rotation support, rotating refresh cookies, configurable bcrypt cost with rehash-on-login, documented secure cookie defaults, and a baseline cleanup path for expired token revocation records. Authorization policy, service-to-service auth guidance, and broader platform security controls remain for the next Phase 4 waves.
+
+### What remains
+- [ ] Add a reusable RBAC or permission policy layer.
+- [ ] Define internal versus external endpoint access rules.
+- [ ] Add service-to-service authentication guidance for internal hooks.

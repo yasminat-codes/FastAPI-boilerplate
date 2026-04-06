@@ -1,6 +1,7 @@
 from typing import cast
 from unittest.mock import AsyncMock, patch
 
+import bcrypt
 import pytest
 from fastapi import Response
 from jose import jwt
@@ -10,11 +11,14 @@ from src.app.core.security import (
     ALGORITHM,
     SECRET_KEY,
     TokenType,
+    authenticate_user,
     build_refresh_token_cookie_delete_kwargs,
     build_refresh_token_cookie_kwargs,
     clear_refresh_token_cookie,
     create_access_token,
     create_refresh_token,
+    get_password_hash,
+    password_hash_needs_rehash,
     set_refresh_token_cookie,
     verify_token,
 )
@@ -125,6 +129,20 @@ async def test_stateless_tokens_embed_subject_and_type_claims() -> None:
     assert access_payload["token_type"] == TokenType.ACCESS
     assert refresh_payload["sub"] == "template-user"
     assert refresh_payload["token_type"] == TokenType.REFRESH
+    assert isinstance(refresh_payload["jti"], str)
+    assert refresh_payload["jti"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_tokens_are_unique_across_rotations() -> None:
+    first_refresh_token = await create_refresh_token(data={"sub": "template-user"})
+    second_refresh_token = await create_refresh_token(data={"sub": "template-user"})
+
+    first_payload = jwt.decode(first_refresh_token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+    second_payload = jwt.decode(second_refresh_token, SECRET_KEY.get_secret_value(), algorithms=[ALGORITHM])
+
+    assert first_refresh_token != second_refresh_token
+    assert first_payload["jti"] != second_payload["jti"]
 
 
 @pytest.mark.asyncio
@@ -267,3 +285,61 @@ async def test_verify_token_rejects_mismatched_or_blacklisted_tokens() -> None:
 
     assert mismatched is None
     assert blacklisted is None
+
+
+def test_get_password_hash_uses_configured_bcrypt_rounds() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        PASSWORD_BCRYPT_ROUNDS=13,
+    )
+
+    hashed_password = get_password_hash("template-password", crypt_settings=custom_settings)
+
+    assert hashed_password.startswith("$2b$13$")
+
+
+def test_password_hash_needs_rehash_for_lower_bcrypt_rounds() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        PASSWORD_BCRYPT_ROUNDS=13,
+    )
+    legacy_hash = bcrypt.hashpw(b"template-password", bcrypt.gensalt(rounds=12)).decode()
+
+    assert password_hash_needs_rehash(legacy_hash, crypt_settings=custom_settings) is True
+    assert password_hash_needs_rehash(
+        get_password_hash("template-password", crypt_settings=custom_settings),
+        crypt_settings=custom_settings,
+    ) is False
+
+
+@pytest.mark.asyncio
+async def test_authenticate_user_rehashes_legacy_password_hashes() -> None:
+    custom_settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        PASSWORD_BCRYPT_ROUNDS=13,
+        PASSWORD_HASH_REHASH_ON_LOGIN=True,
+    )
+    legacy_hash = bcrypt.hashpw(b"template-password", bcrypt.gensalt(rounds=12)).decode()
+    db_user = {
+        "username": "template-user",
+        "email": "template@example.com",
+        "hashed_password": legacy_hash,
+    }
+
+    with (
+        patch("src.app.core.security.crud_users.get", new=AsyncMock(return_value=db_user)),
+        patch("src.app.core.security.crud_users.update", new=AsyncMock()) as update_mock,
+    ):
+        authenticated_user = await authenticate_user(
+            "template-user",
+            "template-password",
+            cast(AsyncSession, object()),
+            crypt_settings=custom_settings,
+        )
+
+    assert authenticated_user is not False
+    assert authenticated_user["hashed_password"].startswith("$2b$13$")
+    update_mock.assert_awaited_once()

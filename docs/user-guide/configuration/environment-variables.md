@@ -120,6 +120,9 @@ JWT_ISSUER="https://api.example.com"
 JWT_AUDIENCE="template-api"
 JWT_ACTIVE_KEY_ID="2026-04"
 JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
+PASSWORD_HASH_SCHEME="bcrypt"
+PASSWORD_BCRYPT_ROUNDS=12
+PASSWORD_HASH_REHASH_ON_LOGIN=true
 ```
 
 **Variables Explained:**
@@ -132,6 +135,9 @@ JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
 - `JWT_AUDIENCE`: Optional audience claim added to new tokens and enforced during verification
 - `JWT_ACTIVE_KEY_ID`: `kid` header assigned to newly issued tokens
 - `JWT_VERIFICATION_KEYS`: JSON object of previous signing secrets keyed by `kid` for zero-downtime key rotation
+- `PASSWORD_HASH_SCHEME`: Password-hash implementation used by the shared auth helpers; today the template ships with `bcrypt`
+- `PASSWORD_BCRYPT_ROUNDS`: bcrypt work factor used for new password hashes
+- `PASSWORD_HASH_REHASH_ON_LOGIN`: Rehash older stored passwords after a successful login when the configured policy becomes stronger
 
 !!! danger "Security Warning"
 Never use default values in production. Generate a strong secret key:

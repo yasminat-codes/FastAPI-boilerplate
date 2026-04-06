@@ -9,10 +9,12 @@ from fastapi import Response
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from pydantic import SecretStr
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid6 import uuid7
 
 from ..crud.crud_users import crud_users
-from .config import CryptSettings, RefreshTokenCookieSettings, settings
+from .config import CryptSettings, PasswordHashScheme, RefreshTokenCookieSettings, settings
 from .db.crud_token_blacklist import crud_token_blacklist
 from .schemas import TokenBlacklistCreate, TokenData
 
@@ -83,16 +85,57 @@ def clear_refresh_token_cookie(response: Response, *, cookie_settings: RefreshTo
 
 
 async def verify_password(plain_password: str, hashed_password: str) -> bool:
-    correct_password: bool = bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    try:
+        correct_password: bool = bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    except ValueError:
+        return False
     return correct_password
 
 
-def get_password_hash(password: str) -> str:
-    hashed_password: str = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+def _get_bcrypt_rounds(hashed_password: str) -> int | None:
+    parts = hashed_password.split("$")
+    if len(parts) < 3 or parts[1] not in {"2a", "2b", "2y"}:
+        return None
+
+    try:
+        return int(parts[2])
+    except ValueError:
+        return None
+
+
+def password_hash_needs_rehash(
+    hashed_password: str,
+    *,
+    crypt_settings: CryptSettings = settings,
+) -> bool:
+    if crypt_settings.PASSWORD_HASH_SCHEME is not PasswordHashScheme.BCRYPT:
+        raise ValueError(f"Unsupported password hash scheme: {crypt_settings.PASSWORD_HASH_SCHEME}")
+
+    current_rounds = _get_bcrypt_rounds(hashed_password)
+    if current_rounds is None:
+        return True
+
+    return current_rounds < crypt_settings.PASSWORD_BCRYPT_ROUNDS
+
+
+def get_password_hash(password: str, *, crypt_settings: CryptSettings = settings) -> str:
+    if crypt_settings.PASSWORD_HASH_SCHEME is not PasswordHashScheme.BCRYPT:
+        raise ValueError(f"Unsupported password hash scheme: {crypt_settings.PASSWORD_HASH_SCHEME}")
+
+    hashed_password: str = bcrypt.hashpw(
+        password.encode(),
+        bcrypt.gensalt(rounds=crypt_settings.PASSWORD_BCRYPT_ROUNDS),
+    ).decode()
     return hashed_password
 
 
-async def authenticate_user(username_or_email: str, password: str, db: AsyncSession) -> dict[str, Any] | Literal[False]:
+async def authenticate_user(
+    username_or_email: str,
+    password: str,
+    db: AsyncSession,
+    *,
+    crypt_settings: CryptSettings = settings,
+) -> dict[str, Any] | Literal[False]:
     if "@" in username_or_email:
         db_user = await crud_users.get(db=db, email=username_or_email, is_deleted=False)
     else:
@@ -103,6 +146,21 @@ async def authenticate_user(username_or_email: str, password: str, db: AsyncSess
 
     if not await verify_password(password, db_user["hashed_password"]):
         return False
+
+    if crypt_settings.PASSWORD_HASH_REHASH_ON_LOGIN and password_hash_needs_rehash(
+        db_user["hashed_password"],
+        crypt_settings=crypt_settings,
+    ):
+        rehashed_password = get_password_hash(password, crypt_settings=crypt_settings)
+        await crud_users.update(
+            db=db,
+            object={"hashed_password": rehashed_password},
+            username=db_user["username"],
+        )
+        db_user = {
+            **db_user,
+            "hashed_password": rehashed_password,
+        }
 
     return db_user
 
@@ -168,6 +226,7 @@ def _build_token_claims(
     expire: datetime,
     token_type: TokenType,
     crypt_settings: CryptSettings,
+    additional_claims: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     claims = data.copy()
     claims.update({"exp": expire, "token_type": token_type})
@@ -175,6 +234,8 @@ def _build_token_claims(
         claims["iss"] = crypt_settings.JWT_ISSUER
     if crypt_settings.JWT_AUDIENCE is not None:
         claims["aud"] = crypt_settings.JWT_AUDIENCE
+    if additional_claims is not None:
+        claims.update(additional_claims)
     return claims
 
 
@@ -220,6 +281,7 @@ async def create_refresh_token(
         expire=expire,
         token_type=TokenType.REFRESH,
         crypt_settings=crypt_settings,
+        additional_claims={"jti": str(uuid7())},
     )
     encoded_jwt: str = jwt.encode(
         to_encode,
@@ -308,3 +370,26 @@ async def blacklist_token(
     if exp_timestamp is not None:
         expires_at = datetime.fromtimestamp(exp_timestamp)
         await crud_token_blacklist.create(db, object=TokenBlacklistCreate(token=token, expires_at=expires_at))
+
+
+async def rotate_refresh_token(
+    *,
+    refresh_token: str,
+    subject: str,
+    db: AsyncSession,
+    crypt_settings: CryptSettings = settings,
+) -> tuple[str, str]:
+    try:
+        await blacklist_token(refresh_token, db=db, crypt_settings=crypt_settings)
+    except IntegrityError as exc:
+        raise JWTError("Refresh token has already been consumed.") from exc
+
+    new_access_token = await create_access_token(
+        data={"sub": subject},
+        crypt_settings=crypt_settings,
+    )
+    new_refresh_token = await create_refresh_token(
+        data={"sub": subject},
+        crypt_settings=crypt_settings,
+    )
+    return new_access_token, new_refresh_token

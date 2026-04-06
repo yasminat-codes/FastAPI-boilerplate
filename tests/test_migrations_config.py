@@ -43,6 +43,7 @@ def test_db_migrate_console_script_is_registered() -> None:
 
     assert pyproject_data["project"]["scripts"]["db-migrate"] == "src.scripts.migrations:main"
     assert pyproject_data["project"]["scripts"]["db-migrate-verify"] == "src.scripts.verify_migrations:main"
+    assert pyproject_data["project"]["scripts"]["cleanup-token-blacklist"] == "src.scripts.cleanup_token_blacklist:main"
 
 
 def test_build_alembic_argv_uses_canonical_root_config() -> None:

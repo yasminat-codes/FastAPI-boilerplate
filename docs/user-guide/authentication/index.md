@@ -13,7 +13,7 @@ Learn how to implement secure authentication in your FastAPI application. The te
 Phase 4 Wave 4.1 now formally keeps the template on a stateless JWT-only posture instead of introducing a server-backed refresh-session store by default. That keeps the reusable scaffold simple and broadly compatible while still giving adopters a production-minded baseline:
 
 - **Access tokens** remain short-lived signed JWTs for API requests.
-- **Refresh tokens** remain signed JWTs, but are delivered through an HTTP-only cookie instead of JavaScript-accessible storage.
+- **Refresh tokens** remain signed JWTs, are delivered through an HTTP-only cookie, and now rotate on `/refresh`.
 - **Revocation** is handled through blacklist records for logout and explicit invalidation flows.
 - **Hardening hooks included**: optional `iss`/`aud` claims and a `kid`-driven verification key ring for secret rotation.
 - **Not included by default**: server-backed refresh-session tables, per-device session management, or mandatory hybrid-session infrastructure.
@@ -28,8 +28,13 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
     access_token = await create_access_token(data={"sub": user["username"]})
     refresh_token = await create_refresh_token(data={"sub": user["username"]})
 
-    # Set secure HTTP-only cookie for refresh token
-    response.set_cookie("refresh_token", refresh_token, httponly=True, secure=True)
+    # Apply the template's refresh-cookie policy from settings
+    set_refresh_token_cookie(
+        response,
+        refresh_token=refresh_token,
+        max_age=settings.REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        cookie_settings=settings,
+    )
     return {"access_token": access_token, "token_type": "bearer"}
 ```
 
@@ -99,10 +104,10 @@ async def update_post(post_id: int, current_user: dict = Depends(get_current_use
 - Configurable token expiration times
 
 ### Password Security
-- bcrypt hashing with automatic salt generation
-- Configurable password complexity requirements
+- bcrypt hashing with a configurable work factor
+- Automatic rehash-on-login when the configured bcrypt cost increases
 - No plain text passwords stored anywhere
-- Rate limiting on authentication endpoints
+- Documented guidance for login throttling and temporary lockouts
 
 ### API Protection
 - CORS policies for cross-origin request control
@@ -126,14 +131,26 @@ JWT_VERIFICATION_KEYS='{"2026-01":"previous-signing-secret"}'
 
 ### Security Settings
 ```env
-# Cookie security
-COOKIE_SECURE=true
-COOKIE_SAMESITE="lax"
+# Refresh-token cookie security
+REFRESH_TOKEN_COOKIE_SECURE=true
+REFRESH_TOKEN_COOKIE_HTTPONLY=true
+REFRESH_TOKEN_COOKIE_SAMESITE="lax"
+SESSION_SECURE_COOKIES=true
 
-# Password requirements
-PASSWORD_MIN_LENGTH=8
-ENABLE_PASSWORD_COMPLEXITY=true
+# Password hashing policy
+PASSWORD_HASH_SCHEME="bcrypt"
+PASSWORD_BCRYPT_ROUNDS=12
+PASSWORD_HASH_REHASH_ON_LOGIN=true
 ```
+
+## Login Throttling Guidance
+
+The template does not hardcode one login-throttling product policy, but it now documents the recommended pattern for cloned projects:
+
+- use the existing Redis-backed rate-limit foundation for login-attempt counters keyed by normalized username or email plus client IP or proxy-aware network identity
+- enforce a short rolling-attempt budget and a separate temporary lockout window instead of relying on one unbounded counter
+- keep invalid-login responses generic, reset counters on successful authentication, and log lockout events with request and correlation IDs
+- apply separate limits for `/login`, `/refresh`, and admin auth flows so browser token refreshes are not coupled to interactive password-entry limits
 
 ## Getting Started
 

@@ -276,11 +276,15 @@ REFRESH_TOKEN_COOKIE_SECURE=false          # Local profile default; secure envir
 REFRESH_TOKEN_COOKIE_HTTPONLY=true
 REFRESH_TOKEN_COOKIE_SAMESITE="lax"
 SESSION_SECURE_COOKIES=false              # Local profile default for the admin session cookie
+PASSWORD_HASH_SCHEME="bcrypt"
+PASSWORD_BCRYPT_ROUNDS=12
+PASSWORD_HASH_REHASH_ON_LOGIN=true
 ```
 
 - `SECURITY_HEADERS_*` configures the reusable response-header middleware the template owns.
 - `REFRESH_TOKEN_COOKIE_*` configures the refresh token cookie used by the built-in auth routes.
 - `SESSION_SECURE_COOKIES` controls whether the built-in admin session cookie requires HTTPS.
+- `PASSWORD_*` controls the shared password-hash policy so cloned projects can raise bcrypt cost over time without changing auth code.
 
 !!! warning "Secure Environment Cookie Defaults"
     Staging and production profiles reject `REFRESH_TOKEN_COOKIE_SECURE=false`. They also reject `SESSION_SECURE_COOKIES=false` while CRUD admin is enabled, so secure deployments cannot silently fall back to insecure cookie transport.

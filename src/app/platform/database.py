@@ -1,7 +1,12 @@
 """Canonical database and persistence surface."""
 
 from ..core.db.audit_log_event import AuditLogEvent, AuditLogEventSeverity, AuditLogEventStatus
-from ..core.db.crud_token_blacklist import CRUDTokenBlacklist, crud_token_blacklist
+from ..core.db.crud_token_blacklist import (
+    CRUDTokenBlacklist,
+    build_expired_token_blacklist_cleanup_statement,
+    crud_token_blacklist,
+    delete_expired_token_blacklist_entries,
+)
 from ..core.db.database import (
     DATABASE_ENGINE_KWARGS,
     DATABASE_PREFIX,
@@ -73,6 +78,7 @@ __all__ = [
     "build_database_engine_kwargs",
     "build_database_ssl_context",
     "build_database_startup_retry_delays",
+    "build_expired_token_blacklist_cleanup_statement",
     "database_transaction",
     "crud_token_blacklist",
     "get_database_session_policy",
@@ -80,5 +86,6 @@ __all__ = [
     "is_retryable_database_error",
     "local_session",
     "open_database_session",
+    "delete_expired_token_blacklist_entries",
     "retry_database_operation",
 ]

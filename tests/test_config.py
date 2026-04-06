@@ -507,6 +507,19 @@ def test_crypt_settings_reject_active_key_id_redefinition() -> None:
         )
 
 
+def test_crypt_settings_cover_password_hashing_policy() -> None:
+    settings = load_settings(
+        _env_file=None,
+        SECRET_KEY="a" * 64,
+        PASSWORD_BCRYPT_ROUNDS=13,
+        PASSWORD_HASH_REHASH_ON_LOGIN=False,
+    )
+
+    assert settings.PASSWORD_HASH_SCHEME.value == "bcrypt"
+    assert settings.PASSWORD_BCRYPT_ROUNDS == 13
+    assert settings.PASSWORD_HASH_REHASH_ON_LOGIN is False
+
+
 def test_feature_flags_settings_cover_optional_template_modules() -> None:
     settings = load_settings(
         _env_file=None,

@@ -170,11 +170,18 @@ class AppSettings(BaseSettings):
     CONTACT_EMAIL: str | None = None
 
 
+class PasswordHashScheme(str, Enum):
+    BCRYPT = "bcrypt"
+
+
 class CryptSettings(BaseSettings):
     SECRET_KEY: SecretStr = SecretStr("secret-key")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    PASSWORD_HASH_SCHEME: PasswordHashScheme = PasswordHashScheme.BCRYPT
+    PASSWORD_BCRYPT_ROUNDS: int = Field(default=12, ge=4, le=31)
+    PASSWORD_HASH_REHASH_ON_LOGIN: bool = True
     JWT_ISSUER: str | None = None
     JWT_AUDIENCE: str | None = None
     JWT_ACTIVE_KEY_ID: str = "primary"

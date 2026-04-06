@@ -39,6 +39,7 @@ dependencies = [
 [project.scripts]
 db-migrate = "src.scripts.migrations:main"
 db-migrate-verify = "src.scripts.verify_migrations:main"
+cleanup-token-blacklist = "src.scripts.cleanup_token_blacklist:main"
 
 [build-system]
 requires = ["hatchling"]

@@ -14,7 +14,8 @@ Phase 4 Wave 4.1 formally keeps the default template posture as stateless JWT-on
 - **Refresh tokens**: longer-lived JWTs stored in an HTTP-only cookie.
 - **Revocation path**: blacklist records for logout and other explicit invalidation events.
 - **Built-in hardening hooks**: optional issuer/audience claims and key-id-based verification key rotation.
-- **Still deferred**: refresh-token rotation and broader revocation retention remain later Wave 4 tasks.
+- **Built-in token lifecycle hardening**: refresh-token rotation on `/refresh` and a reusable cleanup command for expired blacklist rows.
+- **Still deferred**: broader revocation retention policies beyond the baseline cleanup pattern remain later Phase 4 work.
 
 This choice keeps the base template reusable and lightweight for cloned projects while staying honest about what the scaffold does and does not own today.
 
@@ -116,6 +117,7 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
     "exp": 1234567890,  # Longer expiration time
     "iss": "https://api.example.com",  # Optional configured issuer
     "aud": "template-api",  # Optional configured audience
+    "jti": "01962490-...",  # Unique refresh-token identifier for rotation
     "token_type": "refresh",  # Prevents confusion/misuse
 }
 ```
@@ -126,9 +128,10 @@ JWT tokens consist of three parts separated by dots: `header.payload.signature`.
 - **`exp` (Expiration)**: Unix timestamp when token becomes invalid
 - **`iss` (Issuer)**: Optional issuer string enforced when `JWT_ISSUER` is configured
 - **`aud` (Audience)**: Optional audience string enforced when `JWT_AUDIENCE` is configured
+- **`jti` (JWT ID)**: Unique identifier on refresh tokens so `/refresh` can rotate to a distinct replacement token
 - **`token_type`**: Custom field preventing tokens from being used incorrectly
 
-The template still keeps the claim set intentionally lean, but it now supports optional `iss` and `aud` claims plus a `kid` header for signing-key rotation. Claims such as `iat` and `jti`, along with refresh-token rotation, remain opt-in follow-on hardening work.
+The template still keeps the claim set intentionally lean, but it now supports optional `iss` and `aud` claims, a `kid` header for signing-key rotation, and refresh-token `jti` values so token rotation issues a distinct replacement token. Claims such as `iat` remain opt-in follow-on hardening work.
 
 ## Token Verification
 
@@ -159,8 +162,18 @@ Refresh token verification follows the same process but with different validatio
 # Verify refresh token for renewal
 token_data = await verify_token(token, TokenType.REFRESH, db)
 if token_data:
-    # Generate new access token
-    new_access_token = await create_access_token(data={"sub": token_data.username_or_email})
+    # Consume the current refresh token and mint a new pair
+    new_access_token, new_refresh_token = await rotate_refresh_token(
+        refresh_token=token,
+        subject=token_data.username_or_email,
+        db=db,
+    )
+    set_refresh_token_cookie(
+        response,
+        refresh_token=new_refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        cookie_settings=settings,
+    )
     return {"access_token": new_access_token, "token_type": "bearer"}
 else:
     # Refresh token invalid - user must log in again
@@ -383,6 +396,12 @@ async def blacklist_token(token: str, db: AsyncSession) -> None:
 
 **Cleanup Strategy**: Blacklisted tokens can be automatically removed from the database after their natural expiration time, preventing unlimited database growth.
 
+```bash
+uv run cleanup-token-blacklist
+```
+
+The cleanup command uses the shared script-scope database session helpers and deletes rows whose `expires_at` is older than the current time, giving cloned projects a reusable baseline retention strategy without assuming one scheduler or deployment topology.
+
 ## Login Flow Implementation
 
 ### Complete Login Endpoint
@@ -424,7 +443,9 @@ async def login_for_access_token(
 ```python
 @router.post("/refresh", response_model=Token)
 async def refresh_access_token(
-    db: Annotated[AsyncSession, Depends(async_get_db)], refresh_token: str = Cookie(None)
+    response: Response,
+    db: Annotated[AsyncSession, Depends(async_get_db)],
+    refresh_token: str = Cookie(None),
 ) -> dict[str, str]:
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Refresh token missing")
@@ -434,13 +455,22 @@ async def refresh_access_token(
     if not token_data:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
 
-    # 2. Create new access token
-    new_access_token = await create_access_token(data={"sub": token_data.username_or_email})
-
+    # 2. Rotate the refresh token and set the replacement cookie
+    new_access_token, new_refresh_token = await rotate_refresh_token(
+        refresh_token=refresh_token,
+        subject=token_data.username_or_email,
+        db=db,
+    )
+    set_refresh_token_cookie(
+        response,
+        refresh_token=new_refresh_token,
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
+        cookie_settings=settings,
+    )
     return {"access_token": new_access_token, "token_type": "bearer"}
 ```
 
-The default template does **not** rotate refresh tokens during `/refresh` yet. Refresh-token rotation remains a later Phase 4 hardening task so the baseline contract stays aligned with the current runtime.
+The default template now rotates refresh tokens during `/refresh`. Once a refresh succeeds, the previous refresh token is blacklisted, so replaying the old cookie fails instead of minting another token pair.
 
 ### Logout Implementation
 
@@ -539,15 +569,19 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    PASSWORD_HASH_SCHEME: PasswordHashScheme = PasswordHashScheme.BCRYPT
+    PASSWORD_BCRYPT_ROUNDS: int = 12
+    PASSWORD_HASH_REHASH_ON_LOGIN: bool = True
     JWT_ISSUER: str | None = None
     JWT_AUDIENCE: str | None = None
     JWT_ACTIVE_KEY_ID: str = "primary"
     JWT_VERIFICATION_KEYS: dict[str, SecretStr] = {}
 
     # Cookie settings
-    SECURE_COOKIES: bool = True
-    COOKIE_DOMAIN: str | None = None
-    COOKIE_SAMESITE: str = "strict"
+    REFRESH_TOKEN_COOKIE_SECURE: bool = True
+    REFRESH_TOKEN_COOKIE_DOMAIN: str | None = None
+    REFRESH_TOKEN_COOKIE_SAMESITE: str = "lax"
+    SESSION_SECURE_COOKIES: bool = True
 ```
 
 ## Security Best Practices

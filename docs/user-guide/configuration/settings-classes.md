@@ -111,6 +111,9 @@ class CryptSettings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    PASSWORD_HASH_SCHEME: PasswordHashScheme = PasswordHashScheme.BCRYPT
+    PASSWORD_BCRYPT_ROUNDS: int = 12
+    PASSWORD_HASH_REHASH_ON_LOGIN: bool = True
     JWT_ISSUER: str | None = None
     JWT_AUDIENCE: str | None = None
     JWT_ACTIVE_KEY_ID: str = "primary"
@@ -118,8 +121,9 @@ class CryptSettings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_crypt_settings(self) -> Self:
-        # Trim optional issuer/audience, require a non-empty active key id,
-        # and keep rotation secrets in a kid -> SecretStr verification map.
+        # Trim optional issuer/audience, validate password-hash policy,
+        # require a non-empty active key id, and keep rotation secrets in
+        # a kid -> SecretStr verification map.
         ...
 ```
 
@@ -650,7 +654,7 @@ class AuthSettings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE: int = 30
     REFRESH_TOKEN_EXPIRE: int = 7200
-    PASSWORD_MIN_LENGTH: int = 8
+    PASSWORD_BCRYPT_ROUNDS: int = 12
 
 
 # Notification service settings

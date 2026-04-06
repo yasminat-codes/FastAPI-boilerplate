@@ -116,7 +116,7 @@ async def authenticate_user(username_or_email: str, password: str, db: AsyncSess
 
 ### Password Security
 
-Password security is critical for protecting user accounts. The system uses industry-standard bcrypt hashing with automatic salt generation.
+Password security is critical for protecting user accounts. The template uses bcrypt with a configurable work factor and can transparently rehash stored passwords on successful login when the configured cost increases.
 
 ```python
 import bcrypt
@@ -133,7 +133,7 @@ def get_password_hash(password: str) -> str:
     """Generate password hash with salt."""
     hashed_password: str = bcrypt.hashpw(
         password.encode(), 
-        bcrypt.gensalt()
+        bcrypt.gensalt(rounds=settings.PASSWORD_BCRYPT_ROUNDS)
     ).decode()
     return hashed_password
 ```
@@ -142,7 +142,7 @@ def get_password_hash(password: str) -> str:
 
 - **Adaptive Hashing**: Computationally expensive, making brute force attacks impractical
 - **Automatic Salt**: Each password gets a unique salt, preventing rainbow table attacks
-- **Future-Proof**: Can increase computational cost as hardware improves
+- **Future-Proof**: The template can raise bcrypt rounds over time and rehash older hashes on login
 
 ### Login Validation
 

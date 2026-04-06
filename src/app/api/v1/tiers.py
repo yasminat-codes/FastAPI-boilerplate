@@ -5,16 +5,22 @@ from fastcrud import PaginatedListResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.contracts import ApiMessageResponse
-from ...api.dependencies import get_current_superuser
+from ...api.dependencies import require_permissions
 from ...api.query_params import PaginationParams, SortParams, TierListFilters, build_paginated_api_response
 from ...domain.schemas import TierCreate, TierRead, TierUpdate
 from ...domain.services import tier_service
+from ...platform.authorization import TemplatePermission
 from ...platform.database import async_get_db
 
 router = APIRouter(tags=["tiers"])
 
 
-@router.post("/tier", dependencies=[Depends(get_current_superuser)], response_model=TierRead, status_code=201)
+@router.post(
+    "/tier",
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_TIERS))],
+    response_model=TierRead,
+    status_code=201,
+)
 async def write_tier(
     request: Request, tier: TierCreate, db: Annotated[AsyncSession, Depends(async_get_db)]
 ) -> dict[str, Any]:
@@ -44,13 +50,21 @@ async def read_tier(request: Request, name: str, db: Annotated[AsyncSession, Dep
     return await tier_service.get_tier(name=name, db=db)
 
 
-@router.patch("/tier/{name}", dependencies=[Depends(get_current_superuser)], response_model=ApiMessageResponse)
+@router.patch(
+    "/tier/{name}",
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_TIERS))],
+    response_model=ApiMessageResponse,
+)
 async def patch_tier(
     request: Request, name: str, values: TierUpdate, db: Annotated[AsyncSession, Depends(async_get_db)]
 ) -> dict[str, str]:
     return await tier_service.update_tier(name=name, values=values, db=db)
 
 
-@router.delete("/tier/{name}", dependencies=[Depends(get_current_superuser)], response_model=ApiMessageResponse)
+@router.delete(
+    "/tier/{name}",
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_TIERS))],
+    response_model=ApiMessageResponse,
+)
 async def erase_tier(request: Request, name: str, db: Annotated[AsyncSession, Depends(async_get_db)]) -> dict[str, str]:
     return await tier_service.delete_tier(name=name, db=db)

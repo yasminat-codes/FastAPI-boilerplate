@@ -5,10 +5,11 @@ from fastcrud import PaginatedListResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.contracts import ApiMessageResponse
-from ...api.dependencies import get_current_superuser, get_current_user
+from ...api.dependencies import get_current_user, require_permissions
 from ...api.query_params import PaginationParams, SortParams, UserListFilters, build_paginated_api_response
 from ...domain.schemas import UserCreate, UserRead, UserTierUpdate, UserUpdate
 from ...domain.services import user_service
+from ...platform.authorization import TemplatePermission
 from ...platform.database import async_get_db
 from ...platform.security import oauth2_scheme
 
@@ -74,7 +75,11 @@ async def erase_user(
     return await user_service.delete_user(username=username, current_user=current_user, db=db, token=token)
 
 
-@router.delete("/db_user/{username}", dependencies=[Depends(get_current_superuser)], response_model=ApiMessageResponse)
+@router.delete(
+    "/db_user/{username}",
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_USERS))],
+    response_model=ApiMessageResponse,
+)
 async def erase_db_user(
     request: Request,
     username: str,
@@ -84,7 +89,10 @@ async def erase_db_user(
     return await user_service.delete_db_user(username=username, db=db, token=token)
 
 
-@router.get("/user/{username}/rate_limits", dependencies=[Depends(get_current_superuser)])
+@router.get(
+    "/user/{username}/rate_limits",
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_RATE_LIMITS))],
+)
 async def read_user_rate_limits(
     request: Request, username: str, db: Annotated[AsyncSession, Depends(async_get_db)]
 ) -> dict[str, Any]:
@@ -98,7 +106,13 @@ async def read_user_tier(
     return await user_service.get_user_tier(username=username, db=db)
 
 
-@router.patch("/user/{username}/tier", dependencies=[Depends(get_current_superuser)], response_model=ApiMessageResponse)
+@router.patch(
+    "/user/{username}/tier",
+    dependencies=[
+        Depends(require_permissions(TemplatePermission.MANAGE_USERS, TemplatePermission.MANAGE_TIERS)),
+    ],
+    response_model=ApiMessageResponse,
+)
 async def patch_user_tier(
     request: Request, username: str, values: UserTierUpdate, db: Annotated[AsyncSession, Depends(async_get_db)]
 ) -> dict[str, str]:

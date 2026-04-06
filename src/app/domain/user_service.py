@@ -7,7 +7,8 @@ from typing import Any, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..platform.exceptions import DuplicateValueException, ForbiddenException, NotFoundException
+from ..platform.authorization import TemplatePermission, authorize_owner_or_permission
+from ..platform.exceptions import DuplicateValueException, NotFoundException
 from ..platform.security import blacklist_token, get_password_hash
 from .repositories import rate_limit_repository, tier_repository, user_repository
 from .schemas import TierRead, UserCreate, UserCreateInternal, UserRead, UserTierUpdate, UserUpdate
@@ -83,8 +84,11 @@ class UserService:
         if db_user is None:
             raise NotFoundException("User not found")
 
-        if db_user["username"] != current_user["username"]:
-            raise ForbiddenException()
+        authorize_owner_or_permission(
+            current_user,
+            permission=TemplatePermission.MANAGE_USERS,
+            owner_username=db_user["username"],
+        )
 
         if values.email is not None and values.email != db_user["email"]:
             if await user_repository.exists(db=db, email=values.email):
@@ -109,8 +113,11 @@ class UserService:
         if not db_user:
             raise NotFoundException("User not found")
 
-        if username != current_user["username"]:
-            raise ForbiddenException()
+        authorize_owner_or_permission(
+            current_user,
+            permission="users:self:delete:override",
+            owner_username=username,
+        )
 
         await user_repository.delete(db=db, username=username)
         await blacklist_token(token=token, db=db)

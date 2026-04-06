@@ -53,32 +53,40 @@ async def login_for_access_token(response: Response, form_data: OAuth2PasswordRe
 - **Soft delete**: User deactivation without data loss
 
 ### Permission System
-- **Superuser privileges**: Administrative access control
-- **Resource ownership**: User-specific data access
-- **User tiers**: Subscription-based feature access
-- **Rate limiting**: Per-user and per-tier API limits
+- **Default shared roles**: Every authenticated user gets `authenticated`; `is_superuser=True` adds `admin`
+- **Explicit permission dependencies**: Built-in routes can depend on named platform permissions instead of one hard-coded admin check
+- **Custom claims support**: `role`, `roles`, `permissions`, and `scopes` claims are normalized automatically when projects extend the auth payload
+- **Ownership stays explicit**: Fine-grained self-versus-other checks remain in services instead of being hidden in route decorators
 
 ## Authentication Patterns
 
 ### Endpoint Protection
 
 ```python
-# Required authentication
+from app.api.dependencies import (
+    get_current_authorization_subject,
+    get_current_user,
+    require_permissions,
+)
+from app.platform.authorization import TemplatePermission
+
+
 @router.get("/protected")
 async def protected_endpoint(current_user: dict = Depends(get_current_user)):
     return {"message": f"Hello {current_user['username']}"}
 
-# Optional authentication
-@router.get("/public")
-async def public_endpoint(user: dict | None = Depends(get_optional_user)):
-    if user:
-        return {"premium_content": True}
-    return {"premium_content": False}
 
-# Superuser only
-@router.get("/admin", dependencies=[Depends(get_current_superuser)])
-async def admin_endpoint():
+@router.get(
+    "/admin/users",
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_USERS))],
+)
+async def admin_users_endpoint():
     return {"admin_data": "sensitive"}
+
+
+@router.get("/whoami")
+async def whoami(subject=Depends(get_current_authorization_subject)):
+    return {"roles": sorted(subject.roles), "permissions": sorted(subject.permissions)}
 ```
 
 ### Resource Ownership
@@ -87,11 +95,11 @@ async def admin_endpoint():
 @router.patch("/posts/{post_id}")
 async def update_post(post_id: int, current_user: dict = Depends(get_current_user)):
     post = await crud_posts.get(db=db, id=post_id)
-    
-    # Check ownership or admin privileges
-    if post["created_by_user_id"] != current_user["id"] and not current_user["is_superuser"]:
+
+    # Ownership remains explicit in the service or handler layer.
+    if post["created_by_user_id"] != current_user["id"]:
         raise ForbiddenException("Cannot update other users' posts")
-    
+
     return await crud_posts.update(db=db, id=post_id, object=updates)
 ```
 
@@ -163,27 +171,29 @@ Understand how JWT tokens work, including access and refresh token management, v
 Implement user registration, login, profile management, and administrative operations.
 
 ### 3. **[Permissions](permissions.md)** - Access Control
-Set up role-based access control, resource ownership checking, and tier-based permissions.
+Use the shared permission-policy layer, then extend it with project-specific roles or permissions only where needed.
 
 ## Implementation Examples
 
 ### Quick Authentication Setup
 
 ```python
-# Protect an endpoint
-@router.get("/my-data")
-async def get_my_data(current_user: dict = Depends(get_current_user)):
-    return await get_user_specific_data(current_user["id"])
+from app.api.dependencies import require_permissions
+from app.platform.authorization import DEFAULT_PERMISSION_POLICY, TemplateRole
 
-# Check user permissions
-def check_tier_access(user: dict, required_tier: str):
-    if not user.get("tier") or user["tier"]["name"] != required_tier:
-        raise ForbiddenException(f"Requires {required_tier} tier")
 
-# Custom authentication dependency
-async def get_premium_user(current_user: dict = Depends(get_current_user)):
-    check_tier_access(current_user, "Pro")
-    return current_user
+SUPPORT_POLICY = DEFAULT_PERMISSION_POLICY.extend(
+    role_permissions={"support": {"tickets:reply"}},
+    role_inheritance={"support": {TemplateRole.AUTHENTICATED}},
+)
+
+
+@router.post(
+    "/tickets/{ticket_id}/reply",
+    dependencies=[Depends(require_permissions("tickets:reply", policy=SUPPORT_POLICY))],
+)
+async def reply_to_ticket(ticket_id: int):
+    return {"ticket_id": ticket_id}
 ```
 
 ### Frontend Integration

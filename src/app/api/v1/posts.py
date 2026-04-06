@@ -5,10 +5,11 @@ from fastcrud import PaginatedListResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.contracts import ApiMessageResponse
-from ...api.dependencies import get_current_superuser, get_current_user
+from ...api.dependencies import get_current_user, require_permissions
 from ...api.query_params import PaginationParams, PostListFilters, SortParams, build_paginated_api_response
 from ...domain.schemas import PostCreate, PostRead, PostUpdate
 from ...domain.services import post_service
+from ...platform.authorization import TemplatePermission
 from ...platform.cache import cache
 from ...platform.database import async_get_db
 
@@ -92,7 +93,7 @@ async def erase_post(
 
 @router.delete(
     "/{username}/db_post/{id}",
-    dependencies=[Depends(get_current_superuser)],
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_POSTS))],
     response_model=ApiMessageResponse,
 )
 @cache("{username}_post_cache", resource_id_name="id", to_invalidate_extra={"{username}_posts": "{username}"})

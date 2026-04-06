@@ -166,6 +166,35 @@ class TestPatchUser:
                     db=mock_db,
                 )
 
+    @pytest.mark.asyncio
+    async def test_patch_user_allows_admin_role(self, mock_db, sample_user_read):
+        """Test user update when the actor has template admin permissions."""
+        username = "different_user"
+        user_update = UserUpdate(name="Managed Name")
+        user_dict = sample_user_read.model_dump()
+        user_dict["username"] = username
+        admin_user = {
+            "id": 999,
+            "username": "admin",
+            "email": "admin@example.com",
+            "roles": ["admin"],
+            "is_superuser": False,
+        }
+
+        with patch("src.app.domain.user_service.user_repository") as mock_repository:
+            mock_repository.get = AsyncMock(return_value=user_dict)
+            mock_repository.update = AsyncMock(return_value=None)
+
+            result = await user_service.update_user(
+                username=username,
+                values=user_update,
+                current_user=admin_user,
+                db=mock_db,
+            )
+
+            assert result == {"message": "User updated"}
+            mock_repository.update.assert_called_once_with(db=mock_db, object=user_update, username=username)
+
 
 class TestEraseUser:
     """Test user deletion logic."""

@@ -17,7 +17,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from ..api.dependencies import get_current_superuser
+from ..api.dependencies import require_permissions
 from ..api.errors import register_api_exception_handlers
 from ..core.logger import logging
 from ..core.utils.rate_limit import rate_limiter
@@ -27,6 +27,7 @@ from ..middleware.request_body_limit_middleware import RequestBodyLimitMiddlewar
 from ..middleware.request_timeout_middleware import RequestTimeoutMiddleware
 from ..middleware.security_headers_middleware import SecurityHeadersMiddleware, build_security_headers
 from ..models import *  # noqa: F403
+from ..platform.authorization import TemplatePermission
 from .config import (
     AppSettings,
     ClientSideCacheSettings,
@@ -523,7 +524,7 @@ def create_application(
         if settings.ENVIRONMENT != EnvironmentOption.PRODUCTION:
             docs_router = APIRouter()
             if settings.ENVIRONMENT != EnvironmentOption.LOCAL:
-                docs_router = APIRouter(dependencies=[Depends(get_current_superuser)])
+                docs_router = APIRouter(dependencies=[Depends(require_permissions(TemplatePermission.ADMIN_ACCESS))])
 
             @docs_router.get("/docs", include_in_schema=False)
             async def get_swagger_documentation() -> fastapi.responses.HTMLResponse:

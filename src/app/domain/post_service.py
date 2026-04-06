@@ -7,7 +7,8 @@ from typing import Any, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..platform.exceptions import ForbiddenException, NotFoundException
+from ..platform.authorization import TemplatePermission, authorize_owner_or_permission
+from ..platform.exceptions import NotFoundException
 from .repositories import post_repository, user_repository
 from .schemas import PostCreate, PostCreateInternal, PostRead, PostUpdate, UserRead
 
@@ -32,8 +33,11 @@ class PostService:
         db: AsyncSession,
     ) -> dict[str, Any]:
         db_user = await self._get_user(db=db, username=username)
-        if current_user["id"] != db_user["id"]:
-            raise ForbiddenException()
+        authorize_owner_or_permission(
+            current_user,
+            permission="posts:create:any",
+            owner_user_id=db_user["id"],
+        )
 
         post_internal_dict = post.model_dump()
         post_internal_dict["created_by_user_id"] = db_user["id"]
@@ -97,8 +101,11 @@ class PostService:
         db: AsyncSession,
     ) -> dict[str, str]:
         db_user = await self._get_user(db=db, username=username)
-        if current_user["id"] != db_user["id"]:
-            raise ForbiddenException()
+        authorize_owner_or_permission(
+            current_user,
+            permission=TemplatePermission.MANAGE_POSTS,
+            owner_user_id=db_user["id"],
+        )
 
         db_post = await post_repository.get(db=db, id=post_id, is_deleted=False, schema_to_select=PostRead)
         if db_post is None:
@@ -116,8 +123,11 @@ class PostService:
         db: AsyncSession,
     ) -> dict[str, str]:
         db_user = await self._get_user(db=db, username=username)
-        if current_user["id"] != db_user["id"]:
-            raise ForbiddenException()
+        authorize_owner_or_permission(
+            current_user,
+            permission=TemplatePermission.MANAGE_POSTS,
+            owner_user_id=db_user["id"],
+        )
 
         db_post = await post_repository.get(db=db, id=post_id, is_deleted=False, schema_to_select=PostRead)
         if db_post is None:

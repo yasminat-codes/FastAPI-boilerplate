@@ -5,10 +5,11 @@ from fastcrud import PaginatedListResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...api.contracts import ApiMessageResponse
-from ...api.dependencies import get_current_superuser
+from ...api.dependencies import require_permissions
 from ...api.query_params import PaginationParams, RateLimitListFilters, SortParams, build_paginated_api_response
 from ...domain.schemas import RateLimitCreate, RateLimitRead, RateLimitUpdate
 from ...domain.services import rate_limit_service
+from ...platform.authorization import TemplatePermission
 from ...platform.database import async_get_db
 
 router = APIRouter(tags=["rate_limits"])
@@ -16,7 +17,7 @@ router = APIRouter(tags=["rate_limits"])
 
 @router.post(
     "/tier/{tier_name}/rate_limit",
-    dependencies=[Depends(get_current_superuser)],
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_RATE_LIMITS))],
     response_model=RateLimitRead,
     status_code=201,
 )
@@ -55,7 +56,7 @@ async def read_rate_limit(
 
 @router.patch(
     "/tier/{tier_name}/rate_limit/{id}",
-    dependencies=[Depends(get_current_superuser)],
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_RATE_LIMITS))],
     response_model=ApiMessageResponse,
 )
 async def patch_rate_limit(
@@ -70,7 +71,7 @@ async def patch_rate_limit(
 
 @router.delete(
     "/tier/{tier_name}/rate_limit/{id}",
-    dependencies=[Depends(get_current_superuser)],
+    dependencies=[Depends(require_permissions(TemplatePermission.MANAGE_RATE_LIMITS))],
     response_model=ApiMessageResponse,
 )
 async def erase_rate_limit(

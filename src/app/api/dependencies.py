@@ -5,9 +5,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..domain.repositories import rate_limit_repository, tier_repository, user_repository
 from ..domain.schemas import RateLimitRead, TierRead, sanitize_path
+from ..platform.authorization import (
+    DEFAULT_PERMISSION_POLICY,
+    AuthorizationSubject,
+    PermissionPolicy,
+    TemplateRole,
+    build_authorization_subject,
+    ensure_permissions,
+    ensure_roles,
+)
 from ..platform.config import settings
 from ..platform.database import async_get_db
-from ..platform.exceptions import ForbiddenException, RateLimitException, UnauthorizedException
+from ..platform.exceptions import RateLimitException, UnauthorizedException
 from ..platform.logger import logging
 from ..platform.rate_limit import rate_limiter
 from ..platform.security import TokenType, oauth2_scheme, verify_token
@@ -63,10 +72,47 @@ async def get_optional_user(request: Request, db: AsyncSession = Depends(async_g
 
 
 async def get_current_superuser(current_user: Annotated[dict, Depends(get_current_user)]) -> dict:
-    if not current_user["is_superuser"]:
-        raise ForbiddenException("You do not have enough privileges.")
+    ensure_roles(build_authorization_subject(current_user), (TemplateRole.ADMIN,))
 
     return current_user
+
+
+async def get_current_authorization_subject(
+    current_user: Annotated[dict[str, Any], Depends(get_current_user)],
+) -> AuthorizationSubject:
+    return build_authorization_subject(current_user)
+
+
+def require_roles(
+    *roles: str,
+    require_all: bool = False,
+    policy: PermissionPolicy = DEFAULT_PERMISSION_POLICY,
+):
+    async def dependency(current_user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, Any]:
+        ensure_roles(
+            build_authorization_subject(current_user, policy=policy),
+            roles,
+            require_all=require_all,
+        )
+        return current_user
+
+    return dependency
+
+
+def require_permissions(
+    *permissions: str,
+    require_all: bool = True,
+    policy: PermissionPolicy = DEFAULT_PERMISSION_POLICY,
+):
+    async def dependency(current_user: Annotated[dict[str, Any], Depends(get_current_user)]) -> dict[str, Any]:
+        ensure_permissions(
+            build_authorization_subject(current_user, policy=policy),
+            permissions,
+            require_all=require_all,
+        )
+        return current_user
+
+    return dependency
 
 
 async def rate_limiter_dependency(

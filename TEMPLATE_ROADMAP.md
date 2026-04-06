@@ -290,7 +290,7 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 4.2: Authorization And Access Control
 
-- [ ] Add a reusable RBAC or permission policy layer.
+- [x] Add a reusable RBAC or permission policy layer.
 - [ ] Define internal versus external endpoint access rules.
 - [ ] Add service-to-service authentication guidance for internal hooks.
 - [ ] Add optional API key pattern for machine clients.
@@ -1115,3 +1115,30 @@ Phase 4 Wave 4.1 is now complete and verified. The template still uses a reusabl
 - [ ] Add a reusable RBAC or permission policy layer.
 - [ ] Define internal versus external endpoint access rules.
 - [ ] Add service-to-service authentication guidance for internal hooks.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the first Phase 4 Wave 4.2 authorization item by adding a reusable permission-policy layer with normalized authorization subjects, template-owned roles and permissions, dependency helpers, and policy-extension hooks for cloned projects.
+- Refactored the built-in admin-style route surface to require explicit permissions for docs access, tier management, rate-limit management, user management, and hard-delete post operations instead of relying only on scattered superuser checks.
+- Added focused authorization regression tests plus service-level ownership/permission coverage, and updated the authentication authorization docs to describe the new policy layer and extension model verified by a strict MkDocs build.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run mypy src --config-file pyproject.toml` initially flagged the new authorization normalizer for mixed `str | Enum` handling. | Normalized the helper signatures and string coercion inside `src/app/core/authorization.py`, then reran the full verification stack. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 236 passed, 0 failed
+
+### Current state of the template
+Phase 4 Wave 4.2 is now started with a reusable authorization baseline instead of only ad hoc `is_superuser` checks. The template now has a shared permission-policy surface, normalized authorization subjects, route-level permission dependencies, and verified service-layer ownership fallbacks that cloned projects can extend with custom roles and permissions. Internal versus external access posture, service-to-service auth guidance, API-key patterns, and tenant-aware authorization hooks are still pending for the rest of the phase.
+
+### What remains
+- [ ] Define internal versus external endpoint access rules.
+- [ ] Add service-to-service authentication guidance for internal hooks.
+- [ ] Add optional API key pattern for machine clients.

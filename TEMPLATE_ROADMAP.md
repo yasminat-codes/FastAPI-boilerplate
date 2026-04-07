@@ -369,13 +369,13 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 6.3: Workflow And Process Orchestration
 
-- [ ] Define a workflow abstraction for multi-step processes.
-- [ ] Add support for step state tracking.
-- [ ] Add support for compensation or rollback steps where relevant.
-- [ ] Add support for delayed retries and waiting steps.
-- [ ] Add support for chaining jobs across a workflow.
-- [ ] Add support for resumable workflows after process restarts.
-- [ ] Add guidance on when to use workflow state in DB versus transient queue state.
+- [x] Define a workflow abstraction for multi-step processes.
+- [x] Add support for step state tracking.
+- [x] Add support for compensation or rollback steps where relevant.
+- [x] Add support for delayed retries and waiting steps.
+- [x] Add support for chaining jobs across a workflow.
+- [x] Add support for resumable workflows after process restarts.
+- [x] Add guidance on when to use workflow state in DB versus transient queue state.
 
 ### Wave 6.4: Scheduled And Recurring Work
 
@@ -1686,3 +1686,41 @@ Phase 6 Wave 6.2 is now complete. The worker platform has a full retry and failu
 - [ ] Define a workflow abstraction for multi-step processes.
 - [ ] Add support for step state tracking.
 - [ ] Add support for compensation or rollback steps where relevant.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 6 Wave 6.3 (Workflow And Process Orchestration) by adding a reusable workflow orchestration module at `src/app/core/worker/workflow.py` with all seven roadmap items.
+- Added `WorkflowStep` and `CompensatingStep` Protocols for defining steps with optional rollback, `StepResult` for typed step outcomes (SUCCEEDED, FAILED, WAITING, SKIPPED), `StepRetryPolicy` with configurable backoff, and `WorkflowContext` for passing inputs and accumulated step outputs through execution.
+- Added `WorkflowDefinition` for ordered step sequences with step lookup, index navigation, next-step resolution, and reverse-order compensation step gathering for saga-pattern transactions.
+- Added `WorkflowRunner` as the full orchestration engine with `start()` for creating execution records, `execute_step()` for running individual steps with state tracking, `advance()` for orchestrating step execution and determining next steps (including conditional branching via `next_step_override`), `handle_step_failure()` for retry-or-compensate decisions, `compensate()` for running rollback steps in reverse order with best-effort error handling, and `resume()` for picking up WAITING or interrupted RUNNING workflows after process restarts.
+- Added `WorkflowStepJob` as a `WorkerJob` subclass for queue-based step chaining, with `enqueue_step()` for convenient job enqueueing, so long-running workflows decouple step execution from the original request.
+- Added a module-level workflow registry with `register_workflow()` and `get_workflow()` for runtime discovery and late binding.
+- Per-step execution state is tracked inside `WorkflowExecution.execution_context` under `_step_states`, `_completed_steps`, and `_compensation_log` keys, keeping the template simple without requiring a new database table.
+- Added a dedicated module-level docstring section documenting the database vs queue state guidance: database (WorkflowExecution) as the source of truth for durability, crash recovery, and audit trails; queue (ARQ) as the transport for step-to-step chaining, delayed execution, and concurrency control.
+- Extended the canonical core worker and top-level worker export surfaces with all 12 new workflow primitives.
+- Added 70 focused regression tests across 17 test classes covering step types, retry policies, workflow definitions, runner operations (start, execute_step, advance, handle_failure, compensate, resume), registry, WorkflowStepJob, step state TypedDict, and export surface completeness.
+- Added a dedicated Workflow Orchestration documentation page and registered it in the MkDocs navigation under Background Tasks.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| Mypy flagged `execution_context` dict literal for missing type annotation and `_get_step_states` for returning `Any`. | Added explicit `dict[str, Any]` annotation on the context dict and a typed intermediate variable for the step states return. |
+| `WorkflowStepJob.run()` initially used a non-existent `get_session` helper. | Replaced with the template's canonical `open_database_session(local_session, DatabaseSessionScope.BACKGROUND_JOB)` pattern. |
+| Three test failures: `BackoffPolicy` field name mismatch, step name mismatch in advance test, and attempt count too low to exhaust retries. | Fixed `base_delay` to `base_delay_seconds`, matched `current_step` to actual step name, and set `attempt_count=3` to match default `max_attempts`. |
+
+### Quality gate results
+- ruff: pass (All checks passed)
+- mypy: pass (no issues in 152 source files)
+- pytest: 688 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 6 Wave 6.3 is now complete. The worker platform now provides a full workflow orchestration layer on top of the existing job, retry, and dead-letter primitives. Template adopters can define multi-step workflows with typed steps, per-step retry and backoff, saga-pattern compensation for distributed transactions, delayed execution and waiting states, queue-based step chaining for long-running processes, and resumable workflows after process restarts. All orchestration state is tracked durably in the existing WorkflowExecution database model without requiring new tables, while the queue handles step-to-step transport and timing. The next major worker gaps shift to Wave 6.4 (scheduled and recurring work).
+
+### What remains
+- [ ] Decide whether the template includes a scheduler by default.
+- [ ] Add scheduler runtime entrypoint if included.
+- [ ] Add recurring job registration patterns.

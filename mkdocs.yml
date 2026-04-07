@@ -96,6 +96,7 @@ nav:
           - Scheduling: user-guide/background-tasks/scheduling.md
       - Integrations:
           - Overview: user-guide/integrations/index.md
+          - Integration Contracts: user-guide/integrations/contracts.md
       - Rate Limiting: user-guide/rate-limiting/index.md
       - Development: user-guide/development.md
       - Production: user-guide/production.md

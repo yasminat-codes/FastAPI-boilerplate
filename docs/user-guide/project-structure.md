@@ -14,7 +14,7 @@ src/
 │   ├── platform/               # Shared runtime, security, persistence, admin, middleware
 │   ├── shared/                 # Framework-agnostic shared utilities
 │   ├── workers/                # Background worker entrypoints and job functions
-│   ├── integrations/           # Placeholder extension point for provider adapters
+│   ├── integrations/           # Provider adapters, contracts, and outbound HTTP client
 │   ├── webhooks/               # Inbound webhook ingestion primitives and provider adapters
 │   ├── workflows/              # Placeholder extension point for orchestrated processes
 │   ├── core/                   # Legacy compatibility modules
@@ -62,10 +62,11 @@ The `platform`, `shared`, `domain`, `workers`, `integrations`, `webhooks`, and `
 
 ### `integrations/`
 
-- Owns the shared outbound HTTP client layer and provider-specific adapter surfaces.
+- Owns the shared outbound HTTP client layer, integration contracts, and provider-specific adapter surfaces.
 - `http_client/` provides `TemplateHttpClient` with template-owned defaults for timeouts, connection pooling, correlation propagation, structured logging, retry, circuit breaking, rate-limit handling, authentication hooks, and instrumentation protocols.
-- Provider-specific adapters should build on `TemplateHttpClient` rather than constructing raw httpx clients, so they inherit the template's production defaults and observability contract.
-- See the [Integrations guide](integrations/index.md) for usage, settings, and provider adapter patterns.
+- `contracts/` provides base classes and protocols (`BaseIntegrationClient`, `IntegrationClient`), a normalized error taxonomy (`IntegrationError` hierarchy with `classify_http_error`), typed result models (`IntegrationResult`, `PaginatedIntegrationResult`, `BulkIntegrationResult`), settings registration patterns (`IntegrationSettings`, `IntegrationSettingsRegistry`), sandbox/dry-run patterns (`DryRunMixin`, `SandboxBehavior`), secret management primitives (`SecretProvider`, `CredentialStatus`), and data sync checkpoint patterns (`SyncCursor`, `SyncOperation`, `SyncProgress`).
+- Provider-specific adapters should subclass `BaseIntegrationClient` rather than constructing raw httpx clients, so they inherit the template's production defaults, observability contract, and standard error handling.
+- See the [Integrations guide](integrations/index.md) and [Integration Contracts](integrations/contracts.md) for usage, settings, and provider adapter patterns.
 
 ### `webhooks/`
 

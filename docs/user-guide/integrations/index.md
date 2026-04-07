@@ -6,11 +6,21 @@ The template provides a shared outbound HTTP client layer that integration adapt
 
 ```
 src/app/integrations/
-├── __init__.py                  # Re-exports the full HTTP client surface
+├── __init__.py                  # Re-exports the full integration surface
+├── contracts/
+│   ├── __init__.py              # Package interface for all contracts
+│   ├── client.py                # BaseIntegrationClient + IntegrationClient protocol
+│   ├── errors.py                # Normalized integration error taxonomy
+│   ├── results.py               # IntegrationResult, paginated + bulk results
+│   ├── settings.py              # IntegrationSettings + registry + env factory
+│   ├── sandbox.py               # Sandbox/dry-run mode patterns
+│   ├── secrets.py               # SecretProvider protocol + credential health
+│   ├── sync.py                  # SyncCursor, SyncPage, SyncOperation, SyncProgress
+│   └── exceptions.py            # Backward-compat shim (re-exports from errors.py)
 └── http_client/
     ├── __init__.py              # Package interface (45 public exports)
     ├── client.py                # TemplateHttpClient + config + raise_for_status
-    ├── exceptions.py            # Typed exception hierarchy
+    ├── exceptions.py            # Typed HTTP exception hierarchy
     ├── retry.py                 # Retry policy + backoff + method eligibility
     ├── circuit_breaker.py       # In-process circuit breaker state machine
     ├── rate_limit.py            # Rate-limit header parsing and delay helpers
@@ -18,6 +28,8 @@ src/app/integrations/
     ├── logging.py               # Structured logging with header redaction
     └── instrumentation.py       # Metrics + tracing extension protocols
 ```
+
+See [Integration Contracts](contracts.md) for the full contract layer that sits on top of the HTTP client.
 
 ## Quick Start
 
@@ -140,27 +152,44 @@ Four reusable auth hooks are included:
 To add a new external integration:
 
 1. Create a module under `src/app/integrations/` (e.g., `src/app/integrations/stripe/`).
-2. Build the adapter on `TemplateHttpClient` with provider-specific auth and base URL.
-3. Map provider-specific errors to the shared exception hierarchy.
-4. Register provider-specific settings in the config layer if needed.
+2. Subclass `BaseIntegrationClient` with provider-specific auth and base URL.
+3. Register provider-specific settings using `build_integration_settings()` or a custom `IntegrationSettings` subclass.
+4. Return `IntegrationResult` from operations for consistent error and retry handling.
+5. See [Integration Contracts](contracts.md) for the full contract layer.
 
 ```python
+from src.app.integrations import (
+    BaseIntegrationClient,
+    IntegrationMode,
+    IntegrationResult,
+    IntegrationSettings,
+    build_integration_settings,
+    classify_http_error,
+)
 from src.app.integrations.http_client import (
-    TemplateHttpClient,
     BearerTokenAuth,
-    HttpClientConfig,
+    HttpClientError,
+    TemplateHttpClient,
 )
 
 
-class StripeClient:
-    def __init__(self, api_key: str) -> None:
-        auth = BearerTokenAuth(token=api_key)
-        self._client = TemplateHttpClient(
-            config=HttpClientConfig(base_url="https://api.stripe.com/v1"),
+class StripeClient(BaseIntegrationClient):
+    def __init__(self, settings: IntegrationSettings) -> None:
+        auth = BearerTokenAuth(token=settings.api_key or "")
+        http_client = TemplateHttpClient(
+            base_url=settings.effective_base_url(),
             request_hooks=[auth],
         )
+        super().__init__(
+            http_client=http_client,
+            provider_name="stripe",
+            mode=settings.mode,
+        )
 
-    async def get_customer(self, customer_id: str) -> dict:
-        response = await self._client.get(f"/customers/{customer_id}")
-        return response.json()
+    async def get_customer(self, customer_id: str) -> IntegrationResult[dict]:
+        try:
+            response = await self._request("GET", f"/v1/customers/{customer_id}", operation="get_customer")
+            return IntegrationResult.ok(data=response.json(), provider="stripe", operation="get_customer")
+        except HttpClientError as exc:
+            return IntegrationResult.fail(error=classify_http_error("stripe", "get_customer", exc))
 ```

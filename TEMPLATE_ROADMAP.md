@@ -403,13 +403,13 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 7.2: Integration Contracts
 
-- [ ] Define base classes or protocols for integration clients.
-- [ ] Define a normalized integration error taxonomy.
-- [ ] Define standard result models for external calls.
-- [ ] Define integration-specific settings registration patterns.
-- [ ] Add sandbox versus production mode guidance for providers.
-- [ ] Add secret storage and rotation guidance for provider credentials.
-- [ ] Add sync checkpoint and cursor storage patterns.
+- [x] Define base classes or protocols for integration clients.
+- [x] Define a normalized integration error taxonomy.
+- [x] Define standard result models for external calls.
+- [x] Define integration-specific settings registration patterns.
+- [x] Add sandbox versus production mode guidance for providers.
+- [x] Add secret storage and rotation guidance for provider credentials.
+- [x] Add sync checkpoint and cursor storage patterns.
 
 ### Wave 7.3: Resilience And Fallbacks
 
@@ -1806,3 +1806,43 @@ Phase 7 Wave 7.1 is now complete. The template provides a production-ready outbo
 - [ ] Define base classes or protocols for integration clients.
 - [ ] Define a normalized integration error taxonomy.
 - [ ] Define standard result models for external calls.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 7 Wave 7.2 (Integration Contracts) by wiring up, consolidating, and verifying the full integration contracts layer under `src/app/integrations/contracts/`.
+- Unified the duplicate `IntegrationMode` enum (previously defined separately in both `client.py` and `settings.py`) into a single definition in `settings.py`, imported by `client.py`.
+- Consolidated the overlapping exception hierarchies: `errors.py` is now the canonical error taxonomy with 13 semantic exception classes, and `exceptions.py` is a backward-compatibility shim that re-exports from `errors.py`.
+- Fixed broken import wiring: updated `contracts/__init__.py` to export all 37 public symbols from 7 submodules, and updated the top-level `integrations/__init__.py` to export all contracts alongside the existing HTTP client surface.
+- Added `IntegrationDisabledError`, `IntegrationModeError`, `IntegrationCredentialError`, and `IntegrationProductionValidationError` to the canonical error hierarchy in `errors.py`.
+- Added 72 focused regression tests across 14 test classes covering export surface completeness, mode unification, error taxonomy (hierarchy, classification, retryability), result models (ok, fail, paginated, bulk), settings (creation, validation, registry, env factory), dry-run mixin, secret management (provider, rotation policy, credential health), sync primitives (cursor roundtrip, strategy, page, progress), base client (properties, health check, context manager), and backward-compatibility shim verification.
+- Added a dedicated Integration Contracts documentation page at `docs/user-guide/integrations/contracts.md` and registered it in the MkDocs navigation.
+- Updated the integrations overview, project-structure docs, and provider adapter example to reference the new contracts layer and `BaseIntegrationClient`.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The `contracts/__init__.py` only exported from `secrets.py` and `sync.py`, causing `ImportError` when the top-level `integrations/__init__.py` tried to import client, error, result, and settings symbols. | Rewrote `contracts/__init__.py` to export from all 7 submodules with proper `__all__` lists. |
+| `IntegrationMode` was defined independently in both `client.py` (as `StrEnum`) and `settings.py` (as `str, Enum`), creating two distinct classes with the same name and values. | Removed the local definition from `client.py` and imported `IntegrationMode` from `settings.py` so both modules share one class. |
+| `IntegrationError`, `IntegrationConfigError`, and `IntegrationNotFoundError` existed in both `errors.py` (runtime errors) and `exceptions.py` (config errors) with different constructor signatures. | Added the missing config/contract exception types to `errors.py` and converted `exceptions.py` into a thin re-export shim so there is a single unified hierarchy. |
+| `settings.py` imported from `exceptions.py` which had a different `IntegrationConfigError` constructor than `errors.py`. | Updated `settings.py` to import directly from `errors.py`, which accepts the same `provider_name` keyword argument. |
+| The sandbox `.venv` had a read-only `.lock` file preventing `uv sync`. | Created a fresh venv at `/tmp/ft-venv` and used `UV_PROJECT_ENVIRONMENT` to target it. |
+| `pytest-asyncio` rejected `@pytest.mark.asyncio(mode="strict")` since the project uses `asyncio_mode = "strict"` in `pyproject.toml`. | Changed async test markers to plain `@pytest.mark.asyncio` matching the project convention. |
+| HTTP client exception constructors take only `message` as positional, not `(status_code, message, response_body=...)`. | Fixed test assertions to construct exceptions with just the message string. |
+| Ruff flagged an unused variable, three long lines, and an empty `TYPE_CHECKING` block. | Removed the unused `response_summary` variable, wrapped long strings, and removed the empty `TYPE_CHECKING` block. |
+
+### Quality gate results
+- ruff: pass (All checks passed)
+- mypy: pass (no issues in 171 source files)
+- pytest: 940 passed, 0 failed (868 existing + 72 new)
+- docs build: pass (`mkdocs build --strict`)
+
+### Current state of the template
+Phase 7 Wave 7.2 is now complete. The integration layer provides a full contract surface that sits on top of the HTTP client: base classes and protocols for integration clients, a normalized 13-class error taxonomy with HTTP error classification and retryability logic, typed result models with paginated and bulk variants, environment-based settings registration with a centralized registry, sandbox/production/dry-run mode patterns, secret management primitives with credential health tracking and rotation guidance, and sync checkpoint/cursor patterns for incremental data synchronization. All contracts are exported through the canonical integrations boundary, documented in a dedicated docs page, and covered by focused regression tests. The next major integration gap shifts to Wave 7.3 (Resilience And Fallbacks).
+
+### What remains
+- [ ] Add fallback behavior patterns for external outages.
+- [ ] Add partial failure handling patterns.
+- [ ] Add compensating action guidance.

@@ -86,6 +86,9 @@ nav:
           - Redis Cache: user-guide/caching/redis-cache.md
           - Client Cache: user-guide/caching/client-cache.md
           - Cache Strategies: user-guide/caching/cache-strategies.md
+      - Webhooks:
+          - Overview: user-guide/webhooks/index.md
+          - Adding a Provider: user-guide/webhooks/adding-provider.md
       - Background Tasks: user-guide/background-tasks/index.md
       - Rate Limiting: user-guide/rate-limiting/index.md
       - Development: user-guide/development.md

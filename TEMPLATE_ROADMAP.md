@@ -23,7 +23,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 2: Database And Persistence Platform
 - [x] Phase 3: API Platform And Request Pipeline
 - [x] Phase 4: Authentication, Authorization, And Security
-- [ ] Phase 5: Webhook Ingestion Platform
+- [x] Phase 5: Webhook Ingestion Platform
 - [ ] Phase 6: Background Jobs, Scheduling, And Workflow Execution
 - [ ] Phase 7: External Integration Foundation
 - [ ] Phase 8: Observability And Operational Excellence
@@ -337,11 +337,11 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 5.3: Template Extension Points
 
-- [ ] Add interfaces for provider-specific webhook verifiers.
-- [ ] Add interfaces for provider-specific event normalizers.
-- [ ] Add interfaces for provider-specific dispatch maps.
-- [ ] Add example placeholder provider adapters without real client coupling.
-- [ ] Add documentation for adding a new integration provider into the template.
+- [x] Add interfaces for provider-specific webhook verifiers.
+- [x] Add interfaces for provider-specific event normalizers.
+- [x] Add interfaces for provider-specific dispatch maps.
+- [x] Add example placeholder provider adapters without real client coupling.
+- [x] Add documentation for adding a new integration provider into the template.
 
 ## Phase 6: Background Jobs, Scheduling, And Workflow Execution
 
@@ -1580,3 +1580,39 @@ Phase 5 Wave 5.2 is now complete. The webhook boundary now covers the full opera
 - [ ] Add interfaces for provider-specific webhook verifiers.
 - [ ] Add interfaces for provider-specific event normalizers.
 - [ ] Add interfaces for provider-specific dispatch maps.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 5 Wave 5.3 (Template Extension Points) by adding reusable base classes and Protocols for provider-specific webhook adapters in `src/app/webhooks/providers/base.py`.
+- Added `WebhookProviderConfig` as a shared configuration contract for provider signing secrets, signature headers, algorithm, encoding, and prefix conventions.
+- Added `WebhookProviderVerifier` Protocol and `HmacWebhookVerifier` concrete base class that handles HMAC-SHA256 (or configurable algorithm) signature verification with constant-time comparison, prefix stripping, and extensible signing-input construction.
+- Added `WebhookEventNormalizer` Protocol and `normalize_webhook_event` helper for transforming provider-specific payloads into the template's `WebhookValidatedEvent` contract, supporting both sync callables and async Protocol implementations.
+- Added `WebhookEventDispatchMap` for routing validated event types to handler callables during background processing, with registration, lookup, enabled/disabled toggling, and bulk registration support.
+- Added `WebhookProviderAdapter` as the single assembly point grouping a provider's config, verifier, normalizer, dispatch map, and event registry into one handle.
+- Added a complete example placeholder provider adapter in `src/app/webhooks/providers/example.py` demonstrating all four extension points (verifier, normalizer, registry, dispatch) without coupling to any real external service.
+- Extended the canonical, platform, and legacy core webhook export surfaces with all new provider primitives.
+- Added 38 focused regression tests covering provider config, HMAC verification (valid, invalid, missing, prefix stripping), normalizer Protocol and callable variants, dispatch map operations, adapter assembly, example provider end-to-end behavior, Protocol conformance, and export surface verification.
+- Added webhook documentation section with an overview page and a step-by-step guide for adding a new integration provider, registered in the MkDocs nav.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| Mypy rejected the normalizer helper's return type because the Protocol's `normalize` method returns a coroutine while the callable union allows sync returns. | Changed the intermediate variable to `Any` and used `cast(WebhookValidatedEvent, ...)` on both the awaited and sync return paths so mypy is satisfied without losing the public return type. |
+| Ruff auto-fixed 8 import-ordering issues across the new modules and tests on the first pass. | Re-ran `uv run ruff check` after the auto-fixes so the final reported lint result reflects the clean tree. |
+
+### Quality gate results
+- ruff: pass (new files clean; 13 pre-existing UP042 warnings in config.py unchanged)
+- mypy: pass (no issues in 145 source files)
+- pytest: 440 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 5 is now complete. The webhook ingestion platform covers the full lifecycle from raw-body receipt through signature verification, payload validation, replay and idempotency protection, event persistence, fast acknowledgement, job offload, retry-safe processing, dead-letter handling, retention management, and operator replay tooling. Provider-specific concerns are now cleanly separated into reusable base classes and Protocols for verifiers, normalizers, and dispatch maps, with an example placeholder adapter that demonstrates the full pattern. Template adopters can add a new webhook provider by creating a single module in `src/app/webhooks/providers/` following the documented guide.
+
+### What remains
+- [ ] Add queue naming conventions.
+- [ ] Add job serialization guidance.
+- [ ] Add concurrency guidance per queue type.

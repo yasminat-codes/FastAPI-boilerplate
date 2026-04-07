@@ -212,6 +212,7 @@ The docs also include an environment settings matrix for `local`, `staging`, and
 * `PASSWORD_*` settings control the shared bcrypt policy, including work-factor increases and automatic rehash-on-login
 * `TRUSTED_HOSTS` and `PROXY_HEADERS_*` settings provide optional host-header protection and safe forwarded-header trust controls for reverse-proxy deployments
 * `ADMIN_*` supply bootstrap credentials for the opt-in CRUD admin UI and the `create_superuser` helper
+* `HTTP_CLIENT_*` settings configure the shared outbound HTTP client layer: timeouts, connection pooling, retry backoff, circuit breaker thresholds, and request/response body logging
 
 ## Common tasks
 

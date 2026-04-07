@@ -24,7 +24,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 3: API Platform And Request Pipeline
 - [x] Phase 4: Authentication, Authorization, And Security
 - [x] Phase 5: Webhook Ingestion Platform
-- [ ] Phase 6: Background Jobs, Scheduling, And Workflow Execution
+- [x] Phase 6: Background Jobs, Scheduling, And Workflow Execution
 - [ ] Phase 7: External Integration Foundation
 - [ ] Phase 8: Observability And Operational Excellence
 - [ ] Phase 9: Testing And Quality Gates
@@ -379,27 +379,27 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 6.4: Scheduled And Recurring Work
 
-- [ ] Decide whether the template includes a scheduler by default.
-- [ ] Add scheduler runtime entrypoint if included.
-- [ ] Add recurring job registration patterns.
-- [ ] Add clock drift and duplicate execution protections.
-- [ ] Add observability for scheduled job runs.
-- [ ] Add example placeholder recurring maintenance jobs.
+- [x] Decide whether the template includes a scheduler by default.
+- [x] Add scheduler runtime entrypoint if included.
+- [x] Add recurring job registration patterns.
+- [x] Add clock drift and duplicate execution protections.
+- [x] Add observability for scheduled job runs.
+- [x] Add example placeholder recurring maintenance jobs.
 
 ## Phase 7: External Integration Foundation
 
 ### Wave 7.1: HTTP Client Platform
 
-- [ ] Create a shared outbound HTTP client layer.
-- [ ] Add standard timeout defaults.
-- [ ] Add retry behavior for safe transient failures.
-- [ ] Add backoff and jitter behavior for outbound calls.
-- [ ] Add circuit breaker or degradation hooks.
-- [ ] Add rate-limit response handling helpers.
-- [ ] Add authentication hooks for bearer tokens, API keys, OAuth refresh, and custom auth.
-- [ ] Add request and response logging with redaction.
-- [ ] Add correlation propagation headers.
-- [ ] Add instrumentation hooks for tracing and metrics.
+- [x] Create a shared outbound HTTP client layer.
+- [x] Add standard timeout defaults.
+- [x] Add retry behavior for safe transient failures.
+- [x] Add backoff and jitter behavior for outbound calls.
+- [x] Add circuit breaker or degradation hooks.
+- [x] Add rate-limit response handling helpers.
+- [x] Add authentication hooks for bearer tokens, API keys, OAuth refresh, and custom auth.
+- [x] Add request and response logging with redaction.
+- [x] Add correlation propagation headers.
+- [x] Add instrumentation hooks for tracing and metrics.
 
 ### Wave 7.2: Integration Contracts
 
@@ -1724,3 +1724,85 @@ Phase 6 Wave 6.3 is now complete. The worker platform now provides a full workfl
 - [ ] Decide whether the template includes a scheduler by default.
 - [ ] Add scheduler runtime entrypoint if included.
 - [ ] Add recurring job registration patterns.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 6 Wave 6.4 (Scheduled And Recurring Work) by adding a reusable scheduler module at `src/app/core/worker/scheduler.py` covering all six roadmap items.
+- Added `ScheduledJob` abstract base class built on ARQ's native `cron()` support, with `CronSchedule` for cron-like schedule definitions, a job registry with `register_scheduled_job()` decorator, and `build_cron_jobs()` for ARQ integration.
+- Added Redis-based distributed lock for duplicate execution protection across multiple worker processes using `SET NX EX` with configurable TTL via `SCHEDULER_LOCK_TTL_SECONDS` or per-job `lock_ttl_seconds`.
+- Added clock drift protection that tracks last-run timestamps in Redis and skips executions within the configurable tolerance window (`SCHEDULER_CLOCK_DRIFT_TOLERANCE_SECONDS` or per-job `clock_drift_tolerance_seconds`).
+- Added observability through structured log events at start, completion, skip (duplicate and drift), and failure, plus pluggable `JobAlertHook` integration matching the existing on-demand worker pattern.
+- Added three placeholder maintenance jobs: `TokenBlacklistCleanupJob` (03:00 UTC), `WebhookEventRetentionJob` (04:00 UTC), and `DeadLetterRetentionJob` (04:30 UTC), all registered by default as safe no-ops.
+- Replaced the `src/app/scheduler.py` placeholder (`SchedulerNotConfiguredError`) with a real scheduler entrypoint that delegates to `start_arq_service()`.
+- Updated `build_worker_settings()` to conditionally compile cron jobs into the ARQ worker settings when `SCHEDULER_ENABLED=true`.
+- Added `SchedulerRuntimeSettings` to the config layer with `SCHEDULER_ENABLED`, `SCHEDULER_LOCK_TTL_SECONDS`, and `SCHEDULER_CLOCK_DRIFT_TOLERANCE_SECONDS`.
+- Extended the canonical core worker and public worker export surfaces with all 14 new scheduler primitives.
+- Added 49 focused regression tests across 10 test classes covering CronSchedule normalization, ScheduledJobResult serialization, registry operations, base class defaults, execution wrapper happy path, duplicate lock protection, clock drift guard, alert hook integration, settings resolution, placeholder jobs, Redis key prefixes, export surface completeness, and config defaults.
+- Added a dedicated Scheduling documentation page and registered it in the MkDocs navigation under Background Tasks.
+- Updated the existing `test_structure.py` to reflect the scheduler entrypoint change from a placeholder error to a callable function.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The sandbox `.venv` directory had a read-only `.lock` file from a prior session, preventing `uv sync` from creating a new environment. | Created a fresh venv at `/tmp/ft-venv2` using `uv venv --python 3.11` and used `UV_PROJECT_ENVIRONMENT` to target it. |
+| `test_structure.py` imported `SchedulerNotConfiguredError` from the old scheduler placeholder, causing a collection error after the placeholder was replaced. | Updated the test to assert the scheduler entrypoint is callable instead of expecting the old error. |
+| Ruff auto-fixed 6 style issues (e.g. `timezone.utc` to `UTC`, unused imports) across the new and modified files. | Let ruff apply its auto-fix before running the remaining quality gates. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass (no issues in 153 source files)
+- pytest: 737 passed, 0 failed
+- docs build: pass (`mkdocs build --strict`)
+
+### Current state of the template
+Phase 6 is now fully complete. The worker platform provides a comprehensive background processing foundation: reusable job base classes with retry and backoff, error classification with retryable and non-retryable categories, dead-letter storage and replay tooling, multi-step workflow orchestration with saga compensation and resumable execution, and now scheduled and recurring jobs with ARQ cron integration, distributed lock protection, clock drift guards, and structured observability. All primitives are exported through the canonical worker boundary, documented, and covered by focused regression tests. The next major template gaps shift to Phase 7 (External Integration Foundation) starting with the shared outbound HTTP client layer.
+
+### What remains
+- [ ] Create a shared outbound HTTP client layer.
+- [ ] Add standard timeout defaults.
+- [ ] Add retry behavior for safe transient failures.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 7 Wave 7.1 (HTTP Client Platform) by adding a reusable outbound HTTP client layer at `src/app/integrations/http_client/` covering all ten roadmap items.
+- Added `TemplateHttpClient` built on httpx with configurable timeouts, connection pooling, automatic correlation header propagation, typed exception mapping for all HTTP error responses, and pluggable request and response hooks.
+- Added a typed exception hierarchy (`HttpClientError` and 11 subclasses) that maps HTTP status codes to retryable/non-retryable categories consistent with the worker retry system.
+- Added `HttpRetryPolicy` with exponential backoff and jitter, Retry-After header support for 429 responses, and idempotent-method-only safety by default.
+- Added an in-process circuit breaker with three-state model (CLOSED, OPEN, HALF_OPEN), configurable failure threshold, and automatic recovery timeout probing.
+- Added `RateLimitInfo` with parsing for `X-RateLimit-*`, `RateLimit-*` (IETF draft), and `Retry-After` response headers, plus delay computation helpers.
+- Added four reusable authentication hooks: `BearerTokenAuth` (static or dynamic `TokenProvider`), `ApiKeyAuth`, `BasicAuth`, and `CustomAuth` for arbitrary sync/async auth flows.
+- Added `LoggingRequestHook` and `LoggingResponseHook` with automatic redaction of sensitive headers using the template's shared log-redaction utilities.
+- Added `MetricsCollector` and `TracingHook` protocols plus `InstrumentationRequestHook` and `InstrumentationResponseHook` so template adopters can plug in Prometheus, OpenTelemetry, or other observability backends.
+- Added `HttpClientRuntimeSettings` to the config layer with 17 configurable environment variables for timeouts, pooling, retry, circuit breaker, and logging.
+- Extended the canonical integrations export surface with all 45 HTTP client primitives.
+- Added 131 focused regression tests across 23 test classes covering exceptions, status classification, raise_for_status, client config, client requests with MockTransport, correlation propagation, hooks, retry policy, retry eligibility, circuit breaker state transitions, rate-limit parsing, auth hooks, logging with redaction, instrumentation, and export surface completeness.
+- Added a dedicated Integrations documentation page registered in the MkDocs navigation, updated the project-structure docs, environment-variables guide, and README to document the new HTTP client contract.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| Client and logging modules initially used absolute `src.app.core.*` imports, causing mypy to report duplicate module names. | Switched to relative imports (`...core.request_context`, `...core.log_redaction`) matching the pattern used by webhooks and other cross-boundary modules. |
+| Mypy rejected `build_config_from_settings` for unpacking `dict[str, Any]` into a frozen dataclass constructor. | Added a targeted `# type: ignore[arg-type]` on the dynamic constructor call since the dict is built from known settings fields. |
+| Mypy flagged the response hook loop variable as conflicting with the earlier request hook loop variable type. | Renamed the response hook loop variable to `response_hook` to avoid type narrowing collision. |
+| Mypy flagged `CustomAuth.before_request` for returning `Any` from the dynamic handler. | Added explicit typed intermediate variables and `dict()` coercion at the return boundary. |
+| The `site/` directory from a prior session had read-only permissions, preventing `mkdocs build --strict` from cleaning it. | Built to a temporary `--site-dir /tmp/mkdocs_site` to verify the strict build without touching the stale site directory. |
+
+### Quality gate results
+- ruff: pass (All checks passed)
+- mypy: pass (no issues in 162 source files)
+- pytest: 868 passed, 0 failed (737 existing + 131 new)
+- docs build: pass (`mkdocs build --strict`)
+
+### Current state of the template
+Phase 7 Wave 7.1 is now complete. The template provides a production-ready outbound HTTP client layer that integration adapters can build on instead of constructing raw httpx clients. The shared layer includes typed exceptions with intelligent retryability, configurable timeouts and connection pooling, exponential backoff with jitter, an in-process circuit breaker, rate-limit header parsing, four authentication hook patterns, structured logging with sensitive header redaction, and protocol-based extension points for metrics and tracing. All primitives are exported through the canonical integrations boundary, documented, and covered by focused regression tests. The next major integration gaps shift to Wave 7.2 (Integration Contracts) and Wave 7.3 (Resilience And Fallbacks).
+
+### What remains
+- [ ] Define base classes or protocols for integration clients.
+- [ ] Define a normalized integration error taxonomy.
+- [ ] Define standard result models for external calls.

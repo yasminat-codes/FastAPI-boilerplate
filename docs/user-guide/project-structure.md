@@ -62,9 +62,10 @@ The `platform`, `shared`, `domain`, `workers`, `integrations`, `webhooks`, and `
 
 ### `integrations/`
 
-- Reserved for provider-specific clients, adapters, and outbound integration surfaces.
-- The template keeps this empty until adopters add generic provider implementations.
-- Until a shared outbound HTTP client layer lands, provider clients can reuse `src.app.platform.request_context.build_correlation_headers(...)` or `merge_correlation_headers(...)` to forward correlation metadata without re-implementing request-context plumbing.
+- Owns the shared outbound HTTP client layer and provider-specific adapter surfaces.
+- `http_client/` provides `TemplateHttpClient` with template-owned defaults for timeouts, connection pooling, correlation propagation, structured logging, retry, circuit breaking, rate-limit handling, authentication hooks, and instrumentation protocols.
+- Provider-specific adapters should build on `TemplateHttpClient` rather than constructing raw httpx clients, so they inherit the template's production defaults and observability contract.
+- See the [Integrations guide](integrations/index.md) for usage, settings, and provider adapter patterns.
 
 ### `webhooks/`
 

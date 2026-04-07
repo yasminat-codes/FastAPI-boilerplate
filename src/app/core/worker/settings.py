@@ -1,5 +1,5 @@
 import asyncio
-from typing import cast
+from typing import Any, cast
 
 from arq.cli import watch_reload
 from arq.typing import WorkerSettingsType
@@ -10,6 +10,7 @@ from ...core.logger import logging  # noqa: F401
 from ...core.redis import build_arq_redis_settings
 from .functions import on_job_end, on_job_start, shutdown, startup
 from .jobs import worker_functions
+from .scheduler import build_cron_jobs
 
 
 def build_worker_settings(runtime_settings: SettingsProfile | None = None) -> WorkerSettingsType:
@@ -17,8 +18,12 @@ def build_worker_settings(runtime_settings: SettingsProfile | None = None) -> Wo
 
     configured_settings = settings if runtime_settings is None else runtime_settings
 
+    # Build cron jobs only when the scheduler feature is enabled.
+    cron_jobs: list[Any] = build_cron_jobs() if configured_settings.SCHEDULER_ENABLED else []
+
     class ConfiguredWorkerSettings:
         functions = worker_functions
+        cron_jobs_ = cron_jobs
         queue_name = configured_settings.WORKER_QUEUE_NAME
         max_jobs = configured_settings.WORKER_MAX_JOBS
         max_tries = configured_settings.WORKER_JOB_MAX_TRIES
@@ -50,6 +55,14 @@ def build_worker_settings(runtime_settings: SettingsProfile | None = None) -> Wo
         on_job_end = on_job_end
         handle_signals = True
         job_completion_wait = 30
+
+    # ARQ expects the cron_jobs attribute name to be exactly ``cron_jobs``.
+    # We use a temporary ``cron_jobs_`` to avoid the reserved-name collision
+    # inside the class body, then rename.
+    if cron_jobs:
+        ConfiguredWorkerSettings.cron_jobs = cron_jobs  # type: ignore[attr-defined]
+    if hasattr(ConfiguredWorkerSettings, "cron_jobs_"):
+        delattr(ConfiguredWorkerSettings, "cron_jobs_")
 
     return cast("WorkerSettingsType", ConfiguredWorkerSettings)
 

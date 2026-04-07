@@ -93,6 +93,9 @@ nav:
           - Overview: user-guide/background-tasks/index.md
           - Retry and Backoff: user-guide/background-tasks/retry-backoff.md
           - Workflow Orchestration: user-guide/background-tasks/workflow-orchestration.md
+          - Scheduling: user-guide/background-tasks/scheduling.md
+      - Integrations:
+          - Overview: user-guide/integrations/index.md
       - Rate Limiting: user-guide/rate-limiting/index.md
       - Development: user-guide/development.md
       - Production: user-guide/production.md

@@ -611,6 +611,46 @@ class WorkerRuntimeSettings(BaseSettings):
         return self
 
 
+class SchedulerRuntimeSettings(BaseSettings):
+    SCHEDULER_ENABLED: bool = False
+    SCHEDULER_LOCK_TTL_SECONDS: float = Field(default=300.0, ge=0)
+    SCHEDULER_CLOCK_DRIFT_TOLERANCE_SECONDS: float = Field(default=10.0, ge=0)
+
+
+class HttpClientRuntimeSettings(BaseSettings):
+    """Shared outbound HTTP client defaults for integration adapters."""
+
+    HTTP_CLIENT_TIMEOUT_SECONDS: float = Field(default=30.0, ge=0.1)
+    HTTP_CLIENT_CONNECT_TIMEOUT_SECONDS: float = Field(default=10.0, ge=0.1)
+    HTTP_CLIENT_READ_TIMEOUT_SECONDS: float = Field(default=30.0, ge=0.1)
+    HTTP_CLIENT_WRITE_TIMEOUT_SECONDS: float = Field(default=30.0, ge=0.1)
+    HTTP_CLIENT_POOL_MAX_CONNECTIONS: int = Field(default=100, ge=1)
+    HTTP_CLIENT_POOL_MAX_KEEPALIVE: int = Field(default=20, ge=0)
+    HTTP_CLIENT_RETRY_ENABLED: bool = True
+    HTTP_CLIENT_RETRY_MAX_ATTEMPTS: int = Field(default=3, ge=0)
+    HTTP_CLIENT_RETRY_BACKOFF_BASE_SECONDS: float = Field(default=1.0, ge=0)
+    HTTP_CLIENT_RETRY_BACKOFF_MAX_SECONDS: float = Field(default=30.0, ge=0)
+    HTTP_CLIENT_RETRY_BACKOFF_MULTIPLIER: float = Field(default=2.0, gt=0)
+    HTTP_CLIENT_RETRY_BACKOFF_JITTER: bool = True
+    HTTP_CLIENT_CIRCUIT_BREAKER_ENABLED: bool = False
+    HTTP_CLIENT_CIRCUIT_BREAKER_FAILURE_THRESHOLD: int = Field(default=5, ge=1)
+    HTTP_CLIENT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT_SECONDS: float = Field(default=30.0, ge=1.0)
+    HTTP_CLIENT_LOG_REQUEST_BODY: bool = False
+    HTTP_CLIENT_LOG_RESPONSE_BODY: bool = False
+
+    @model_validator(mode="after")
+    def validate_http_client_settings(self) -> Self:
+        if self.HTTP_CLIENT_RETRY_BACKOFF_MAX_SECONDS < self.HTTP_CLIENT_RETRY_BACKOFF_BASE_SECONDS:
+            raise ValueError(
+                "HTTP_CLIENT_RETRY_BACKOFF_MAX_SECONDS must be >= HTTP_CLIENT_RETRY_BACKOFF_BASE_SECONDS"
+            )
+        if self.HTTP_CLIENT_CONNECT_TIMEOUT_SECONDS > self.HTTP_CLIENT_TIMEOUT_SECONDS:
+            raise ValueError(
+                "HTTP_CLIENT_CONNECT_TIMEOUT_SECONDS must be <= HTTP_CLIENT_TIMEOUT_SECONDS"
+            )
+        return self
+
+
 class WebhookRuntimeSettings(BaseSettings):
     WEBHOOK_SIGNATURE_VERIFICATION_ENABLED: bool = True
     WEBHOOK_SIGNATURE_MAX_AGE_SECONDS: int = Field(default=300, ge=1)
@@ -1085,6 +1125,8 @@ class Settings(
     FeatureFlagsSettings,
     RedisQueueSettings,
     WorkerRuntimeSettings,
+    SchedulerRuntimeSettings,
+    HttpClientRuntimeSettings,
     WebhookRuntimeSettings,
     RedisRateLimiterSettings,
     DefaultRateLimitSettings,

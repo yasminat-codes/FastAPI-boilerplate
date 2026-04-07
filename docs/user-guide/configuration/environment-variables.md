@@ -667,6 +667,52 @@ REQUEST_TIMEOUT_EXEMPT_PATH_PREFIXES=["/api/v1/internal/stream"]
 LOG_REDACTION_ENABLED=true
 ```
 
+### HTTP Client Settings
+
+Shared outbound HTTP client defaults for integration adapters:
+
+```env
+HTTP_CLIENT_TIMEOUT_SECONDS=30.0
+HTTP_CLIENT_CONNECT_TIMEOUT_SECONDS=10.0
+HTTP_CLIENT_READ_TIMEOUT_SECONDS=30.0
+HTTP_CLIENT_WRITE_TIMEOUT_SECONDS=30.0
+HTTP_CLIENT_POOL_MAX_CONNECTIONS=100
+HTTP_CLIENT_POOL_MAX_KEEPALIVE=20
+HTTP_CLIENT_RETRY_ENABLED=true
+HTTP_CLIENT_RETRY_MAX_ATTEMPTS=3
+HTTP_CLIENT_RETRY_BACKOFF_BASE_SECONDS=1.0
+HTTP_CLIENT_RETRY_BACKOFF_MAX_SECONDS=30.0
+HTTP_CLIENT_RETRY_BACKOFF_MULTIPLIER=2.0
+HTTP_CLIENT_RETRY_BACKOFF_JITTER=true
+HTTP_CLIENT_CIRCUIT_BREAKER_ENABLED=false
+HTTP_CLIENT_CIRCUIT_BREAKER_FAILURE_THRESHOLD=5
+HTTP_CLIENT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT_SECONDS=30.0
+HTTP_CLIENT_LOG_REQUEST_BODY=false
+HTTP_CLIENT_LOG_RESPONSE_BODY=false
+```
+
+**Variables Explained:**
+
+- `HTTP_CLIENT_TIMEOUT_SECONDS`: Overall request timeout applied to all outbound calls
+- `HTTP_CLIENT_CONNECT_TIMEOUT_SECONDS`: TCP connection timeout (must be <= overall timeout)
+- `HTTP_CLIENT_READ_TIMEOUT_SECONDS`: Response read timeout
+- `HTTP_CLIENT_WRITE_TIMEOUT_SECONDS`: Request write timeout
+- `HTTP_CLIENT_POOL_MAX_CONNECTIONS`: Maximum connection pool size
+- `HTTP_CLIENT_POOL_MAX_KEEPALIVE`: Maximum keepalive connections in the pool
+- `HTTP_CLIENT_RETRY_ENABLED`: Enable automatic retries for transient failures
+- `HTTP_CLIENT_RETRY_MAX_ATTEMPTS`: Maximum retry attempts (including the first try)
+- `HTTP_CLIENT_RETRY_BACKOFF_BASE_SECONDS`: Starting delay for exponential backoff
+- `HTTP_CLIENT_RETRY_BACKOFF_MAX_SECONDS`: Maximum delay cap for backoff
+- `HTTP_CLIENT_RETRY_BACKOFF_MULTIPLIER`: Exponential growth factor for backoff delays
+- `HTTP_CLIENT_RETRY_BACKOFF_JITTER`: Apply full jitter to retry delays
+- `HTTP_CLIENT_CIRCUIT_BREAKER_ENABLED`: Enable in-process circuit breaker
+- `HTTP_CLIENT_CIRCUIT_BREAKER_FAILURE_THRESHOLD`: Consecutive failures before opening
+- `HTTP_CLIENT_CIRCUIT_BREAKER_RECOVERY_TIMEOUT_SECONDS`: Seconds before half-open probe
+- `HTTP_CLIENT_LOG_REQUEST_BODY`: Log outbound request body size in structured logs
+- `HTTP_CLIENT_LOG_RESPONSE_BODY`: Log inbound response body size in structured logs
+
+See the [Integrations guide](../integrations/index.md) for usage patterns and provider adapter examples.
+
 ### User Tiers
 
 Initial tier configuration:

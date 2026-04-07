@@ -33,7 +33,7 @@ from src.app.main import create_app
 from src.app.platform import create_application, lifespan_factory, settings
 from src.app.platform.database import Base, async_get_db
 from src.app.platform.health import ReadinessContract, build_readiness_contract
-from src.app.scheduler import SchedulerNotConfiguredError, start_scheduler
+from src.app.scheduler import start_scheduler
 from src.app.workers.settings import WorkerSettings, start_arq_service, start_worker
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -151,13 +151,8 @@ def test_platform_webhook_surface_preserves_canonical_boundary_imports() -> None
     assert platform_webhooks_module.validate_webhook_payload_json is webhooks.validate_webhook_payload_json
 
 
-def test_scheduler_runtime_placeholder_is_explicit() -> None:
-    try:
-        start_scheduler()
-    except SchedulerNotConfiguredError as exc:
-        assert "not implemented yet" in str(exc)
-    else:
-        raise AssertionError("scheduler placeholder should raise a clear configuration error")
+def test_scheduler_runtime_entrypoint_is_callable() -> None:
+    assert callable(start_scheduler)
 
 
 def test_dependency_vulnerability_workflow_audits_locked_dependencies() -> None:

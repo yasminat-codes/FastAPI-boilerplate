@@ -1,5 +1,34 @@
 """Canonical worker boundary."""
 
+# Re-export queue naming, serialization, and concurrency primitives from core.
+from ..core.worker.concurrency import (
+    ALL_PROFILES,
+    PROFILE_DEFAULT,
+    PROFILE_EMAIL,
+    PROFILE_INTEGRATION_SYNC,
+    PROFILE_REPORTS,
+    PROFILE_SCHEDULED,
+    PROFILE_WEBHOOK_INGEST,
+    QueueConcurrencyProfile,
+)
+from ..core.worker.queue_naming import (
+    DEFAULT_QUEUE_NAME,
+    RESERVED_SCOPES,
+    QueueNameError,
+    QueueNamespace,
+    client_queues,
+    integration_queues,
+    is_reserved_scope,
+    platform_queues,
+    validate_queue_name,
+    webhook_queues,
+)
+from ..core.worker.serialization import (
+    JobPayloadSerializationError,
+    safe_payload,
+    serialize_for_envelope,
+    validate_json_safe,
+)
 from .jobs import (
     JobEnvelope,
     JobRetryPolicy,
@@ -20,20 +49,42 @@ from .logging import (
 from .settings import WorkerSettings, start_arq_service, start_worker
 
 __all__ = [
+    "ALL_PROFILES",
     "DEFAULT_JOB_LOGGER_NAME",
+    "DEFAULT_QUEUE_NAME",
     "JOB_LOG_CONTEXT_KEYS",
     "JobEnvelope",
+    "JobPayloadSerializationError",
     "JobRetryPolicy",
     "JobTenantContext",
+    "PROFILE_DEFAULT",
+    "PROFILE_EMAIL",
+    "PROFILE_INTEGRATION_SYNC",
+    "PROFILE_REPORTS",
+    "PROFILE_SCHEDULED",
+    "PROFILE_WEBHOOK_INGEST",
+    "QueueConcurrencyProfile",
+    "QueueNameError",
+    "QueueNamespace",
+    "RESERVED_SCOPES",
     "RetryableJobError",
-    "WorkerSettings",
     "WorkerProbeJob",
+    "WorkerSettings",
     "bind_job_log_context",
     "build_job_log_context",
     "clear_job_log_context",
+    "client_queues",
     "get_job_logger",
+    "integration_queues",
+    "is_reserved_scope",
+    "platform_queues",
+    "safe_payload",
+    "serialize_for_envelope",
     "start_arq_service",
     "start_worker",
+    "validate_json_safe",
+    "validate_queue_name",
+    "webhook_queues",
     "worker_functions",
     "worker_probe_job",
 ]

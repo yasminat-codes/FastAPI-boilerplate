@@ -141,6 +141,155 @@ WORKER_JOB_EXPIRES_EXTRA_MS=86400000
 
 The worker runtime builds ARQ Redis connection settings from these values, including timeout, retry, and TLS options, so queue connectivity can be tuned per deployment without changing code. The `WORKER_*` settings also control the shared queue name, concurrency, default retry policy for `WorkerJob`, and how long job results remain available for inspection.
 
+## Queue Naming Conventions
+
+The template uses a hierarchical naming scheme for Redis-backed queues so that
+operators can identify queue traffic at a glance in monitoring tools.
+
+### Naming scheme
+
+```
+<prefix>:<scope>:<purpose>
+```
+
+- **prefix** – shared namespace prefix, defaults to `arq`.
+- **scope** – logical boundary such as `platform`, `webhooks`, `client`, or a
+  provider name.
+- **purpose** – what kind of work the queue carries, e.g. `default`, `email`,
+  `sync`, `ingest`.
+
+### Examples
+
+| Queue name               | Description                           |
+|--------------------------|---------------------------------------|
+| `arq:platform:default`   | Template-internal default queue       |
+| `arq:webhooks:ingest`    | Webhook intake processing             |
+| `arq:client:email`       | Client-specific email delivery        |
+| `arq:client:reports`     | Client-specific report generation     |
+| `arq:integrations:sync`  | Outbound integration sync jobs        |
+
+### Rules
+
+1. Only lowercase ASCII letters, digits, colons, and hyphens are allowed.
+2. Names must have at least two colon-separated segments.
+3. Names must not exceed 128 characters.
+4. The `platform` scope is reserved for template-internal queues.
+
+### Using the helpers
+
+```python
+from src.app.workers import client_queues, webhook_queues, QueueNamespace
+
+# Pre-built namespaces
+client_queues.queue("email")      # "arq:client:email"
+webhook_queues.queue("ingest")    # "arq:webhooks:ingest"
+
+# Custom namespace
+billing = QueueNamespace(prefix="arq", scope="billing")
+billing.queue("invoices")          # "arq:billing:invoices"
+```
+
+Validation is automatic—calling `.queue(...)` raises `QueueNameError` if the
+resulting name violates the convention.
+
+## Job Serialization Guidance
+
+ARQ serializes job arguments with pickle by default.  The template
+standardizes on **JSON-safe dictionaries** so that both the enqueuing
+process and the worker process stay decoupled and queue contents remain
+inspectable with external tools.
+
+### What is safe in a job payload
+
+- Strings, integers, floats, booleans, `None`
+- Lists and dicts composed of the above types
+- ISO-8601 date/time strings (serialize on enqueue, parse on execute)
+- UUIDs serialized as strings
+- Pydantic models serialized with `.model_dump(mode="json")`
+
+### What is not safe
+
+- Raw `datetime`, `date`, `Decimal`, `UUID`, `bytes`, or `Enum` objects
+- SQLAlchemy model instances (pass the primary key and re-fetch in the job)
+- File handles, sockets, or any non-serializable runtime handle
+- Large binary blobs (store in object storage and pass a reference)
+
+### Serialization helpers
+
+```python
+from src.app.workers import safe_payload, serialize_for_envelope
+
+# Validate a plain dict before enqueuing
+safe_payload({"user_id": "u1", "action": "welcome"})
+
+# Serialize a Pydantic model into a validated dict
+from pydantic import BaseModel
+from datetime import datetime
+
+class WelcomePayload(BaseModel):
+    user_id: str
+    created_at: datetime
+
+await SendWelcomeEmailJob.enqueue(
+    pool,
+    payload=serialize_for_envelope(WelcomePayload(user_id="u1", created_at=now)),
+)
+```
+
+`validate_json_safe(value)` checks arbitrary values, `safe_payload(d)` checks
+and returns a dict, and `serialize_for_envelope(source)` handles both Pydantic
+models and plain dicts.  All three raise `JobPayloadSerializationError` on
+failure.
+
+## Concurrency Guidance Per Queue Type
+
+Different workloads need different concurrency settings.  ARQ controls
+concurrency with the `max_jobs` setting on each worker process.  To run
+different limits per queue, deploy **separate worker processes** each
+configured for its own queue name and `max_jobs`.
+
+### Recommended profiles
+
+| Queue purpose      | max_jobs | Rationale                                    |
+|--------------------|----------|----------------------------------------------|
+| default            |    10    | Balanced starting point for mixed workloads  |
+| webhook ingest     |    25    | Short I/O-bound jobs, high throughput needed |
+| email / notify     |    15    | Moderate I/O, often rate-limited by provider |
+| integration sync   |    10    | Mixed I/O with external API rate limits      |
+| reports / export   |     3    | CPU/memory heavy, protect worker stability   |
+| scheduled / cron   |     5    | Low volume, avoid starving other queues      |
+
+### Deploying multiple workers
+
+```bash
+# default queue
+WORKER_QUEUE_NAME=arq:platform:default WORKER_MAX_JOBS=10 uv run arq ...
+
+# webhook ingest queue
+WORKER_QUEUE_NAME=arq:webhooks:ingest WORKER_MAX_JOBS=25 uv run arq ...
+
+# heavy reports queue
+WORKER_QUEUE_NAME=arq:client:reports WORKER_MAX_JOBS=3 uv run arq ...
+```
+
+### Using profiles in code
+
+```python
+from src.app.workers import PROFILE_WEBHOOK_INGEST, ALL_PROFILES
+
+# Inspect a profile
+print(PROFILE_WEBHOOK_INGEST.max_jobs)            # 25
+print(PROFILE_WEBHOOK_INGEST.job_timeout_seconds)  # 60
+
+# Iterate all profiles
+for profile in ALL_PROFILES:
+    print(f"{profile.name}: max_jobs={profile.max_jobs}")
+```
+
+Pre-built profiles are starting recommendations.  Tune `max_jobs` and
+`job_timeout_seconds` based on your workload characteristics, available
+memory, and external rate limits.
+
 ## Next Steps
 
 Check the [ARQ documentation](https://arq-docs.helpmanual.io/) for advanced usage patterns and refer to the template worker primitives in `src/app/workers/jobs.py` and `src/app/workers/settings.py`.

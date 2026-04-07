@@ -352,9 +352,9 @@ The template now includes two shared automation persistence ledgers: inbound web
 - [x] Add shared job logging utilities.
 - [x] Add worker startup resource initialization.
 - [x] Add worker shutdown cleanup.
-- [ ] Add queue naming conventions.
-- [ ] Add job serialization guidance.
-- [ ] Add concurrency guidance per queue type.
+- [x] Add queue naming conventions.
+- [x] Add job serialization guidance.
+- [x] Add concurrency guidance per queue type.
 
 ### Wave 6.2: Retry, Backoff, And Failure Handling
 
@@ -1616,3 +1616,35 @@ Phase 5 is now complete. The webhook ingestion platform covers the full lifecycl
 - [ ] Add queue naming conventions.
 - [ ] Add job serialization guidance.
 - [ ] Add concurrency guidance per queue type.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed the remaining Phase 6 Wave 6.1 items by adding queue naming conventions, job serialization guidance, and concurrency guidance per queue type as reusable worker platform modules.
+- Added a canonical `src/app/core/worker/queue_naming.py` module with a hierarchical `<prefix>:<scope>:<purpose>` naming scheme, `QueueNamespace` helper for building validated queue names, `validate_queue_name()` enforcement, reserved-scope detection, and pre-built namespace instances for platform, webhooks, client, and integrations scopes.
+- Added a canonical `src/app/core/worker/serialization.py` module documenting the JSON-safe dictionary serialization contract for job payloads, with `validate_json_safe()`, `safe_payload()`, and `serialize_for_envelope()` helpers that accept Pydantic models or plain dicts and raise `JobPayloadSerializationError` on non-serializable values.
+- Added a canonical `src/app/core/worker/concurrency.py` module with `QueueConcurrencyProfile` typed records carrying recommended `max_jobs` and `job_timeout_seconds` per queue purpose, and six pre-built profiles (default, webhook-ingest, email, integration-sync, reports, scheduled) with deployment guidance for running separate worker processes per profile.
+- Extended the canonical core worker and top-level worker export surfaces with all new primitives so they are available from `src.app.workers` and `src.app.core.worker`.
+- Added focused regression tests across four new test files (queue naming: 27 tests, serialization: 20 tests, concurrency: 17 tests, export verification: 4 tests) covering validation rules, namespace helpers, reserved scopes, JSON safety checks, Pydantic serialization, profile constraints, and export surface completeness.
+- Expanded the background-tasks documentation with dedicated sections for queue naming conventions, job serialization guidance, and concurrency guidance per queue type.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| Ruff auto-fixed 10 import-ordering issues across the new modules and re-exported `__init__.py` files on the first lint pass. | Re-ran `uv run ruff check src tests` after the auto-fixes so the final reported lint result reflects the clean tree. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass (no issues in 148 source files)
+- pytest: 508 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 6 Wave 6.1 is now complete. The worker platform provides a reusable job base pattern with structured envelopes, shared logging, lifecycle hooks, and now also includes queue naming conventions with validation and pre-built namespaces, JSON-safe serialization guidance with typed helpers, and concurrency profiles with deployment recommendations for running differentiated worker processes per queue type. All new primitives follow the established template patterns and are exported through the canonical worker boundary.
+
+### What remains
+- [ ] Add default retry policies for transient failures.
+- [ ] Add exponential backoff and jitter behavior.
+- [ ] Add explicit non-retryable error categories.

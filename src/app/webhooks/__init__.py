@@ -1,5 +1,20 @@
 """Canonical inbound webhook ingestion boundary for reusable template extensions."""
 
+from .correlation import (
+    WebhookWorkflowCorrelation,
+    apply_correlation_to_webhook_event,
+    apply_correlation_to_workflow_execution,
+    build_webhook_workflow_correlation,
+    build_workflow_input_from_webhook,
+)
+from .dead_letter import (
+    WEBHOOK_DEAD_LETTER_NAMESPACE,
+    WebhookDeadLetterRequest,
+    WebhookDeadLetterResult,
+    WebhookDeadLetterStore,
+    build_dead_letter_request_from_outcome,
+    webhook_dead_letter_store,
+)
 from .idempotency import (
     WebhookIdempotencyError,
     WebhookIdempotencyFingerprintMismatchError,
@@ -27,6 +42,21 @@ from .ingestion import (
     validate_json_webhook_event,
 )
 from .persistence import WebhookEventPersistenceRequest, WebhookEventStore, webhook_event_store
+from .processing import (
+    WebhookAcknowledgementPolicy,
+    WebhookAcknowledgementResult,
+    WebhookPayloadSnapshot,
+    WebhookProcessingAttempt,
+    WebhookProcessingJobRequest,
+    WebhookProcessingOutcome,
+    WebhookProcessingStatus,
+    WebhookRetryDecision,
+    build_payload_snapshot,
+    build_processing_job_request,
+    build_success_outcome,
+    build_webhook_ack_response,
+    decide_retry,
+)
 from .replay import (
     WebhookReplayDetectedError,
     WebhookReplayFingerprintMismatchError,
@@ -37,6 +67,20 @@ from .replay import (
     WebhookReplayProtectionResult,
     WebhookReplayProtector,
     webhook_replay_protector,
+)
+from .replay_tooling import (
+    WebhookReplayFilter,
+    WebhookReplayRequest,
+    WebhookReplayResult,
+    WebhookReplayService,
+    webhook_replay_service,
+)
+from .retention import (
+    WebhookRetentionPolicy,
+    WebhookRetentionResult,
+    WebhookRetentionService,
+    build_retention_policy,
+    webhook_retention_service,
 )
 from .signatures import (
     InvalidWebhookSignatureError,
@@ -66,12 +110,18 @@ from .validation import (
 
 __all__ = [
     "RAW_REQUEST_BODY_STATE_KEY",
+    "WEBHOOK_DEAD_LETTER_NAMESPACE",
     "InvalidWebhookSignatureError",
     "MalformedPayloadError",
     "MissingWebhookSignatureError",
     "PoisonPayloadError",
     "StaleWebhookSignatureError",
     "UnknownEventTypeError",
+    "WebhookAcknowledgementPolicy",
+    "WebhookAcknowledgementResult",
+    "WebhookDeadLetterRequest",
+    "WebhookDeadLetterResult",
+    "WebhookDeadLetterStore",
     "WebhookDuplicateEventError",
     "WebhookEventEnqueueRequest",
     "WebhookEventEnqueueResult",
@@ -90,10 +140,16 @@ __all__ = [
     "WebhookIdempotencyViolationError",
     "WebhookIngestionRequest",
     "WebhookIngestionResult",
+    "WebhookPayloadSnapshot",
     "WebhookPayloadValidationError",
     "WebhookPoisonDetectionRequest",
     "WebhookPoisonDetectionResult",
+    "WebhookProcessingAttempt",
+    "WebhookProcessingJobRequest",
+    "WebhookProcessingOutcome",
+    "WebhookProcessingStatus",
     "WebhookReplayDetectedError",
+    "WebhookReplayFilter",
     "WebhookReplayFingerprintMismatchError",
     "WebhookReplayKeyKind",
     "WebhookReplayMatch",
@@ -101,13 +157,32 @@ __all__ = [
     "WebhookReplayProtectionRequest",
     "WebhookReplayProtectionResult",
     "WebhookReplayProtector",
+    "WebhookReplayRequest",
+    "WebhookReplayResult",
+    "WebhookReplayService",
+    "WebhookRetentionPolicy",
+    "WebhookRetentionResult",
+    "WebhookRetentionService",
+    "WebhookRetryDecision",
     "WebhookSignatureVerificationContext",
     "WebhookSignatureVerificationError",
     "WebhookSignatureVerificationResult",
     "WebhookSignatureVerifier",
     "WebhookValidatedEvent",
     "WebhookValidationErrorKind",
+    "WebhookWorkflowCorrelation",
+    "apply_correlation_to_webhook_event",
+    "apply_correlation_to_workflow_execution",
+    "build_dead_letter_request_from_outcome",
+    "build_payload_snapshot",
+    "build_processing_job_request",
+    "build_retention_policy",
+    "build_success_outcome",
+    "build_webhook_ack_response",
     "build_webhook_ingestion_request",
+    "build_webhook_workflow_correlation",
+    "build_workflow_input_from_webhook",
+    "decide_retry",
     "ingest_webhook_event",
     "parse_raw_json_body",
     "read_raw_request_body",
@@ -117,7 +192,10 @@ __all__ = [
     "validate_webhook_event_type",
     "validate_webhook_payload_json",
     "verify_webhook_signature",
+    "webhook_dead_letter_store",
     "webhook_event_store",
     "webhook_idempotency_protector",
     "webhook_replay_protector",
+    "webhook_replay_service",
+    "webhook_retention_service",
 ]

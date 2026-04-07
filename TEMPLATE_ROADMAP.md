@@ -326,14 +326,14 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 5.2: Operational Webhook Guarantees
 
-- [ ] Define acknowledgement strategy so providers receive timely responses.
-- [ ] Ensure heavy processing is offloaded to jobs instead of running inline.
-- [ ] Add retry-safe event processing contracts.
-- [ ] Add storage for original payload and normalized metadata.
-- [ ] Add event correlation from webhook to workflow execution.
-- [ ] Add replay tooling for local development and operations.
-- [ ] Add dead-letter behavior for repeatedly failing webhook events.
-- [ ] Add retention policy for webhook payload storage.
+- [x] Define acknowledgement strategy so providers receive timely responses.
+- [x] Ensure heavy processing is offloaded to jobs instead of running inline.
+- [x] Add retry-safe event processing contracts.
+- [x] Add storage for original payload and normalized metadata.
+- [x] Add event correlation from webhook to workflow execution.
+- [x] Add replay tooling for local development and operations.
+- [x] Add dead-letter behavior for repeatedly failing webhook events.
+- [x] Add retention policy for webhook payload storage.
 
 ### Wave 5.3: Template Extension Points
 
@@ -1543,3 +1543,40 @@ Phase 5 Wave 5.1 is now complete. The webhook boundary covers the full intake pi
 - [ ] Define acknowledgement strategy so providers receive timely responses.
 - [ ] Ensure heavy processing is offloaded to jobs instead of running inline.
 - [ ] Add retry-safe event processing contracts.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 5 Wave 5.2 (Operational Webhook Guarantees) by adding four new webhook boundary modules: `processing.py`, `correlation.py`, `dead_letter.py`, `replay_tooling.py`, and `retention.py`.
+- Added a canonical acknowledgement strategy with `WebhookAcknowledgementPolicy` and `build_webhook_ack_response` so webhook routes return fast `202 Accepted` responses before heavy processing.
+- Added typed job offload contracts (`WebhookProcessingJobRequest`, `build_processing_job_request`) bridging the intake pipeline to the background worker layer with serializable job payloads.
+- Added retry-safe processing contracts (`WebhookProcessingAttempt`, `WebhookProcessingOutcome`, `decide_retry`, `build_success_outcome`) with configurable retryable/permanent error categories and automatic dead-letter escalation on final attempts.
+- Added `WebhookPayloadSnapshot` and `build_payload_snapshot` for typed access to both raw and normalized payload forms from persisted webhook events.
+- Added bidirectional webhook-to-workflow correlation with `WebhookWorkflowCorrelation`, `build_webhook_workflow_correlation`, and helpers that persist the link in both the webhook event's processing metadata and the workflow execution's context.
+- Added `WebhookReplayService` with `WebhookReplayFilter`, `WebhookReplayRequest`, and `prepare_for_replay` for querying and re-enqueuing failed events through the same job path.
+- Added `WebhookDeadLetterStore` and `build_dead_letter_request_from_outcome` for moving exhausted webhook events into the shared `dead_letter_record` ledger.
+- Added `WebhookRetentionService` with `WebhookRetentionPolicy`, payload scrubbing, event purging, and a `run_full_cleanup` helper consuming the template's `WEBHOOK_PAYLOAD_RETENTION_DAYS` setting.
+- Extended the canonical, platform, and legacy core webhook export surfaces with all new primitives.
+- Added focused regression tests across five new test files covering processing contracts, correlation, dead-letter, replay tooling, and retention.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `pytest.mark.asyncio(mode="strict")` syntax is not compatible with the project's pytest-asyncio version which uses global `asyncio_mode = "strict"` in pyproject.toml. | Changed async test markers to plain `@pytest.mark.asyncio` since the global config already enforces strict mode. |
+| Ruff auto-fixed 64 formatting and import-order issues across the new modules and tests on the first pass. | Re-ran `uv run ruff check src tests` after the auto-fixes so the final reported lint result reflects the clean tree. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass (no issues in 143 source files)
+- pytest: 402 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 5 Wave 5.2 is now complete. The webhook boundary now covers the full operational lifecycle beyond intake: routes have a typed acknowledgement strategy for fast provider responses, validated events bridge to background jobs through typed offload contracts, processing attempts follow a reusable retry-or-dead-letter decision contract, failed events can be dead-lettered into the shared ledger, operators can replay events through a query-and-re-enqueue service, and raw payload storage is governed by a configurable retention policy with scrubbing and purging helpers. All new primitives follow the established template patterns and are exported through the canonical, platform, and legacy compatibility surfaces.
+
+### What remains
+- [ ] Add interfaces for provider-specific webhook verifiers.
+- [ ] Add interfaces for provider-specific event normalizers.
+- [ ] Add interfaces for provider-specific dispatch maps.

@@ -89,7 +89,9 @@ nav:
       - Webhooks:
           - Overview: user-guide/webhooks/index.md
           - Adding a Provider: user-guide/webhooks/adding-provider.md
-      - Background Tasks: user-guide/background-tasks/index.md
+      - Background Tasks:
+          - Overview: user-guide/background-tasks/index.md
+          - Retry and Backoff: user-guide/background-tasks/retry-backoff.md
       - Rate Limiting: user-guide/rate-limiting/index.md
       - Development: user-guide/development.md
       - Production: user-guide/production.md

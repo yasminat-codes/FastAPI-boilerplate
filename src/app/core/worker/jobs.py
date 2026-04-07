@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar, Self, TypeAlias
 
@@ -16,6 +16,7 @@ from structlog.stdlib import BoundLogger
 from ..config import SettingsProfile, settings
 from ..request_context import resolve_correlation_id
 from .logging import bind_job_log_context, build_job_log_context, get_job_logger
+from .retry import BackoffPolicy, JobAlertHook, LoggingAlertHook, NonRetryableJobError
 
 WorkerContext: TypeAlias = dict[str, Any]
 
@@ -106,13 +107,29 @@ def get_default_keep_result_forever(runtime_settings: SettingsProfile | None = N
 
 
 class WorkerJob(ABC):
-    """Base class for reusable template worker jobs."""
+    """Base class for reusable template worker jobs.
+
+    Subclass attributes:
+        job_name: Unique name for this job type (required).
+        retry_policy: Override the template-wide default retry limits.
+        backoff_policy: Override the template-wide default backoff curve.
+            When set, ``RetryableJobError`` uses the backoff policy to
+            compute the defer delay instead of the flat ``defer_seconds``
+            on ``JobRetryPolicy``.
+        timeout_seconds: Per-job timeout for ARQ execution.
+        keep_result_seconds: How long results are stored.
+        keep_result_forever: Whether results are stored indefinitely.
+        alert_hooks: Sequence of ``JobAlertHook`` instances that are notified
+            on every failed attempt.  Defaults to ``[LoggingAlertHook()]``.
+    """
 
     job_name: ClassVar[str]
     retry_policy: ClassVar[JobRetryPolicy | None] = None
+    backoff_policy: ClassVar[BackoffPolicy | None] = None
     timeout_seconds: ClassVar[float | None] = None
     keep_result_seconds: ClassVar[float | None] = None
     keep_result_forever: ClassVar[bool | None] = None
+    alert_hooks: ClassVar[Sequence[JobAlertHook]] = [LoggingAlertHook()]
 
     @classmethod
     def definition(cls) -> JobDefinition:
@@ -206,17 +223,83 @@ class WorkerJob(ABC):
         runtime_envelope = parsed_envelope.with_retry_count(retry_count)
         bind_job_log_context(job_name=cls.job_name, ctx=ctx, envelope=runtime_envelope)
 
+        retry_policy = cls.resolved_retry_policy()
+        max_attempts = retry_policy.max_tries
+        current_attempt = retry_count + 1
+        is_final_attempt = current_attempt >= max_attempts
+
         try:
             return await cls.run(ctx, runtime_envelope)
+
+        except NonRetryableJobError as exc:
+            await cls._fire_alert_hooks(
+                envelope_data=runtime_envelope.model_dump(mode="python"),
+                attempt=current_attempt,
+                max_attempts=max_attempts,
+                error_category=exc.error_category,
+                error_message=str(exc),
+                is_final_attempt=True,
+            )
+            cls.get_logger(ctx=ctx, envelope=runtime_envelope).error(
+                "Job failed permanently (non-retryable)",
+                error_category=exc.error_category,
+                error_code=exc.error_code,
+            )
+            raise
+
         except RetryableJobError as exc:
-            retry_policy = cls.resolved_retry_policy()
-            defer_seconds = retry_policy.defer_seconds if exc.defer_seconds is None else exc.defer_seconds
+            backoff = cls.backoff_policy
+            if backoff is not None:
+                defer_seconds = backoff.delay_for_attempt(retry_count)
+            elif exc.defer_seconds is not None:
+                defer_seconds = exc.defer_seconds
+            else:
+                defer_seconds = retry_policy.defer_seconds
+
+            await cls._fire_alert_hooks(
+                envelope_data=runtime_envelope.model_dump(mode="python"),
+                attempt=current_attempt,
+                max_attempts=max_attempts,
+                error_category=getattr(exc, "error_category", None),
+                error_message=str(exc),
+                is_final_attempt=is_final_attempt,
+            )
             raise Retry(defer=defer_seconds) from exc
 
     @classmethod
     @abstractmethod
     async def run(cls, ctx: WorkerContext, envelope: JobEnvelope) -> Any:
         """Execute the job payload."""
+
+    @classmethod
+    async def _fire_alert_hooks(
+        cls,
+        *,
+        envelope_data: dict[str, Any],
+        attempt: int,
+        max_attempts: int,
+        error_category: str | None,
+        error_message: str,
+        is_final_attempt: bool,
+    ) -> None:
+        """Invoke all configured alert hooks for a job failure."""
+        for hook in cls.alert_hooks:
+            try:
+                await hook.on_job_failure(
+                    job_name=cls.job_name,
+                    envelope_data=envelope_data,
+                    attempt=attempt,
+                    max_attempts=max_attempts,
+                    error_category=error_category,
+                    error_message=error_message,
+                    is_final_attempt=is_final_attempt,
+                )
+            except Exception:
+                get_job_logger(job_name=cls.job_name).warning(
+                    "Alert hook failed",
+                    hook_type=type(hook).__name__,
+                    exc_info=True,
+                )
 
     @staticmethod
     def _retry_count_from_context(ctx: WorkerContext, *, fallback: int) -> int:
@@ -256,6 +339,7 @@ __all__ = [
     "JobDefinition",
     "JobRetryPolicy",
     "JobTenantContext",
+    "NonRetryableJobError",
     "RetryableJobError",
     "WorkerContext",
     "WorkerJob",

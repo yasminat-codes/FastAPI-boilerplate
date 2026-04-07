@@ -358,14 +358,14 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 6.2: Retry, Backoff, And Failure Handling
 
-- [ ] Add default retry policies for transient failures.
-- [ ] Add exponential backoff and jitter behavior.
-- [ ] Add explicit non-retryable error categories.
-- [ ] Add dead-letter queue or equivalent failed-job storage.
-- [ ] Add max-attempt policy and surfaced failure reason tracking.
-- [ ] Add automatic alerting hooks for repeated job failures.
-- [ ] Add manual replay tooling for failed jobs.
-- [ ] Add idempotent job execution guidance.
+- [x] Add default retry policies for transient failures.
+- [x] Add exponential backoff and jitter behavior.
+- [x] Add explicit non-retryable error categories.
+- [x] Add dead-letter queue or equivalent failed-job storage.
+- [x] Add max-attempt policy and surfaced failure reason tracking.
+- [x] Add automatic alerting hooks for repeated job failures.
+- [x] Add manual replay tooling for failed jobs.
+- [x] Add idempotent job execution guidance.
 
 ### Wave 6.3: Workflow And Process Orchestration
 
@@ -1648,3 +1648,41 @@ Phase 6 Wave 6.1 is now complete. The worker platform provides a reusable job ba
 - [ ] Add default retry policies for transient failures.
 - [ ] Add exponential backoff and jitter behavior.
 - [ ] Add explicit non-retryable error categories.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Added `BackoffPolicy` with exponential backoff and full jitter, plus three predefined policies (`BACKOFF_FAST`, `BACKOFF_STANDARD`, `BACKOFF_SLOW`) for common workload shapes.
+- Added `NonRetryableJobError` exception and `JobFailureCategory` enum with `NON_RETRYABLE_CATEGORIES` frozenset for classifying job failures as retryable or permanent.
+- Added `JobDeadLetterStore` with `build_dead_letter_request_from_job` helper for persisting failed jobs into the shared `dead_letter_record` ledger under the `jobs` namespace.
+- Added `replay_dead_lettered_job` and `build_replay_request_from_dead_letter` for re-enqueueing dead-lettered jobs from stored payloads.
+- Added `JobAlertHook` protocol and `LoggingAlertHook` implementation for notifying operators on job failures, wired into `WorkerJob.execute`.
+- Enhanced `WorkerJob.execute` to handle `NonRetryableJobError` (immediate fail, alert with `is_final_attempt=True`), use `BackoffPolicy` for retry delay calculation when set, and fire alert hooks on every failure.
+- Added idempotent job execution guidance in the docs.
+- Added 110 new focused tests across four test files covering retry primitives, dead-letter store, replay tooling, and enhanced WorkerJob integration.
+- Added a dedicated Retry and Backoff documentation page and updated the background-tasks overview and MkDocs navigation.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The sandbox venv was read-only (mounted from macOS). | Created a new venv at `/tmp/ft-venv` with Python 3.11 and installed all dev+docs dependencies there. |
+| `dead_letter.py` had a two-dot relative import (`..platform.database`) instead of three-dot (`...platform.database`) for its module depth. | Fixed the import path before running quality gates. |
+| `mark_retrying` stored `next_retry_at` inside `failure_context` JSON instead of using the dedicated `next_retry_at` column on `DeadLetterRecord`. | Corrected to set `record.next_retry_at` directly. |
+| mypy flagged `Returning Any` in `calculate_backoff_delay_deterministic` because `min()` returned `int | float`. | Wrapped the return in `float(...)` to satisfy the return type annotation. |
+| One dead-letter test tried to set `__name__` on a `MagicMock(spec=Exception)`, which is immutable. | Changed to `MagicMock()` without spec for that specific test. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass (no issues in 151 source files)
+- pytest: 618 passed, 0 failed
+- docs build: pass (`mkdocs build --strict`)
+
+### Current state of the template
+Phase 6 Wave 6.2 is now complete. The worker platform has a full retry and failure handling system: exponential backoff with jitter, error classification with retryable and non-retryable categories, dead-letter storage for exhausted jobs, configurable alert hooks, manual replay tooling, and idempotency guidance. All primitives are exported through the canonical worker boundary, documented, and covered by focused regression tests. The next major worker gaps shift to Wave 6.3 (workflow and process orchestration) and Wave 6.4 (scheduled and recurring work).
+
+### What remains
+- [ ] Define a workflow abstraction for multi-step processes.
+- [ ] Add support for step state tracking.
+- [ ] Add support for compensation or rollback steps where relevant.

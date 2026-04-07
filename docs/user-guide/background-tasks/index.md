@@ -89,8 +89,10 @@ async def create_user(user_data: UserCreate):
 - Configurable concurrency per worker
 
 **Reliable Execution**
-- Task retry mechanisms for failed jobs
-- Dead letter queues for problematic tasks
+- Exponential backoff with jitter for retries — see [Retry and Backoff](retry-backoff.md)
+- Non-retryable error classification and dead-letter storage
+- Manual replay tooling for dead-lettered jobs
+- Alerting hooks for repeated job failures
 - Graceful shutdown and task cleanup
 
 **Database Integration**
@@ -292,4 +294,6 @@ memory, and external rate limits.
 
 ## Next Steps
 
-Check the [ARQ documentation](https://arq-docs.helpmanual.io/) for advanced usage patterns and refer to the template worker primitives in `src/app/workers/jobs.py` and `src/app/workers/settings.py`.
+- **[Retry and Backoff](retry-backoff.md)** — exponential backoff, error classification, dead-letter storage, alerting hooks, replay, and idempotency guidance.
+- **[Automation Persistence Patterns](../database/automation-patterns.md)** — shared ledgers for dead-letter records, idempotency keys, job state history, and workflow executions.
+- **[ARQ documentation](https://arq-docs.helpmanual.io/)** — advanced usage patterns for the underlying queue library.

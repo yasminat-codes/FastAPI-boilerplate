@@ -15,6 +15,7 @@ src/
 │   ├── shared/                 # Framework-agnostic shared utilities
 │   ├── workers/                # Background worker entrypoints and job functions
 │   ├── integrations/           # Placeholder extension point for provider adapters
+│   ├── webhooks/               # Inbound webhook ingestion primitives and provider adapters
 │   ├── workflows/              # Placeholder extension point for orchestrated processes
 │   ├── core/                   # Legacy compatibility modules
 │   ├── crud/                   # Legacy compatibility modules
@@ -27,7 +28,7 @@ src/
 └── scripts/                    # Operational bootstrap scripts
 ```
 
-The `platform`, `shared`, `domain`, `workers`, `integrations`, and `workflows` packages are the canonical structure going forward. Legacy paths remain in place temporarily as compatibility shims while the template transitions.
+The `platform`, `shared`, `domain`, `workers`, `integrations`, `webhooks`, and `workflows` packages are the canonical structure going forward. Legacy paths remain in place temporarily as compatibility shims while the template transitions.
 
 ## Boundary Responsibilities
 
@@ -64,6 +65,12 @@ The `platform`, `shared`, `domain`, `workers`, `integrations`, and `workflows` p
 - Reserved for provider-specific clients, adapters, and outbound integration surfaces.
 - The template keeps this empty until adopters add generic provider implementations.
 - Until a shared outbound HTTP client layer lands, provider clients can reuse `src.app.platform.request_context.build_correlation_headers(...)` or `merge_correlation_headers(...)` to forward correlation metadata without re-implementing request-context plumbing.
+
+### `webhooks/`
+
+- Owns reusable inbound webhook ingestion primitives and future provider-adapter surfaces.
+- Keep raw-body verification helpers, `WebhookIngestionRequest`, `build_webhook_ingestion_request(...)`, `ingest_webhook_event(...)`, replay-protection helpers, signature-verifier contracts, `WebhookEventPersistenceRequest`, `webhook_event_store`, future normalizer interfaces, and provider placeholder packages here instead of scattering them between `api/` and `platform/`.
+- HTTP route handlers still live under `src/app/api/v1/`, but provider-specific webhook logic should delegate into this boundary once implemented.
 
 ### `workflows/`
 
@@ -142,6 +149,12 @@ from src.app.domain.models import User
 from src.app.domain.schemas import UserRead
 from src.app.domain.repositories import user_repository
 from src.app.domain.services import user_service
+from src.app.webhooks import (
+    WebhookIngestionRequest,
+    WebhookSignatureVerifier,
+    build_webhook_ingestion_request,
+    ingest_webhook_event,
+)
 from src.app.workers.settings import WorkerSettings
 ```
 
@@ -194,6 +207,7 @@ The `tests/` directory verifies both behavior and structure:
 - **Platform Runtime** → `src/app/platform/`
 - **Shared Utilities** → `src/app/shared/`
 - **Worker Runtime** → `src/app/workers/`
+- **Webhook Ingestion** → `src/app/webhooks/`
 - **Business Logic** → Keep reusable logic in services, workflows, and repositories rather than directly in routers
 
 ### Adding New Features
@@ -204,8 +218,9 @@ The `tests/` directory verifies both behavior and structure:
 4. **Shared Utility** → Add `src/app/shared/<capability>.py` only if the helper stays framework-agnostic and side-effect free
 5. **Platform Primitive** → Add `src/app/platform/<capability>.py` if the helper owns runtime wiring, state, or infrastructure access
 6. **Service or Workflow** → If reusable orchestration is needed, add `<capability>_service.py` in the owning boundary, export it through `src/app/domain/services.py`, or place multi-step coordination in `src/app/workflows/`
-7. **API** → Add endpoints in `src/app/api/v1/<resources>.py` and export `router`
-8. **Migration** → Generate with Alembic
+7. **Webhook Primitive** → Add shared ingestion or provider-adapter code under `src/app/webhooks/`, and keep versioned HTTP receivers in `src/app/api/v1/`
+8. **API** → Add endpoints in `src/app/api/v1/<resources>.py` and export `router`
+9. **Migration** → Generate with Alembic
 
 ### Understanding Data Flow
 

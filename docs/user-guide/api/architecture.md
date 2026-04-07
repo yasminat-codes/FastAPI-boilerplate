@@ -27,6 +27,8 @@ The current code wires this through:
 - `src/app/api/__init__.py`
 - `src/app/api/v1/__init__.py`
 
+Reusable ingestion helpers, `WebhookIngestionRequest`, `build_webhook_ingestion_request(...)`, `ingest_webhook_event(...)`, replay-protection helpers, signature-verifier contracts, `WebhookEventPersistenceRequest`, `webhook_event_store`, and future provider adapters live under `src/app/webhooks/`, while the HTTP receivers themselves stay in the versioned `src/app/api/` tree.
+
 ## Versioning Rules
 
 The template currently supports `v1` through:

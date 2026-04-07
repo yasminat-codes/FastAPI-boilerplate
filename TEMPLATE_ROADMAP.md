@@ -22,7 +22,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 1: Core Application Hardening
 - [x] Phase 2: Database And Persistence Platform
 - [x] Phase 3: API Platform And Request Pipeline
-- [ ] Phase 4: Authentication, Authorization, And Security
+- [x] Phase 4: Authentication, Authorization, And Security
 - [ ] Phase 5: Webhook Ingestion Platform
 - [ ] Phase 6: Background Jobs, Scheduling, And Workflow Execution
 - [ ] Phase 7: External Integration Foundation
@@ -305,24 +305,24 @@ The template now includes two shared automation persistence ledgers: inbound web
 - [x] Add secret redaction in logs and error reports.
 - [x] Add secure admin defaults or make admin disabled by default.
 - [x] Review CSRF implications for any cookie-based flows.
-- [ ] Add dependency vulnerability scanning to CI.
-- [ ] Add secret scanning to CI and local hooks.
+- [x] Add dependency vulnerability scanning to CI.
+- [x] Add secret scanning to CI and local hooks.
 
 ## Phase 5: Webhook Ingestion Platform
 
 ### Wave 5.1: Generic Webhook Framework
 
-- [ ] Create a dedicated webhook module structure.
-- [ ] Add a raw-body-capable webhook ingestion path.
-- [ ] Add provider-agnostic signature verification interfaces.
-- [ ] Add a webhook event persistence model.
-- [ ] Add a standard ingestion flow: receive, validate, persist, acknowledge, enqueue.
-- [ ] Add replay protection primitives.
-- [ ] Add idempotency protection primitives.
-- [ ] Add duplicate event handling strategy.
-- [ ] Add malformed payload handling strategy.
-- [ ] Add unknown event type handling strategy.
-- [ ] Add poison payload handling strategy.
+- [x] Create a dedicated webhook module structure.
+- [x] Add a raw-body-capable webhook ingestion path.
+- [x] Add provider-agnostic signature verification interfaces.
+- [x] Add a webhook event persistence model.
+- [x] Add a standard ingestion flow: receive, validate, persist, acknowledge, enqueue.
+- [x] Add replay protection primitives.
+- [x] Add idempotency protection primitives.
+- [x] Add duplicate event handling strategy.
+- [x] Add malformed payload handling strategy.
+- [x] Add unknown event type handling strategy.
+- [x] Add poison payload handling strategy.
 
 ### Wave 5.2: Operational Webhook Guarantees
 
@@ -1281,3 +1281,265 @@ Phase 4 Wave 4.3 now documents the real CSRF posture of the template instead of 
 - [ ] Add dependency vulnerability scanning to CI.
 - [ ] Add secret scanning to CI and local hooks.
 - [ ] Create a dedicated webhook module structure.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the remaining Phase 4 Wave 4.3 dependency-audit item by adding a dedicated GitHub Actions workflow that exports the locked third-party dependency set from `uv.lock` and audits it with `pip-audit`.
+- Added a structure regression test so the template keeps the dependency-audit workflow wired to the locked dependency export instead of drifting toward an ad hoc environment scan.
+- Updated the README and testing guide so template users can see both the CI contract and the matching local command for auditing the locked dependency set.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run <command>` initially panicked in this local macOS sandbox inside uv's sync path (`system-configuration` crate) before Ruff, mypy, pytest, or MkDocs could start. | Re-ran the same verification commands with `uv run --no-sync ...` against the existing project environment, which completed cleanly and still exercised the required tools. |
+| The first Ruff pass reformatted one file after the new workflow regression test was added. | Re-ran `uv run --no-sync ruff check src tests` after the auto-fix so the final reported lint result reflects the final tree. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 261 passed, 0 failed
+- docs build: pass (`uv run --no-sync mkdocs build --strict`)
+
+### Current state of the template
+Phase 4 Wave 4.3 now includes CI-level dependency vulnerability scanning in addition to the previously completed auth, authorization, and platform security controls. The repository now audits the exact locked third-party dependency set in GitHub Actions rather than trusting a mutable environment snapshot, and the template docs explain how to mirror that check locally. Secret scanning is still missing, so Phase 4 is stronger but not yet complete.
+
+### What remains
+- [ ] Add secret scanning to CI and local hooks.
+- [ ] Create a dedicated webhook module structure.
+- [ ] Add a raw-body-capable webhook ingestion path.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the remaining Phase 4 Wave 4.3 secret-scanning item by adding a dedicated GitHub Actions workflow that runs `gitleaks` against the checked-out repository with a pinned template config.
+- Added a matching `pre-commit` hook plus a repository-level `.gitleaks.toml` so local commits and CI use the same secret-scanning ruleset.
+- Updated the README and testing guide, and added structure regression tests, so the template documents and preserves the new CI plus local-hook contract.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The template repository intentionally contains placeholder credentials and mock secret values in docs, tests, and roadmap session history, which would create noisy secret-scan failures. | Added a pinned `.gitleaks.toml` that extends the default rule set while excluding documentation, tests, and roadmap history files and allowing the small set of known template-safe placeholder values still used in code and workflow examples. |
+| The first local `pre-commit` secret-scan run spent noticeable time bootstrapping the new hook environment, which looked like a stalled command at first. | Waited for the hook installation to finish and then reran the same `gitleaks` rule set successfully through `pre-commit`, confirming the new local-hook wiring works end to end. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 264 passed, 0 failed
+- additional verification: `uv run pre-commit run gitleaks --all-files` pass; `uv run mkdocs build --strict` pass
+
+### Current state of the template
+Phase 4 is now complete in the live roadmap. The template has a verified auth and authorization baseline, hardened platform-security defaults, CI-level dependency and secret scanning, and a matching local-hook path for catching leaked credentials before they reach the repository. The next major gap now shifts into Phase 5, where the webhook-ingestion module structure and generic ingestion flow are still not scaffolded.
+
+### What remains
+- [ ] Create a dedicated webhook module structure.
+- [ ] Add a raw-body-capable webhook ingestion path.
+- [ ] Add provider-agnostic signature verification interfaces.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Added a canonical `src/app/webhooks/` package with an `ingestion.py` module for raw-body helpers and a `providers/` placeholder package for future provider-specific adapters.
+- Repointed the legacy `src.app.core.webhooks` and `src.app.platform.webhooks` surfaces to the new canonical webhook boundary so existing imports keep working while new template code can target `src.app.webhooks`.
+- Updated the project-structure, API architecture, and request-safety docs plus regression tests so the webhook boundary is documented and preserved as part of the template contract.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run ruff check src tests` auto-fixed one file on its first pass. | Re-ran Ruff after the auto-fix and used the clean second pass as the final lint result. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 266 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+The template now has a dedicated webhook module boundary instead of only scattered helper modules. Reusable inbound webhook primitives live under `src/app/webhooks/`, provider-specific adapter space is reserved under `src/app/webhooks/providers/`, and the legacy platform/core webhook imports now act as compatibility shims while the rest of Phase 5 is built on the canonical package.
+
+### What remains
+- [ ] Add a raw-body-capable webhook ingestion path.
+- [ ] Add provider-agnostic signature verification interfaces.
+- [ ] Add a webhook event persistence model.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the Phase 5 Wave 5.1 raw-body ingestion item by adding a typed `WebhookIngestionRequest` plus a reusable `build_webhook_ingestion_request(...)` dependency under `src/app/webhooks/`.
+- Extended the canonical and compatibility webhook export surfaces so template users can adopt the new ingestion dependency from `src.app.webhooks` while existing `platform` and `core` imports continue to resolve.
+- Updated the README plus the API architecture, request-safety, and project-structure guides so signature-verified webhook routes now point at the typed raw-body dependency instead of ad hoc `request.body()` handling.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `uv run ruff check src tests` initially failed because one regression-test assertion line exceeded the repository's 120-character limit. | Reflowed the assertion into a wrapped expression and reran the full verification suite on the final tree. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 266 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+The webhook boundary now exposes a reusable route dependency that preserves exact inbound bytes, transport metadata, and deferred JSON parsing for signature-verified providers. Template adopters can keep webhook handlers under `src/app/api/v1/` while delegating raw-body access to `src.app.webhooks`, which sets up the next Phase 5 work around verifier interfaces, persistence, and the full receive-to-enqueue ingestion flow.
+
+### What remains
+- [ ] Add provider-agnostic signature verification interfaces.
+- [ ] Add a webhook event persistence model.
+- [ ] Add a standard ingestion flow: receive, validate, persist, acknowledge, enqueue.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the Phase 5 Wave 5.1 provider-agnostic verifier item by adding a canonical `src/app/webhooks/signatures.py` module with typed verification context and result contracts, explicit verification-error types, and a reusable `verify_webhook_signature(...)` helper.
+- Extended the canonical, `platform`, and legacy `core` webhook export surfaces so provider adapters can plug into the new verifier contract without breaking existing imports while the template continues migrating toward `src.app.webhooks`.
+- Updated the README plus the API architecture, request-safety, and project-structure guides, and expanded webhook regression coverage so the verifier contract is documented and preserved as part of the template boundary.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The first Ruff pass reformatted the new verifier module and webhook tests. | Re-ran `uv run ruff check src tests` after Ruff's auto-fixes so the reported lint result reflects the final tree. |
+| Mypy initially rejected the verifier-dispatch helper because the protocol-or-callable union left the fallback branch typed as `Any`. | Reworked the dispatch helper to distinguish runtime-checkable protocol verifiers from plain callables explicitly, which preserved the generic contract and satisfied strict typing. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 270 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+The webhook boundary now includes a reusable signature-verification contract instead of leaving each provider adapter to invent its own verifier shape and error model. Template adopters can keep transport handling in `WebhookIngestionRequest`, implement provider-specific signature checks behind `WebhookSignatureVerifier`, and feed the common verification metadata into the next Phase 5 work around durable event persistence and the full receive-to-enqueue ingestion flow.
+
+### What remains
+- [ ] Add a webhook event persistence model.
+- [ ] Add a standard ingestion flow: receive, validate, persist, acknowledge, enqueue.
+- [ ] Add replay protection primitives.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the Phase 5 Wave 5.1 webhook-event persistence item by adding a canonical `src/app/webhooks/persistence.py` module with a typed `WebhookEventPersistenceRequest`, a reusable `WebhookEventStore`, and lifecycle helpers for `acknowledged`, `enqueued`, `processed`, `rejected`, and `failed` states.
+- Extended the canonical, `platform`, and legacy `core` webhook export surfaces so future webhook receivers can persist shared inbox records through `src.app.webhooks` without constructing `WebhookEvent` rows directly.
+- Updated the README plus the API architecture, request-safety, project-structure, and database automation-pattern docs, and added focused persistence regression tests so the new webhook persistence contract is documented and preserved as part of the template boundary.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The first Ruff pass auto-fixed two formatting issues after the new persistence module and tests were added. | Re-ran `uv run ruff check src tests` after Ruff's auto-fixes so the final lint result reflects the final tree. |
+| The task changed user-facing docs as well as code, which created a risk of drifting examples or broken navigation. | Ran a strict MkDocs build after the required quality gates so the updated webhook-persistence docs render cleanly alongside the code changes. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 276 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+The webhook boundary now owns not just raw-body intake and signature verification but also the canonical persistence contract for inbound deliveries. Template adopters can persist accepted or rejected webhook traffic through `WebhookEventPersistenceRequest` and `webhook_event_store`, which records provider identifiers, payload hashes, content metadata, verification details, and intake lifecycle state against the shared `webhook_event` ledger without coupling route handlers to direct ORM construction. The next major webhook gap is the full reusable ingestion flow that wires receive, validate, persist, acknowledge, and enqueue into one template-owned pipeline.
+
+### What remains
+- [ ] Add a standard ingestion flow: receive, validate, persist, acknowledge, enqueue.
+- [ ] Add replay protection primitives.
+- [ ] Add idempotency protection primitives.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the Phase 5 Wave 5.1 standard-ingestion-flow item by extending `src/app/webhooks/ingestion.py` with a reusable `ingest_webhook_event(...)` helper plus typed validator, enqueue, and result contracts.
+- Wired the canonical, platform, and legacy webhook export surfaces to expose the new intake pipeline so routes can reuse the receive, validate, persist, acknowledge, enqueue flow without open-coding it.
+- Updated the README plus the API architecture, request-safety, project-structure, and database automation-pattern guides so the new pipeline is the documented default happy path for provider receivers.
+- Added focused regression coverage for the successful enqueue path, verification-disabled path, verifier-required failure, enqueue-failure state handling, and the expanded compatibility exports.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The first mypy pass rejected the new ingestion module's conditional callable aliases. | Simplified the internal callable typing to runtime-safe `Callable[..., Any]` helpers, kept the public protocols typed, and added explicit casts at the await boundaries so strict typing and runtime imports both stay stable. |
+| The first full Ruff pass auto-fixed a few formatting and import-order issues after the new pipeline and tests landed. | Re-ran `uv run ruff check src tests` on the auto-fixed tree and used the clean second pass as the final lint result. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: 281 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+The webhook boundary now exposes a reusable happy-path intake pipeline on top of the lower-level raw-body, signature-verification, and persistence primitives. Template adopters can hand a verifier, payload validator, and async enqueuer to `ingest_webhook_event(...)` and get consistent `WebhookEvent` lifecycle handling through receive, validate, persist, acknowledge, and enqueue without coupling route handlers to direct ORM writes or ad hoc queue metadata. Replay protection and duplicate-handling behavior are still missing, so the pipeline is now standardized for the success path but not yet hardened against replays or duplicate deliveries.
+
+### What remains
+- [ ] Add replay protection primitives.
+- [ ] Add idempotency protection primitives.
+- [ ] Add duplicate event handling strategy.
+
+---
+
+## Session Report — 2026-04-06
+
+### What was built
+- Completed the Phase 5 Wave 5.1 replay-protection item by adding a canonical `src/app/webhooks/replay.py` module with typed replay requests, results, match snapshots, and typed duplicate or fingerprint-mismatch errors.
+- Wired `ingest_webhook_event(...)` to run replay-window checks against recent `webhook_event` rows before persisting a new delivery, and passed the accepted replay metadata through the persisted processing metadata and enqueue contract.
+- Extended the canonical, platform, and legacy webhook export surfaces, added focused replay regression tests, and updated the README plus webhook architecture, request-safety, database, and project-structure docs so the new replay boundary is documented as part of the template contract.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| Replay protection needed durable storage, but using the idempotency ledger here would have blurred the boundary between this roadmap item and the later webhook idempotency task. | Built the replay checks on top of recent `webhook_event` lookups instead, which keeps this task scoped to webhook replay protection while preserving the separate idempotency work that still remains on the roadmap. |
+| The new replay check changes the default ingestion path, which created a risk that existing enqueue-path tests would start failing for the wrong reason. | Added focused replay-unit coverage plus ingestion-level duplicate and fingerprint-mismatch tests, and explicitly set the mocked session's replay lookups in the existing webhook-ingestion tests so the assertions still describe the intended behavior. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass
+- pytest: pass
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+The canonical webhook boundary now covers the full receive, validate, replay-check, persist, acknowledge, and enqueue path for the template-owned happy flow. Template adopters can rely on `ingest_webhook_event(...)` to reject recent duplicate delivery identifiers or conflicting payload fingerprints before another inbox row is written, while still using the shared `webhook_event` ledger as the durable source for replay safety and later operational triage.
+
+### What remains
+- [ ] Add idempotency protection primitives.
+- [ ] Add duplicate event handling strategy.
+- [ ] Add malformed payload handling strategy.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed the remaining Phase 5 Wave 5.1 items by adding idempotency protection primitives, duplicate event handling, malformed payload handling, unknown event type handling, and poison payload handling as reusable webhook boundary modules.
+- Added a canonical `src/app/webhooks/idempotency.py` module with typed idempotency requests, results, match snapshots, violation and fingerprint-mismatch errors, a reusable `WebhookIdempotencyProtector` backed by the shared `IdempotencyKey` ledger, and a `record_idempotency_key(...)` helper for post-intake persistence.
+- Added a canonical `src/app/webhooks/validation.py` module with machine-readable `WebhookValidationErrorKind` classifications, typed error hierarchy (`MalformedPayloadError`, `UnknownEventTypeError`, `PoisonPayloadError`, `WebhookDuplicateEventError`), content-type and JSON-structure validators, event-type validators with optional allowlist enforcement, a reusable `WebhookEventTypeRegistry` for provider-specific event routing, and `WebhookPoisonDetectionRequest`/`WebhookPoisonDetectionResult` contracts for dead-letter triage.
+- Extended the canonical, platform, and legacy core webhook export surfaces so all new primitives are available from `src.app.webhooks`, `src.app.platform.webhooks`, and `src.app.core.webhooks`.
+- Added focused regression tests for idempotency protection (11 tests) and validation/duplicate/poison contracts (37 tests), and extended the structure test to verify the new platform re-exports.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `mypy` initially flagged the idempotency protector's `_find_existing_record` return type as `Any` because `session.scalar()` returns a dynamic type. | Added an explicit typed local variable annotation so mypy resolves the return without a `type: ignore` comment. |
+| The sandbox Python version (3.10) could not run the full test suite because the project requires Python 3.11+. | Used the Desktop Commander to run all quality gates on the user's Mac where the project's `uv` environment has Python 3.11. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass (no issues in 138 source files)
+- pytest: 334 passed, 0 failed
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 5 Wave 5.1 is now complete. The webhook boundary covers the full intake pipeline from signature verification through replay protection, and now also provides reusable primitives for idempotency enforcement against the shared `IdempotencyKey` ledger, typed malformed-payload and content-type validation, event-type registry and unknown-type rejection, duplicate-event detection contracts, and poison-payload detection and dead-letter triage contracts. All new primitives follow the established template patterns: typed request/result dataclasses, explicit error hierarchies with `as_processing_metadata()` rendering, and canonical exports through the webhook, platform, and legacy compatibility surfaces.
+
+### What remains
+- [ ] Define acknowledgement strategy so providers receive timely responses.
+- [ ] Ensure heavy processing is offloaded to jobs instead of running inline.
+- [ ] Add retry-safe event processing contracts.

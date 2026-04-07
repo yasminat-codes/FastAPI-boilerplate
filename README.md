@@ -37,6 +37,11 @@
 * 🧰 FastCRUD for efficient CRUD & pagination
 * 🧑‍💼 **CRUDAdmin**: minimal admin panel (optional)
 * 🚦 ARQ background jobs (Redis)
+* 🪝 Canonical raw-body webhook ingestion dependency for signature-verified providers
+* 🛡️ Provider-agnostic webhook signature verification interfaces
+* 🗃️ Reusable webhook-event persistence helpers backed by the shared inbox ledger
+* 📨 Reusable webhook intake pipeline for receive, validate, persist, acknowledge, enqueue
+* ♻️ Replay-protection helpers for recent webhook deliveries
 * 🧊 Redis caching (server + client-side headers)
 * 🌐 Configurable CORS middleware for frontend integration
 * 🐳 One-command Docker Compose
@@ -171,6 +176,13 @@ The worker runtime is included, but the template intentionally does not ship a d
 Worker startup and shutdown now use a shared resource stack so the template can prime the database engine, worker-side Redis aliases, optional cache and rate-limit clients, and Sentry in one reusable lifecycle path.
 Tune the shared worker runtime with `WORKER_QUEUE_NAME`, `WORKER_MAX_JOBS`, `WORKER_JOB_MAX_TRIES`, `WORKER_JOB_RETRY_DELAY_SECONDS`, `WORKER_KEEP_RESULT_SECONDS`, `WORKER_KEEP_RESULT_FOREVER`, and `WORKER_JOB_EXPIRES_EXTRA_MS`.
 
+**Webhook ingestion:**
+Signature-verified webhook routes should depend on `build_webhook_ingestion_request` from `src.app.webhooks` so handlers can verify the exact inbound bytes before parsing JSON into models.
+Provider adapters can implement `WebhookSignatureVerifier` and run them through `verify_webhook_signature(...)` so signature logic stays reusable instead of being embedded directly in route handlers.
+Persist accepted or rejected inbound deliveries with `WebhookEventPersistenceRequest` and `webhook_event_store` so the shared `webhook_event` ledger captures payload hashes, provider identifiers, and lifecycle state before downstream jobs take over.
+When a route should follow the template-owned happy path end to end, call `ingest_webhook_event(...)` with a verifier, event validator, and enqueuer so receive, validate, persist, acknowledge, and enqueue stay consistent across providers.
+When replay protection is enabled, the canonical ingestion flow checks recent `webhook_event` records for matching delivery IDs, event IDs, or fallback payload fingerprints and raises typed replay errors before a duplicate delivery is persisted.
+
 **Or run locally without Docker:**
 ```bash
 uv sync && uv run db-migrate upgrade head && uv run uvicorn src.app.main:app --reload
@@ -219,6 +231,14 @@ uv run arq src.app.workers.settings.WorkerSettings
 # install and verify the docs toolchain
 uv sync --group docs
 uv run mkdocs build --strict
+
+# audit the locked dependency set the same way CI does
+# requires network access to fetch pip-audit and advisory data
+UV_CACHE_DIR=/tmp/uv-cache uv export --frozen --all-groups --format requirements.txt --no-emit-project --no-header --no-hashes --no-annotate --output-file /tmp/requirements-audit.txt
+uvx --from pip-audit pip-audit -r /tmp/requirements-audit.txt --progress-spinner off
+
+# run the secret scan with the same gitleaks config used by CI and pre-commit
+uv run pre-commit run gitleaks --all-files
 
 # serve docs locally
 uv run mkdocs serve

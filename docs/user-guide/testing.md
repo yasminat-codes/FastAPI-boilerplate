@@ -728,6 +728,27 @@ uv run mkdocs build --strict
 uv run mkdocs serve
 ```
 
+## Repository Quality Gates
+
+The template baseline is enforced in GitHub Actions with separate workflows for linting, typing, tests, migrations, documentation, dependency vulnerability auditing, and secret scanning.
+
+The dependency audit exports the locked third-party dependency set from `uv.lock` and runs `pip-audit` against that snapshot. That keeps CI focused on the exact dependency versions the template resolves, instead of whatever happens to be installed in a mutable environment.
+
+Mirror that audit locally when you want to check the same locked set before opening a pull request:
+
+```bash
+UV_CACHE_DIR=/tmp/uv-cache uv export --frozen --all-groups --format requirements.txt --no-emit-project --no-header --no-hashes --no-annotate --output-file /tmp/requirements-audit.txt
+uvx --from pip-audit pip-audit -r /tmp/requirements-audit.txt --progress-spinner off
+```
+
+The secret scan uses `gitleaks` in both CI and `pre-commit`. The bundled `.gitleaks.toml` keeps the scan focused on code and runtime-facing configuration by excluding documentation, tests, and roadmap history files that intentionally contain placeholder credentials and mock values.
+
+Mirror that scan locally with the same ruleset:
+
+```bash
+uv run pre-commit run gitleaks --all-files
+```
+
 ### Test Environment Setup
 
 ```bash

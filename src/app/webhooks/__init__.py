@@ -1,22 +1,6 @@
-"""Canonical platform re-export for webhook helpers."""
+"""Canonical inbound webhook ingestion boundary for reusable template extensions."""
 
-from ..webhooks import (
-    RAW_REQUEST_BODY_STATE_KEY,
-    InvalidWebhookSignatureError,
-    MalformedPayloadError,
-    MissingWebhookSignatureError,
-    PoisonPayloadError,
-    StaleWebhookSignatureError,
-    UnknownEventTypeError,
-    WebhookDuplicateEventError,
-    WebhookEventEnqueuer,
-    WebhookEventEnqueueRequest,
-    WebhookEventEnqueueResult,
-    WebhookEventPersistenceRequest,
-    WebhookEventStore,
-    WebhookEventTypeRegistration,
-    WebhookEventTypeRegistry,
-    WebhookEventValidator,
+from .idempotency import (
     WebhookIdempotencyError,
     WebhookIdempotencyFingerprintMismatchError,
     WebhookIdempotencyMatch,
@@ -24,11 +8,26 @@ from ..webhooks import (
     WebhookIdempotencyRequest,
     WebhookIdempotencyResult,
     WebhookIdempotencyViolationError,
+    record_idempotency_key,
+    webhook_idempotency_protector,
+)
+from .ingestion import (
+    RAW_REQUEST_BODY_STATE_KEY,
+    WebhookEventEnqueuer,
+    WebhookEventEnqueueRequest,
+    WebhookEventEnqueueResult,
+    WebhookEventValidator,
     WebhookIngestionRequest,
     WebhookIngestionResult,
-    WebhookPayloadValidationError,
-    WebhookPoisonDetectionRequest,
-    WebhookPoisonDetectionResult,
+    WebhookValidatedEvent,
+    build_webhook_ingestion_request,
+    ingest_webhook_event,
+    parse_raw_json_body,
+    read_raw_request_body,
+    validate_json_webhook_event,
+)
+from .persistence import WebhookEventPersistenceRequest, WebhookEventStore, webhook_event_store
+from .replay import (
     WebhookReplayDetectedError,
     WebhookReplayFingerprintMismatchError,
     WebhookReplayKeyKind,
@@ -37,25 +36,32 @@ from ..webhooks import (
     WebhookReplayProtectionRequest,
     WebhookReplayProtectionResult,
     WebhookReplayProtector,
+    webhook_replay_protector,
+)
+from .signatures import (
+    InvalidWebhookSignatureError,
+    MissingWebhookSignatureError,
+    StaleWebhookSignatureError,
     WebhookSignatureVerificationContext,
     WebhookSignatureVerificationError,
     WebhookSignatureVerificationResult,
     WebhookSignatureVerifier,
-    WebhookValidatedEvent,
+    verify_webhook_signature,
+)
+from .validation import (
+    MalformedPayloadError,
+    PoisonPayloadError,
+    UnknownEventTypeError,
+    WebhookDuplicateEventError,
+    WebhookEventTypeRegistration,
+    WebhookEventTypeRegistry,
+    WebhookPayloadValidationError,
+    WebhookPoisonDetectionRequest,
+    WebhookPoisonDetectionResult,
     WebhookValidationErrorKind,
-    build_webhook_ingestion_request,
-    ingest_webhook_event,
-    parse_raw_json_body,
-    read_raw_request_body,
-    record_idempotency_key,
-    validate_json_webhook_event,
     validate_webhook_content_type,
     validate_webhook_event_type,
     validate_webhook_payload_json,
-    verify_webhook_signature,
-    webhook_event_store,
-    webhook_idempotency_protector,
-    webhook_replay_protector,
 )
 
 __all__ = [
@@ -82,8 +88,8 @@ __all__ = [
     "WebhookIdempotencyRequest",
     "WebhookIdempotencyResult",
     "WebhookIdempotencyViolationError",
-    "WebhookIngestionResult",
     "WebhookIngestionRequest",
+    "WebhookIngestionResult",
     "WebhookPayloadValidationError",
     "WebhookPoisonDetectionRequest",
     "WebhookPoisonDetectionResult",

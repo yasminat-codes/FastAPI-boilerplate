@@ -1,31 +1,117 @@
-"""Reusable helpers for raw-body webhook verification flows."""
+"""Legacy compatibility re-export for canonical webhook helpers."""
 
-from __future__ import annotations
+from ..webhooks import (
+    RAW_REQUEST_BODY_STATE_KEY,
+    InvalidWebhookSignatureError,
+    MalformedPayloadError,
+    MissingWebhookSignatureError,
+    PoisonPayloadError,
+    StaleWebhookSignatureError,
+    UnknownEventTypeError,
+    WebhookDuplicateEventError,
+    WebhookEventEnqueuer,
+    WebhookEventEnqueueRequest,
+    WebhookEventEnqueueResult,
+    WebhookEventPersistenceRequest,
+    WebhookEventStore,
+    WebhookEventTypeRegistration,
+    WebhookEventTypeRegistry,
+    WebhookEventValidator,
+    WebhookIdempotencyError,
+    WebhookIdempotencyFingerprintMismatchError,
+    WebhookIdempotencyMatch,
+    WebhookIdempotencyProtector,
+    WebhookIdempotencyRequest,
+    WebhookIdempotencyResult,
+    WebhookIdempotencyViolationError,
+    WebhookIngestionRequest,
+    WebhookIngestionResult,
+    WebhookPayloadValidationError,
+    WebhookPoisonDetectionRequest,
+    WebhookPoisonDetectionResult,
+    WebhookReplayDetectedError,
+    WebhookReplayFingerprintMismatchError,
+    WebhookReplayKeyKind,
+    WebhookReplayMatch,
+    WebhookReplayProtectionError,
+    WebhookReplayProtectionRequest,
+    WebhookReplayProtectionResult,
+    WebhookReplayProtector,
+    WebhookSignatureVerificationContext,
+    WebhookSignatureVerificationError,
+    WebhookSignatureVerificationResult,
+    WebhookSignatureVerifier,
+    WebhookValidatedEvent,
+    WebhookValidationErrorKind,
+    build_webhook_ingestion_request,
+    ingest_webhook_event,
+    parse_raw_json_body,
+    read_raw_request_body,
+    record_idempotency_key,
+    validate_json_webhook_event,
+    validate_webhook_content_type,
+    validate_webhook_event_type,
+    validate_webhook_payload_json,
+    verify_webhook_signature,
+    webhook_event_store,
+    webhook_idempotency_protector,
+    webhook_replay_protector,
+)
 
-import json
-from typing import Any
-
-from fastapi import Request
-
-RAW_REQUEST_BODY_STATE_KEY = "raw_request_body"
-
-
-async def read_raw_request_body(request: Request) -> bytes:
-    """Read and cache the exact inbound request body for signature verification."""
-
-    cached_body = getattr(request.state, RAW_REQUEST_BODY_STATE_KEY, None)
-    if isinstance(cached_body, bytes):
-        return cached_body
-
-    raw_body = await request.body()
-    setattr(request.state, RAW_REQUEST_BODY_STATE_KEY, raw_body)
-    return raw_body
-
-
-def parse_raw_json_body(raw_body: bytes) -> Any:
-    """Parse a raw request body as JSON after signature verification succeeds."""
-
-    return json.loads(raw_body)
-
-
-__all__ = ["RAW_REQUEST_BODY_STATE_KEY", "parse_raw_json_body", "read_raw_request_body"]
+__all__ = [
+    "RAW_REQUEST_BODY_STATE_KEY",
+    "InvalidWebhookSignatureError",
+    "MalformedPayloadError",
+    "MissingWebhookSignatureError",
+    "PoisonPayloadError",
+    "StaleWebhookSignatureError",
+    "UnknownEventTypeError",
+    "WebhookDuplicateEventError",
+    "WebhookEventEnqueueRequest",
+    "WebhookEventEnqueueResult",
+    "WebhookEventEnqueuer",
+    "WebhookEventPersistenceRequest",
+    "WebhookEventStore",
+    "WebhookEventTypeRegistration",
+    "WebhookEventTypeRegistry",
+    "WebhookEventValidator",
+    "WebhookIdempotencyError",
+    "WebhookIdempotencyFingerprintMismatchError",
+    "WebhookIdempotencyMatch",
+    "WebhookIdempotencyProtector",
+    "WebhookIdempotencyRequest",
+    "WebhookIdempotencyResult",
+    "WebhookIdempotencyViolationError",
+    "WebhookIngestionResult",
+    "WebhookIngestionRequest",
+    "WebhookPayloadValidationError",
+    "WebhookPoisonDetectionRequest",
+    "WebhookPoisonDetectionResult",
+    "WebhookReplayDetectedError",
+    "WebhookReplayFingerprintMismatchError",
+    "WebhookReplayKeyKind",
+    "WebhookReplayMatch",
+    "WebhookReplayProtectionError",
+    "WebhookReplayProtectionRequest",
+    "WebhookReplayProtectionResult",
+    "WebhookReplayProtector",
+    "WebhookSignatureVerificationContext",
+    "WebhookSignatureVerificationError",
+    "WebhookSignatureVerificationResult",
+    "WebhookSignatureVerifier",
+    "WebhookValidatedEvent",
+    "WebhookValidationErrorKind",
+    "build_webhook_ingestion_request",
+    "ingest_webhook_event",
+    "parse_raw_json_body",
+    "read_raw_request_body",
+    "record_idempotency_key",
+    "validate_json_webhook_event",
+    "validate_webhook_content_type",
+    "validate_webhook_event_type",
+    "validate_webhook_payload_json",
+    "verify_webhook_signature",
+    "webhook_event_store",
+    "webhook_idempotency_protector",
+    "webhook_replay_protector",
+]

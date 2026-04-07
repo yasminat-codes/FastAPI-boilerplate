@@ -43,33 +43,80 @@ Use the middleware as a coordination tool with upstream timeouts, not as the onl
 
 ## Raw-Body Webhook Verification
 
-Signature-based webhooks should verify the exact inbound bytes before any JSON model parsing changes whitespace or key order. The template now exposes a small helper surface through `src.app.platform.webhooks`:
+Signature-based webhooks should verify the exact inbound bytes before any JSON model parsing changes whitespace or key order. The canonical helper surface now lives under `src.app.webhooks`:
 
 ```python
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.app.platform.webhooks import parse_raw_json_body, read_raw_request_body
+from src.app.webhooks import (
+    WebhookEventEnqueueRequest,
+    WebhookEventEnqueueResult,
+    WebhookIngestionRequest,
+    WebhookSignatureVerificationContext,
+    WebhookSignatureVerificationResult,
+    WebhookSignatureVerifier,
+    build_webhook_ingestion_request,
+    ingest_webhook_event,
+)
+from src.app.platform.database import async_get_db, database_transaction
 
 router = APIRouter()
 
+class ProviderWebhookVerifier(WebhookSignatureVerifier):
+    async def verify(
+        self,
+        context: WebhookSignatureVerificationContext,
+    ) -> WebhookSignatureVerificationResult:
+        signature = context.headers.get("X-Provider-Signature", "")
+        verify_provider_signature(signature=signature, raw_body=context.raw_body)
+        return WebhookSignatureVerificationResult(
+            provider="provider",
+            endpoint_key="provider-events",
+            signature=signature,
+        )
+
+
+async def enqueue_provider_event(request: WebhookEventEnqueueRequest) -> WebhookEventEnqueueResult:
+    payload = request.validated_event.normalized_payload or {}
+    return WebhookEventEnqueueResult(
+        job_name="project.webhooks.process_provider_event",
+        queue_name="arq:webhooks",
+        processing_metadata={"provider_event_id": payload.get("id")},
+    )
+
 
 @router.post("/api/v1/webhooks/provider")
-async def receive_provider_webhook(request: Request) -> dict[str, str]:
-    raw_body = await read_raw_request_body(request)
-    signature = request.headers.get("X-Provider-Signature", "")
+async def receive_provider_webhook(
+    webhook_request: WebhookIngestionRequest = Depends(build_webhook_ingestion_request),
+    db: AsyncSession = Depends(async_get_db),
+) -> dict[str, str]:
+    async with database_transaction(db):
+        ingestion = await ingest_webhook_event(
+            session=db,
+            webhook_request=webhook_request,
+            source="provider",
+            endpoint_key="provider-events",
+            verifier=ProviderWebhookVerifier(),
+            enqueuer=enqueue_provider_event,
+        )
 
-    verify_provider_signature(signature=signature, raw_body=raw_body)
-    payload = parse_raw_json_body(raw_body)
-
-    return {"event_type": payload["type"]}
+    return {"event_type": ingestion.validated_event.event_type}
 ```
 
 Guidance:
 
-- Read the raw body first when signature verification depends on exact bytes.
-- Verify the provider signature against `raw_body` and headers before parsing JSON.
-- Parse into JSON or Pydantic models only after verification succeeds.
+- Prefer `WebhookIngestionRequest` via `build_webhook_ingestion_request` so the route contract stays explicit and the raw bytes are cached once.
+- Keep provider-specific signature logic behind `WebhookSignatureVerifier` implementations so webhook routes stay thin and reusable.
+- Use `ingest_webhook_event(...)` when a route should follow the template-owned happy path of receive, validate, replay-check, persist, acknowledge, and enqueue without reassembling those steps manually.
+- The canonical ingestion flow now runs replay-window checks against the shared `webhook_event` ledger before a new inbox row is inserted. Catch `WebhookReplayDetectedError` or `WebhookReplayFingerprintMismatchError` when a provider needs custom duplicate-response semantics.
+- Persist accepted or rejected deliveries with `WebhookEventPersistenceRequest` and `webhook_event_store` when a cloned project needs to diverge from the standard pipeline for custom intake or rejection handling.
+- Verify the provider signature against `webhook_request.raw_body` and headers before parsing JSON.
+- Parse into JSON or Pydantic models only after verification succeeds, either through `ingest_webhook_event(...)` or your own validated model layer.
+- Use `webhook_request.content_type`, `media_type`, `charset`, and `payload_size_bytes` when you need to persist or inspect transport metadata alongside the payload.
 - If a webhook legitimately needs a larger body budget than the rest of the API, exempt its route prefix from the global body-limit middleware instead of raising the limit for every route.
+
+The older `src.app.platform.webhooks` import remains available as a compatibility alias, but new template code should import from `src.app.webhooks`.
 
 ## Safe Logging Redaction
 

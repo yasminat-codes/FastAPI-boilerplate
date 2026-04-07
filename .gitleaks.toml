@@ -1,0 +1,20 @@
+title = "FastAPI template gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Template documentation and historical roadmap reports intentionally include placeholder credentials"
+paths = [
+  '''^README\.md$''',
+  '''^TEMPLATE_ROADMAP\.md$''',
+  '''^docs/''',
+  '''^tests/''',
+]
+
+[[allowlists]]
+description = "Template-safe example placeholders used in configuration examples and CI"
+regexes = [
+  '''test-secret-key-for-testing-only''',
+  '''change-me-machine-secret''',
+]

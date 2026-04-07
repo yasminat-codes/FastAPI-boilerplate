@@ -83,6 +83,65 @@ Avoid baking provider-specific signature formats, business identifiers, or downs
 - Do not store raw authorization headers or secrets in this table by default.
 - If a provider guarantees stable unique delivery identifiers, cloned projects may add stricter constraints after validating that assumption.
 
+### Canonical persistence helper
+
+The ORM table lives in the shared database layer, but the canonical intake helper now lives under `src.app.webhooks` so webhook routes can persist accepted or rejected deliveries without importing the database model directly.
+
+```python
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.app.platform.database import database_transaction
+from src.app.webhooks import (
+    WebhookEventEnqueueRequest,
+    WebhookEventEnqueueResult,
+    ingest_webhook_event,
+)
+
+
+async def enqueue_webhook_delivery(
+    request: WebhookEventEnqueueRequest,
+) -> WebhookEventEnqueueResult:
+    return WebhookEventEnqueueResult(
+        job_name="project.webhooks.process_delivery",
+        queue_name="arq:webhooks",
+    )
+
+
+async def record_inbound_webhook_happy_path(
+    db: AsyncSession,
+    webhook_request,
+    verifier,
+) -> int:
+    async with database_transaction(db):
+        ingestion = await ingest_webhook_event(
+            session=db,
+            webhook_request=webhook_request,
+            source="stripe",
+            endpoint_key="billing-events",
+            verifier=verifier,
+            enqueuer=enqueue_webhook_delivery,
+        )
+
+    return ingestion.persisted_event.id
+```
+
+Use this helper when a webhook receiver should:
+
+- follow the standard receive, validate, replay-check, persist, acknowledge, enqueue flow end to end
+- keep queue handoff details in one reusable place instead of open-coding them in every route
+- preserve the shared `WebhookEvent` lifecycle transitions without constructing ORM rows manually
+
+Replay protection now lives in the same canonical webhook boundary. The default replay helper checks recent `webhook_event` rows within the configured replay window, prefers provider identifiers such as `delivery_id` and `event_id`, and falls back to the payload hash only when those identifiers are absent. That keeps replay safety durable without forcing cloned projects to add a separate provider-specific replay table before they can accept real webhook traffic.
+
+Use `WebhookEventPersistenceRequest` and `webhook_event_store` directly when a cloned project needs custom rejection handling, non-standard intake sequencing, or provider-specific persistence behavior that intentionally diverges from the default pipeline.
+
+The lower-level persistence helper remains useful when a webhook receiver should:
+
+- store payload hashes, sizes, and content type consistently
+- attach signature-verification metadata without persisting the raw signature itself
+- mark intake lifecycle transitions such as `acknowledged`, `enqueued`, `processed`, `rejected`, or `failed`
+- keep the route or provider adapter decoupled from direct ORM construction details
+
 ## Idempotency Key Ledger
 
 The template now includes a generic idempotency-key table in `src/app/core/db/idempotency_key.py`.

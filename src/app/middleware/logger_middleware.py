@@ -19,6 +19,8 @@ REQUEST_LOG_CONTEXT_KEYS = (
     "status_code",
     "path",
     "method",
+    "workflow_id",
+    "provider_event_id",
 )
 
 

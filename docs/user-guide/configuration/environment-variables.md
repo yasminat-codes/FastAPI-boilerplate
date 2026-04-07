@@ -342,16 +342,26 @@ Structured logging level controls:
 ```env
 LOG_LEVEL="INFO"
 UVICORN_LOG_LEVEL="INFO"
-FILE_LOG_LEVEL="INFO"
+WORKER_LOG_LEVEL="INFO"
 CONSOLE_LOG_LEVEL="INFO"
+CONSOLE_LOG_FORMAT_JSON=false
+FILE_LOG_ENABLED=false
+FILE_LOG_LEVEL="INFO"
+FILE_LOG_FORMAT_JSON=true
 ```
 
 **Variables Explained:**
 
 - `LOG_LEVEL`: Root logger verbosity for the application
 - `UVICORN_LOG_LEVEL`: Verbosity for Uvicorn and Uvicorn access/error loggers
-- `FILE_LOG_LEVEL`: Minimum level written to the rotating file handler
+- `WORKER_LOG_LEVEL`: Verbosity for background worker processes
 - `CONSOLE_LOG_LEVEL`: Minimum level written to stdout/stderr
+- `CONSOLE_LOG_FORMAT_JSON`: `true` for JSON lines (production), `false` for human-readable (local dev)
+- `FILE_LOG_ENABLED`: Set to `true` to enable the rotating file handler (off by default)
+- `FILE_LOG_LEVEL`: Minimum level written to the rotating file handler (when enabled)
+- `FILE_LOG_FORMAT_JSON`: `true` for JSON output in the file handler
+
+See the [logging guide](../logging.md) for the full standard log shape, per-handler context key filtering, redaction settings, and environment-specific recommendations.
 
 ### Caching Settings
 

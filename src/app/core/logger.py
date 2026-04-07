@@ -1,4 +1,9 @@
-"""Logging configuration for the application."""
+"""Logging configuration for the application.
+
+Production default: structured logs go to stdout/stderr only.
+File logging is opt-in via ``FILE_LOG_ENABLED=true`` for environments
+that still need on-disk log files.
+"""
 
 import logging
 import os
@@ -12,6 +17,34 @@ from structlog.types import EventDict, Processor
 from ..core.config import settings
 from .log_redaction import normalize_redaction_field_name, redact_log_event_dict
 
+# ---------------------------------------------------------------------------
+# Standard log-shape context vocabulary
+# ---------------------------------------------------------------------------
+# API request context keys (bound by RequestContextMiddleware):
+#   request_id, correlation_id, client_host, status_code, path, method
+#
+# Worker / job context keys (bound by bind_job_log_context):
+#   job_id, job_name, correlation_id, tenant_id, organization_id,
+#   retry_count, job_metadata
+#
+# Cross-cutting context keys (bound by callers as needed):
+#   workflow_id        – links a log entry to a workflow execution
+#   provider_event_id  – links a log entry to a provider webhook event
+#
+# All of these keys flow through structlog contextvars and appear
+# automatically in every log entry once bound for the current scope.
+# ---------------------------------------------------------------------------
+
+#: Context keys that the per-handler filter processors will manage.
+FILTERABLE_CONTEXT_KEYS = (
+    "request_id",
+    "correlation_id",
+    "path",
+    "method",
+    "client_host",
+    "status_code",
+)
+
 
 def drop_color_message_key(_, __, event_dict: EventDict) -> EventDict:
     """Uvicorn adds `color_message` which duplicates `event`.
@@ -22,38 +55,47 @@ def drop_color_message_key(_, __, event_dict: EventDict) -> EventDict:
     return event_dict
 
 
-def file_log_filter_processors(_, __, event_dict: EventDict) -> EventDict:
-    """Filter out the request ID, path, method, client host, and status code from the event dict if the
-    corresponding setting is False."""
+def _build_handler_filter(*, include_request_id: bool, include_correlation_id: bool, include_path: bool,
+                          include_method: bool, include_client_host: bool,
+                          include_status_code: bool) -> Processor:
+    """Return a structlog processor that strips context keys according to per-handler include flags."""
 
-    if not settings.FILE_LOG_INCLUDE_REQUEST_ID:
-        event_dict.pop("request_id", None)
-    if not settings.FILE_LOG_INCLUDE_PATH:
-        event_dict.pop("path", None)
-    if not settings.FILE_LOG_INCLUDE_METHOD:
-        event_dict.pop("method", None)
-    if not settings.FILE_LOG_INCLUDE_CLIENT_HOST:
-        event_dict.pop("client_host", None)
-    if not settings.FILE_LOG_INCLUDE_STATUS_CODE:
-        event_dict.pop("status_code", None)
-    return event_dict
+    include_map = {
+        "request_id": include_request_id,
+        "correlation_id": include_correlation_id,
+        "path": include_path,
+        "method": include_method,
+        "client_host": include_client_host,
+        "status_code": include_status_code,
+    }
+
+    def _filter(_, __, event_dict: EventDict) -> EventDict:
+        for key, included in include_map.items():
+            if not included:
+                event_dict.pop(key, None)
+        return event_dict
+
+    return _filter
 
 
-def console_log_filter_processors(_, __, event_dict: EventDict) -> EventDict:
-    """Filter out the request ID, path, method, client host, and status code from the event dict if the
-    corresponding setting is False."""
+# Build per-handler filter processors from settings
+file_log_filter_processor = _build_handler_filter(
+    include_request_id=settings.FILE_LOG_INCLUDE_REQUEST_ID,
+    include_correlation_id=settings.FILE_LOG_INCLUDE_CORRELATION_ID,
+    include_path=settings.FILE_LOG_INCLUDE_PATH,
+    include_method=settings.FILE_LOG_INCLUDE_METHOD,
+    include_client_host=settings.FILE_LOG_INCLUDE_CLIENT_HOST,
+    include_status_code=settings.FILE_LOG_INCLUDE_STATUS_CODE,
+)
 
-    if not settings.CONSOLE_LOG_INCLUDE_REQUEST_ID:
-        event_dict.pop("request_id", None)
-    if not settings.CONSOLE_LOG_INCLUDE_PATH:
-        event_dict.pop("path", None)
-    if not settings.CONSOLE_LOG_INCLUDE_METHOD:
-        event_dict.pop("method", None)
-    if not settings.CONSOLE_LOG_INCLUDE_CLIENT_HOST:
-        event_dict.pop("client_host", None)
-    if not settings.CONSOLE_LOG_INCLUDE_STATUS_CODE:
-        event_dict.pop("status_code", None)
-    return event_dict
+console_log_filter_processor = _build_handler_filter(
+    include_request_id=settings.CONSOLE_LOG_INCLUDE_REQUEST_ID,
+    include_correlation_id=settings.CONSOLE_LOG_INCLUDE_CORRELATION_ID,
+    include_path=settings.CONSOLE_LOG_INCLUDE_PATH,
+    include_method=settings.CONSOLE_LOG_INCLUDE_METHOD,
+    include_client_host=settings.CONSOLE_LOG_INCLUDE_CLIENT_HOST,
+    include_status_code=settings.CONSOLE_LOG_INCLUDE_STATUS_CODE,
+)
 
 
 def redact_sensitive_log_fields(_, __, event_dict: EventDict) -> EventDict:
@@ -111,40 +153,48 @@ def build_formatter(*, json_output: bool, pre_chain: list[Processor]) -> structl
     return structlog.stdlib.ProcessorFormatter(foreign_pre_chain=pre_chain, processors=processors)
 
 
-# Setup log directory
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-
-
-# File handler configuration
-file_handler = RotatingFileHandler(
-    filename=os.path.join(LOG_DIR, "app.log"),
-    maxBytes=settings.FILE_LOG_MAX_BYTES,
-    backupCount=settings.FILE_LOG_BACKUP_COUNT,
-)
-file_handler.setLevel(settings.FILE_LOG_LEVEL.value)
-file_handler.setFormatter(
-    build_formatter(
-        json_output=settings.FILE_LOG_FORMAT_JSON, pre_chain=SHARED_PROCESSORS + [file_log_filter_processors]
-    )
-)
-
-# Console handler configuration
+# ---------------------------------------------------------------------------
+# Console handler — always enabled, production default output channel
+# ---------------------------------------------------------------------------
 console_handler = logging.StreamHandler()
 console_handler.setLevel(settings.CONSOLE_LOG_LEVEL.value)
 console_handler.setFormatter(
     build_formatter(
-        json_output=settings.CONSOLE_LOG_FORMAT_JSON, pre_chain=SHARED_PROCESSORS + [console_log_filter_processors]
+        json_output=settings.CONSOLE_LOG_FORMAT_JSON, pre_chain=SHARED_PROCESSORS + [console_log_filter_processor]
     )
 )
 
 
+# ---------------------------------------------------------------------------
+# File handler — opt-in via FILE_LOG_ENABLED=true
+# ---------------------------------------------------------------------------
+file_handler: RotatingFileHandler | None = None
+if settings.FILE_LOG_ENABLED:
+    LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs")
+    os.makedirs(LOG_DIR, exist_ok=True)
+
+    file_handler = RotatingFileHandler(
+        filename=os.path.join(LOG_DIR, "app.log"),
+        maxBytes=settings.FILE_LOG_MAX_BYTES,
+        backupCount=settings.FILE_LOG_BACKUP_COUNT,
+    )
+    file_handler.setLevel(settings.FILE_LOG_LEVEL.value)
+    file_handler.setFormatter(
+        build_formatter(
+            json_output=settings.FILE_LOG_FORMAT_JSON, pre_chain=SHARED_PROCESSORS + [file_log_filter_processor]
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
 # Root logger configuration
+# ---------------------------------------------------------------------------
 root_logger = logging.getLogger()
 root_logger.setLevel(settings.LOG_LEVEL.value)
 root_logger.handlers.clear()  # avoid duplicate logs
-root_logger.addHandler(file_handler)
 root_logger.addHandler(console_handler)
+if file_handler is not None:
+    root_logger.addHandler(file_handler)
 
 # Uvicorn logger integration
 for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):

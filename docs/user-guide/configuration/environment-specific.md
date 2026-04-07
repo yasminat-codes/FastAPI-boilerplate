@@ -65,6 +65,7 @@ Use these values as a reusable template baseline. The exact hostnames, networks,
 | `FEATURE_*` toggles | Keep defaults unless a developer is intentionally exercising an optional-module-off path | Match the feature mix you plan to ship so staging reflects production behavior | Keep only the modules you intend to operate |
 | `WEBHOOK_*` settings | Shorter payload retention and looser provider testing can be acceptable | Run the same verification and replay protections you expect in production | Keep signature verification and replay protection enabled |
 | Observability | Sentry, metrics, and tracing can stay off until needed | Enable the telemetry you need for QA, smoke tests, and release validation | Enable the telemetry needed for live operations and incident response |
+| Logging | `LOG_LEVEL=DEBUG`, `CONSOLE_LOG_FORMAT_JSON=false`, `FILE_LOG_ENABLED=false` for human-readable console output | `LOG_LEVEL=INFO`, `CONSOLE_LOG_FORMAT_JSON=true`, `FILE_LOG_ENABLED=false` (use log aggregator) | `LOG_LEVEL=INFO` or `WARNING`, `CONSOLE_LOG_FORMAT_JSON=true`, `FILE_LOG_ENABLED=false` (prefer log aggregator); see the [logging guide](../logging.md) for full details |
 
 ## Minimal Profile Snippets
 

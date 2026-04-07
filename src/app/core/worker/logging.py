@@ -17,6 +17,8 @@ JOB_LOG_CONTEXT_KEYS = (
     "organization_id",
     "retry_count",
     "job_metadata",
+    "workflow_id",
+    "provider_event_id",
 )
 DEFAULT_JOB_LOGGER_NAME = "app.worker.jobs"
 
@@ -38,7 +40,13 @@ def build_job_log_context(
     ctx: Mapping[str, Any] | None = None,
     envelope: Any | None = None,
 ) -> dict[str, Any]:
-    """Build the structured context shared across worker-job logs."""
+    """Build the structured context shared across worker-job logs.
+
+    The returned dict may contain any of the standard worker log-shape keys:
+    ``job_id``, ``job_name``, ``correlation_id``, ``tenant_id``,
+    ``organization_id``, ``retry_count``, ``job_metadata``,
+    ``workflow_id``, and ``provider_event_id``.
+    """
 
     tenant_context = _get_field(envelope, "tenant_context")
     envelope_retry_count = _get_field(envelope, "retry_count")
@@ -56,6 +64,8 @@ def build_job_log_context(
         "organization_id": _get_field(tenant_context, "organization_id"),
         "retry_count": retry_count,
         "job_metadata": _get_field(envelope, "metadata"),
+        "workflow_id": _get_field(envelope, "workflow_id"),
+        "provider_event_id": _get_field(envelope, "provider_event_id"),
     }
     return _filter_none(fields)
 

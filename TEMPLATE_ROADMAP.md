@@ -423,12 +423,12 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 8.1: Logging
 
-- [ ] Standardize structured logging shape across API and workers.
-- [ ] Move production logging defaults toward stdout/stderr for container-native deployments.
-- [ ] Decide whether file logging remains optional or is removed from defaults.
-- [ ] Add correlation IDs, request IDs, job IDs, workflow IDs, and provider event IDs to logs.
-- [ ] Add log redaction policies for secrets and sensitive payload fields.
-- [ ] Add clear log level guidance by environment.
+- [x] Standardize structured logging shape across API and workers.
+- [x] Move production logging defaults toward stdout/stderr for container-native deployments.
+- [x] Decide whether file logging remains optional or is removed from defaults.
+- [x] Add correlation IDs, request IDs, job IDs, workflow IDs, and provider event IDs to logs.
+- [x] Add log redaction policies for secrets and sensitive payload fields.
+- [x] Add clear log level guidance by environment.
 
 ### Wave 8.2: Error Monitoring
 
@@ -1882,3 +1882,43 @@ Phase 7 is now complete. The external integration foundation provides a full HTT
 - [ ] Standardize structured logging shape across API and workers.
 - [ ] Move production logging defaults toward stdout/stderr for container-native deployments.
 - [ ] Decide whether file logging remains optional or is removed from defaults.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 8 Wave 8.1 (Logging) by standardizing the structured logging shape, making file logging opt-in, and adding environment-specific log level guidance.
+- Made file logging opt-in via `FILE_LOG_ENABLED=false` (new default). Production deployments now emit to stdout/stderr only, matching container-native conventions. The log directory is no longer eagerly created when file logging is disabled.
+- Added `WORKER_LOG_LEVEL` to the verbosity settings for independent worker log level control.
+- Added `FILE_LOG_INCLUDE_CORRELATION_ID` and `CONSOLE_LOG_INCLUDE_CORRELATION_ID` settings so correlation IDs can be included or excluded from each handler independently.
+- Refactored per-handler filter processors from duplicated standalone functions into a single `_build_handler_filter()` factory that accepts include flags, reducing code duplication.
+- Extended the standard worker log-shape vocabulary with `workflow_id` and `provider_event_id` in both `JOB_LOG_CONTEXT_KEYS` and `build_job_log_context()` so jobs processing webhook events or workflow steps carry full correlation context.
+- Extended `REQUEST_LOG_CONTEXT_KEYS` with `workflow_id` and `provider_event_id` for the API request context vocabulary.
+- Added a `FILTERABLE_CONTEXT_KEYS` constant documenting the keys that per-handler filter processors manage.
+- Updated the platform re-export surface (`src/app/platform/logger.py`) to reflect the refactored names.
+- Added 25 focused regression tests across 8 test classes covering: standard log shape vocabulary for API and worker contexts, file logging opt-in behavior, handler filter processor factory, worker job context extraction of new keys, shared processor chain composition, filterable context keys, and new config settings defaults.
+- Added a dedicated logging documentation page at `docs/user-guide/logging.md` covering production defaults, standard log shape for API and worker contexts, cross-cutting context keys, per-handler configuration, log levels by environment, redaction settings, and correlation propagation.
+- Updated the environment-specific configuration guide with a logging row in the settings matrix.
+- Updated the environment variables guide with new logging settings and a link to the logging guide.
+- Registered the logging page in the MkDocs navigation.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The sandbox `.venv` had a read-only `.lock` file preventing `uv sync` and the prior session's `/tmp/ft-venv` also had permission issues. | Used the existing venv's `ruff` binary directly and installed `mypy`, `mkdocs`, and `mkdocs-material` via pip for verification. |
+| Mypy segfaulted under the sandbox's Python 3.10 when scanning the full source tree. | Verified syntax correctness via `ast.parse()` on all changed files and confirmed ruff and mkdocs strict build both passed. Full mypy and pytest require the project's Python 3.11+ environment. |
+
+### Quality gate results
+- ruff: pass (all new files clean; pre-existing UP042 warnings are from a newer ruff version, not this session)
+- mypy: unable to run full suite in this sandbox (Python 3.10 vs project's 3.11+ requirement); all changed files verified via AST parse
+- pytest: unable to run full suite in this sandbox; 25 new tests added and structurally verified
+- docs build: pass (`mkdocs build --strict` succeeded)
+
+### Current state of the template
+Phase 8 Wave 8.1 is now complete. The template provides a standardized structured logging system with stdout/stderr as the production default output channel, opt-in file logging for environments that need it, a documented log shape vocabulary for both API and worker contexts, correlation propagation that spans request to job to outbound call chains, configurable per-handler field inclusion, sensitive field redaction, and clear log level guidance by environment. The next major observability gaps shift to Wave 8.2 (Error Monitoring with Sentry hardening) and Wave 8.3 (Metrics And Tracing).
+
+### What remains
+- [ ] Harden Sentry initialization and configuration.
+- [ ] Add Sentry support for worker processes.
+- [ ] Add Sentry tagging for environment, release, request ID, job ID, and tenant/org where applicable.

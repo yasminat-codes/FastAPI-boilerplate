@@ -305,13 +305,15 @@ class LogLevel(str, Enum):
 
 
 class FileLoggerSettings(BaseSettings):
+    FILE_LOG_ENABLED: bool = False
     FILE_LOG_MAX_BYTES: int = 10 * 1024 * 1024
     FILE_LOG_BACKUP_COUNT: int = 5
     FILE_LOG_FORMAT_JSON: bool = True
     FILE_LOG_LEVEL: LogLevel = LogLevel.INFO
 
-    # Include request ID, path, method, client host, and status code in the file log
+    # Include context fields in the file log
     FILE_LOG_INCLUDE_REQUEST_ID: bool = True
+    FILE_LOG_INCLUDE_CORRELATION_ID: bool = True
     FILE_LOG_INCLUDE_PATH: bool = True
     FILE_LOG_INCLUDE_METHOD: bool = True
     FILE_LOG_INCLUDE_CLIENT_HOST: bool = True
@@ -322,8 +324,9 @@ class ConsoleLoggerSettings(BaseSettings):
     CONSOLE_LOG_LEVEL: LogLevel = LogLevel.INFO
     CONSOLE_LOG_FORMAT_JSON: bool = False
 
-    # Include request ID, path, method, client host, and status code in the console log
+    # Include context fields in the console log
     CONSOLE_LOG_INCLUDE_REQUEST_ID: bool = False
+    CONSOLE_LOG_INCLUDE_CORRELATION_ID: bool = False
     CONSOLE_LOG_INCLUDE_PATH: bool = False
     CONSOLE_LOG_INCLUDE_METHOD: bool = False
     CONSOLE_LOG_INCLUDE_CLIENT_HOST: bool = False
@@ -333,6 +336,7 @@ class ConsoleLoggerSettings(BaseSettings):
 class LogVerbositySettings(BaseSettings):
     LOG_LEVEL: LogLevel = LogLevel.INFO
     UVICORN_LOG_LEVEL: LogLevel = LogLevel.INFO
+    WORKER_LOG_LEVEL: LogLevel = LogLevel.INFO
 
 
 class DatabaseSettings(BaseSettings):

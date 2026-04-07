@@ -31,6 +31,17 @@ src/app/integrations/
 
 See [Integration Contracts](contracts.md) for the full contract layer that sits on top of the HTTP client.
 
+## Resilience and Reliability
+
+When third-party providers fail or degrade, the template provides patterns for graceful degradation:
+
+- **Fallback data** when a provider is temporarily unavailable
+- **Partial failure handling** for batch operations where some items succeed and others fail
+- **Compensating actions** for multi-step workflows that need rollback
+- **Deferred retries** to background jobs when inline retries are exhausted
+
+See [Resilience Patterns](resilience.md) for implementation guidance and [Runbooks](runbooks.md) for operational procedures when integrations degrade.
+
 ## Quick Start
 
 ### Basic Usage

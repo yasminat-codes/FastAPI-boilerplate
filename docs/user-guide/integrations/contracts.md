@@ -259,3 +259,14 @@ restored = SyncCursor.from_cursor_state(state)
 ### SyncOperation Protocol
 
 Implement for each provider-specific sync to define `fetch_page()` and `process_page()` logic. See `src/app/integrations/contracts/sync.py` for a complete Slack-style example with checkpoint recovery and progress monitoring.
+
+## See Also
+
+For patterns to handle integration failures gracefully, see [Resilience Patterns](resilience.md):
+
+- **Fallback providers** — Use cached or stale data when primary provider is unavailable
+- **Partial failure handling** — Salvage successful items when some items in a batch fail
+- **Compensating actions** — Automate rollback for multi-step workflows that partially fail
+- **Deferred retries** — Push failed calls to background job queue when inline retries exhaust
+
+For operational guidance when integrations degrade, see [Runbooks](runbooks.md).

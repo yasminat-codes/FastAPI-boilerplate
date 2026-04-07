@@ -58,6 +58,19 @@ The contracts are designed to be:
 - ``SyncPage``: One page of fetched data
 - ``SyncOperation``: Protocol for provider-specific fetch/process logic
 - ``SyncProgress``: Progress tracking for sync operations
+
+**resilience.py**: Resilience patterns for external outages and partial failures
+
+- ``ResilientResult``: Result with fallback/default source tracking
+- ``with_fallback()``: Primary call with cached/default fallback on retryable errors
+- ``FallbackProvider``: Protocol for providing fallback data
+- ``PartialFailurePolicy``, ``PartialFailureResult``: Bulk operation failure handling
+- ``execute_with_partial_failure()``: Execute items with failure thresholds
+- ``CompensatingAction``: Protocol for undo/cleanup logic
+- ``CompensationContext``: LIFO action stack for multi-step workflows
+- ``with_compensation()``: Execute steps with automatic compensation on failure
+- ``DeferredRetryRequest``: Queue-based retry description
+- ``should_defer_retry()``, ``build_deferred_retry_request()``: Deferred retry helpers
 """
 
 from __future__ import annotations
@@ -84,6 +97,25 @@ from .errors import (
     IntegrationValidationError,
     classify_http_error,
     is_retryable_integration_error,
+)
+from .resilience import (
+    CompensatingAction,
+    CompensatingActionResult,
+    CompensationContext,
+    CompensationOutcome,
+    DeferredRetryEnqueuer,
+    DeferredRetryRequest,
+    FallbackProvider,
+    PartialFailureOutcome,
+    PartialFailurePolicy,
+    PartialFailureResult,
+    ResilientResult,
+    ResultSource,
+    build_deferred_retry_request,
+    execute_with_partial_failure,
+    should_defer_retry,
+    with_compensation,
+    with_fallback,
 )
 from .results import (
     BulkIntegrationResult,
@@ -161,4 +193,22 @@ __all__ = [
     "SyncPage",
     "SyncProgress",
     "SyncStrategy",
+    # Resilience
+    "CompensatingAction",
+    "CompensatingActionResult",
+    "CompensationContext",
+    "CompensationOutcome",
+    "DeferredRetryEnqueuer",
+    "DeferredRetryRequest",
+    "FallbackProvider",
+    "PartialFailureOutcome",
+    "PartialFailurePolicy",
+    "PartialFailureResult",
+    "ResultSource",
+    "ResilientResult",
+    "build_deferred_retry_request",
+    "execute_with_partial_failure",
+    "should_defer_retry",
+    "with_compensation",
+    "with_fallback",
 ]

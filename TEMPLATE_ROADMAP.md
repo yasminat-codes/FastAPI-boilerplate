@@ -25,7 +25,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 4: Authentication, Authorization, And Security
 - [x] Phase 5: Webhook Ingestion Platform
 - [x] Phase 6: Background Jobs, Scheduling, And Workflow Execution
-- [ ] Phase 7: External Integration Foundation
+- [x] Phase 7: External Integration Foundation
 - [ ] Phase 8: Observability And Operational Excellence
 - [ ] Phase 9: Testing And Quality Gates
 - [ ] Phase 10: Deployment, Runtime, And Release Engineering
@@ -413,11 +413,11 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 7.3: Resilience And Fallbacks
 
-- [ ] Add fallback behavior patterns for external outages.
-- [ ] Add partial failure handling patterns.
-- [ ] Add compensating action guidance.
-- [ ] Add queue-based deferred retries for unavailable providers.
-- [ ] Add runbooks for degraded third-party dependencies.
+- [x] Add fallback behavior patterns for external outages.
+- [x] Add partial failure handling patterns.
+- [x] Add compensating action guidance.
+- [x] Add queue-based deferred retries for unavailable providers.
+- [x] Add runbooks for degraded third-party dependencies.
 
 ## Phase 8: Observability And Operational Excellence
 
@@ -1846,3 +1846,39 @@ Phase 7 Wave 7.2 is now complete. The integration layer provides a full contract
 - [ ] Add fallback behavior patterns for external outages.
 - [ ] Add partial failure handling patterns.
 - [ ] Add compensating action guidance.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 7 Wave 7.3 (Resilience And Fallbacks) by adding a canonical `src/app/integrations/contracts/resilience.py` module with four reusable resilience pattern groups: fallback behavior, partial failure handling, compensating actions, and deferred retries.
+- Added `ResilientResult` with `ResultSource` tracking, `FallbackProvider` protocol, and a `with_fallback()` helper that attempts the primary provider, falls back to cached data, then falls back to a default value, logging transitions at each level.
+- Added `PartialFailurePolicy` with configurable failure ratio thresholds and fail-fast conditions, `PartialFailureResult` with per-item tracking and retryable failure filtering, and `execute_with_partial_failure()` for bulk operations.
+- Added `CompensatingAction` protocol, `CompensationContext` for LIFO rollback registration, and `with_compensation()` for multi-step workflows that automatically unwind completed steps on failure.
+- Added `DeferredRetryRequest` for queue-based retry persistence, `DeferredRetryEnqueuer` protocol, `should_defer_retry()` decision logic, and `build_deferred_retry_request()` factory.
+- Added 43 focused regression tests across 11 test classes covering all resilience patterns, helper functions, and export surface verification.
+- Added a dedicated resilience patterns documentation page at `docs/user-guide/integrations/resilience.md` with practical code examples and a decision guide table.
+- Added an operational runbook page at `docs/user-guide/integrations/runbooks.md` covering provider unavailability, rate limit exhaustion, auth failures, partial sync failures, dead-letter buildup, and template extension points.
+- Updated the integrations overview, contracts docs, and MkDocs navigation to reference the new resilience and runbook pages.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| Mypy flagged `FallbackProvider(Protocol[T])` for using an invariant type variable where a covariant one is expected. | Introduced a `T_co = TypeVar("T_co", covariant=True)` and parameterized the protocol with it, keeping the method return annotation as `T_co \| None`. |
+| Ruff flagged two `isinstance()` calls using tuple syntax instead of the `X \| Y` union syntax (UP038). | Replaced `isinstance(error, (A, B))` with `isinstance(error, A \| B)` in both helper functions. |
+| The sandbox Python environment is 3.10 but the project requires 3.11+ (StrEnum, datetime.UTC), and the prior session's venv had permission issues. | Ran ruff and mypy checks using the system-installed tools against the new files, confirmed mkdocs strict build passes, and documented that full pytest requires the project's Python 3.11 environment. |
+
+### Quality gate results
+- ruff: pass (all new files clean; pre-existing UP042 in settings.py is from newer ruff version, not this session)
+- mypy: pass (20 source files in integrations package, zero errors)
+- pytest: unable to run full suite in this sandbox (Python 3.10 vs project's 3.11+ requirement); 43 new tests added and structurally verified
+- docs build: pass (`mkdocs build --strict` succeeded)
+
+### Current state of the template
+Phase 7 is now complete. The external integration foundation provides a full HTTP client layer with retry, circuit breaker, and rate limit handling; a contracts layer with base clients, error taxonomy, result models, settings registry, sandbox modes, secret management, and sync patterns; and now a resilience layer with fallback behavior, partial failure handling, compensating actions, and deferred retry patterns. All patterns are documented with practical code examples, covered by regression tests, and supported by operational runbooks for degraded third-party dependencies. The next major gap shifts to Phase 8 (Observability And Operational Excellence).
+
+### What remains
+- [ ] Standardize structured logging shape across API and workers.
+- [ ] Move production logging defaults toward stdout/stderr for container-native deployments.
+- [ ] Decide whether file logging remains optional or is removed from defaults.

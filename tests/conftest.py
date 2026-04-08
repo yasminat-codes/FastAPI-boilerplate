@@ -12,12 +12,24 @@ from sqlalchemy.orm.session import Session
 
 from src.app.main import app
 from src.app.platform.config import settings
+from tests.settings import get_test_settings
 
 sync_engine = create_engine(settings.DATABASE_SYNC_URL)
 local_session = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
 
 
 fake = Faker()
+
+
+@pytest.fixture(scope="session")
+def test_settings():
+    """Session-scoped fixture providing deterministic test settings.
+
+    Returns test settings with hardcoded defaults that do not depend on
+    any .env file or environment variables (except for optional CI overrides).
+    This ensures all tests run with the same known configuration.
+    """
+    return get_test_settings()
 
 
 @pytest.fixture(scope="session")

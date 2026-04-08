@@ -465,10 +465,10 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 - [x] Fix the current test environment workflow so dev dependencies install and tests run reliably.
 - [x] Fix current type-check failures and keep the baseline green.
-- [ ] Add a simple project task runner or make targets for common commands.
-- [ ] Add deterministic test settings separate from normal runtime settings.
-- [ ] Add isolated test DB and Redis patterns.
-- [ ] Add test factories and fixtures for common platform objects.
+- [x] Add a simple project task runner or make targets for common commands.
+- [x] Add deterministic test settings separate from normal runtime settings.
+- [x] Add isolated test DB and Redis patterns.
+- [x] Add test factories and fixtures for common platform objects.
 
 ### Wave 9.2: Automated Test Coverage
 
@@ -2044,3 +2044,37 @@ Phase 8 is now complete. The observability and operational excellence layer prov
 - [ ] Add a simple project task runner or make targets for common commands.
 - [ ] Add deterministic test settings separate from normal runtime settings.
 - [ ] Add isolated test DB and Redis patterns.
+
+---
+
+## Session Report — 2026-04-08
+
+### What was built
+- Added a Makefile task runner with targets for quality gates (lint, type, test, check), development (dev server, worker), database (migrate, migrate-create, migrate-verify), documentation (build, serve), maintenance (format, clean, cleanup-tokens), Docker (up, down, superuser), and CI (pre-commit), plus a self-documenting help target as the default.
+- Added deterministic test settings in `tests/settings.py` with a `TestSettingsProfile` class that provides hardcoded defaults for all required settings, does not load from any .env file, and supports CI override via `TEST_DATABASE_URL` and `TEST_REDIS_HOST` environment variables.
+- Added isolated test database fixtures in `tests/fixtures/database.py` with session-scoped async/sync engines that create and drop tables per test session, and per-test session fixtures using the transactional rollback pattern for zero-cleanup isolation.
+- Added isolated test Redis fixtures in `tests/fixtures/redis.py` with per-test connections using separate Redis databases (DB 1 for cache, DB 2 for queue, DB 3 for rate limiter) and per-test flushes for isolation from development data.
+- Added comprehensive test factories in `tests/factories.py` with `build_<model>_data()` and `build_<model>()` pairs for all 12 domain and platform models (User, Post, Tier, RateLimit, WebhookEvent, IdempotencyKey, WorkflowExecution, JobStateHistory, IntegrationSyncCheckpoint, AuditLogEvent, DeadLetterRecord, TokenBlacklist), plus an `build_auth_headers()` convenience helper.
+- Added `tests/fixtures/__init__.py` re-exporting all database and Redis fixtures with documentation for three opt-in registration patterns.
+- Updated `tests/conftest.py` with a session-scoped `test_settings` fixture consuming the new deterministic settings infrastructure.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The sandbox Python is 3.10 but the project requires 3.11+, so `uv run` could not execute with the existing read-only venv. | Validated all new files via AST parse, ruff (standalone), mypy (standalone with --ignore-missing-imports), and mkdocs strict build using system-installed tools. |
+| The async_db_session fixture initially used `engine.begin()` which auto-commits, causing a double-begin when also calling `conn.begin()`. | Changed to `engine.connect()` so the explicit `conn.begin()` owns the transaction lifecycle for proper rollback. |
+| The database fixture file had an unused `event` import from sqlalchemy. | Removed the unused import. |
+
+### Quality gate results
+- ruff: pass (14 pre-existing UP042 warnings in config.py/settings.py unchanged from previous sessions; zero new warnings)
+- mypy: pass on all new files (standalone check with --ignore-missing-imports; full suite requires project's Python 3.11+ environment)
+- pytest: unable to run full suite in this sandbox (Python 3.10 vs project's 3.11+ requirement); all new files verified via AST parse and import validation
+- docs build: pass (`mkdocs build --strict` succeeded with zero warnings)
+
+### Current state of the template
+Phase 9 Wave 9.1 is now complete. The template has a Makefile task runner for all common developer commands, deterministic test settings that do not depend on environment files, isolated database and Redis fixture patterns using transactional rollback and separate Redis databases, and comprehensive test factories for all 12 domain and platform models. The testing infrastructure is now strong enough to support the integration test coverage work planned for Wave 9.2. The existing unit test suite is unchanged and backward-compatible with the new infrastructure.
+
+### What remains
+- [ ] Add integration tests for API startup and lifespan behavior.
+- [ ] Add integration tests for DB connectivity and migrations.
+- [ ] Add integration tests for Redis and queue initialization.

@@ -42,7 +42,8 @@ class TestSettingsProfile(Settings):
     ENVIRONMENT: EnvironmentOption = EnvironmentOption.LOCAL
 
     # Database settings - use test-specific database name
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/test_fastapi_template"
+    # Note: Use DATABASE_URL_INPUT because DATABASE_URL is a @computed_field in the parent class
+    DATABASE_URL_INPUT: str | None = "postgresql://postgres:postgres@localhost:5432/test_fastapi_template"
 
     # Redis cache settings - use DB 1 to avoid conflicts with development (DB 0)
     REDIS_CACHE_HOST: str = "localhost"
@@ -94,7 +95,7 @@ class TestSettingsProfile(Settings):
 
         # Allow CI to override database URL
         if db_url := os.getenv("TEST_DATABASE_URL"):
-            overrides["DATABASE_URL"] = db_url
+            overrides["DATABASE_URL_INPUT"] = db_url
 
         # Allow CI to override Redis host for all Redis services
         if redis_host := os.getenv("TEST_REDIS_HOST"):

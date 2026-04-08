@@ -608,3 +608,9 @@ This means errors logged via structlog or the stdlib logger are automatically ca
 - Set `SENTRY_WEBHOOK_SAMPLE_RATE` lower for high-traffic endpoints
 - Add noisy exception types to `SENTRY_IGNORED_EXCEPTIONS`
 - Review quota usage in Sentry and consider a higher tier
+
+## Further Reading
+
+- [Runbooks and Alerting](runbooks/index.md) — minimum production alerts (including Sentry-based alerts) and operational runbooks.
+- [Logging](logging.md) — structured logging shape and correlation context.
+- [Metrics and Tracing](metrics-and-tracing.md) — Prometheus metrics and OpenTelemetry tracing.

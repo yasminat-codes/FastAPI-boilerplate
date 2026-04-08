@@ -364,3 +364,9 @@ A sample rate of 0.1 (10%) balances observability with cost. Adjust based on you
 **High cardinality warnings:** If using Prometheus, you'll see warnings in the logs if path labels create too many unique metric series. Set `METRICS_INCLUDE_REQUEST_PATH_LABELS=false`.
 
 **Performance impact:** With metrics and tracing enabled, expect a 2-5% overhead on latency-sensitive endpoints. Disable in performance tests and benchmark with both on and off.
+
+## Further Reading
+
+- [Runbooks and Alerting](runbooks/index.md) — Prometheus alert rules for all template metrics and operational runbooks.
+- [Error Monitoring](error-monitoring.md) — Sentry configuration, filtering, and scrubbing.
+- [Logging](logging.md) — structured logging shape and correlation context.

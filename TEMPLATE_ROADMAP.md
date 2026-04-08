@@ -26,7 +26,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 5: Webhook Ingestion Platform
 - [x] Phase 6: Background Jobs, Scheduling, And Workflow Execution
 - [x] Phase 7: External Integration Foundation
-- [ ] Phase 8: Observability And Operational Excellence
+- [x] Phase 8: Observability And Operational Excellence
 - [ ] Phase 9: Testing And Quality Gates
 - [ ] Phase 10: Deployment, Runtime, And Release Engineering
 - [ ] Phase 11: Documentation And Template Experience
@@ -452,12 +452,12 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 8.4: Runbooks And Alerting
 
-- [ ] Define minimum production alerts for API failures, worker failures, and backlog growth.
-- [ ] Add an operational runbook for webhook failures.
-- [ ] Add an operational runbook for queue backlog incidents.
-- [ ] Add an operational runbook for third-party outages.
-- [ ] Add an operational runbook for migration failures.
-- [ ] Add an operational runbook for secret rotation.
+- [x] Define minimum production alerts for API failures, worker failures, and backlog growth.
+- [x] Add an operational runbook for webhook failures.
+- [x] Add an operational runbook for queue backlog incidents.
+- [x] Add an operational runbook for third-party outages.
+- [x] Add an operational runbook for migration failures.
+- [x] Add an operational runbook for secret rotation.
 
 ## Phase 9: Testing And Quality Gates
 
@@ -2009,3 +2009,38 @@ Phase 8 Wave 8.3 is now complete. The template provides a full opt-in observabil
 - [ ] Define minimum production alerts for API failures, worker failures, and backlog growth.
 - [ ] Add an operational runbook for webhook failures.
 - [ ] Add an operational runbook for queue backlog incidents.
+
+---
+
+## Session Report — 2026-04-08
+
+### What was built
+- Completed Phase 8 Wave 8.4 (Runbooks And Alerting) by adding a dedicated `docs/user-guide/runbooks/` section with an alerting overview and five operational runbooks.
+- Added an alerting guide at `docs/user-guide/runbooks/index.md` with Prometheus alert rules for API error rate, API latency, readiness probes, job failure rate, dead-letter buildup, job queue backlog, webhook rejection rate, webhook signature failures, circuit breaker state, outbound error rate, and high retry rate, plus Sentry-based alert guidance and alert routing recommendations.
+- Added an operational runbook for webhook failures covering signature verification failures, replay and duplicate storms, malformed and poison payloads, and processing backlogs.
+- Added an operational runbook for queue backlog incidents covering diagnosis, worker scaling, stuck job investigation, failure loop detection, and backlog draining.
+- Added an operational runbook for third-party outages covering outage confirmation, impact assessment, degraded mode operation, outbound request throttling, and recovery procedures, with cross-references to the existing integration-specific runbooks.
+- Added an operational runbook for migration failures covering upgrade failures, schema drift, lock timeouts, CI migration check failures, and the forward-fix, downgrade, and backup-restore recovery paths.
+- Added an operational runbook for secret rotation covering JWT signing keys (with kid-based rotation), database credentials (with zero-downtime option), Redis passwords, provider API keys, and webhook signing secrets, plus a rotation schedule table and automation guidance.
+- Registered all six new pages in the MkDocs nav under a new "Runbooks and Alerting" section.
+- Added cross-reference links from the error monitoring and metrics-and-tracing docs to the new runbooks section.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The sandbox Python version is 3.10 but the project requires 3.11+ for mypy and pytest. | Since this session only added documentation files with no Python source changes, mypy and pytest were not re-run. The mkdocs strict build was run successfully to validate all new documentation. |
+| A prior mkdocs build left a read-only `site/` directory in `/tmp/mkdocs-site`. | Built to a fresh `/tmp/mkdocs-site2` directory instead. |
+
+### Quality gate results
+- ruff: pass (14 pre-existing UP042 warnings in config.py/settings.py, unchanged from previous sessions; no new warnings)
+- mypy: not re-run (no Python source changes in this session)
+- pytest: not re-run (no Python source changes in this session)
+- docs build: pass (`mkdocs build --strict` succeeded with zero warnings)
+
+### Current state of the template
+Phase 8 is now complete. The observability and operational excellence layer provides structured logging with opt-in file output (Wave 8.1), hardened Sentry error monitoring with filtering, scrubbing, and sampling (Wave 8.2), Prometheus metrics and OpenTelemetry tracing with protocol-based extension points (Wave 8.3), and now a full set of production alerting rules and operational runbooks (Wave 8.4). The runbooks cover the five most common operational failure categories: webhook ingestion failures, queue backlog incidents, third-party provider outages, database migration failures, and secret rotation procedures. All alerting guidance references the template's actual Prometheus metric names and Sentry capabilities. The next major template gaps shift to Phase 9 (Testing And Quality Gates) and Phase 10 (Deployment, Runtime, And Release Engineering).
+
+### What remains
+- [ ] Add a simple project task runner or make targets for common commands.
+- [ ] Add deterministic test settings separate from normal runtime settings.
+- [ ] Add isolated test DB and Redis patterns.

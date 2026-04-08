@@ -102,6 +102,13 @@ nav:
       - Logging: user-guide/logging.md
       - Error Monitoring: user-guide/error-monitoring.md
       - Metrics and Tracing: user-guide/metrics-and-tracing.md
+      - Runbooks and Alerting:
+          - Overview: user-guide/runbooks/index.md
+          - Webhook Failures: user-guide/runbooks/webhook-failures.md
+          - Queue Backlog: user-guide/runbooks/queue-backlog.md
+          - Third-Party Outages: user-guide/runbooks/third-party-outages.md
+          - Migration Failures: user-guide/runbooks/migration-failures.md
+          - Secret Rotation: user-guide/runbooks/secret-rotation.md
       - Rate Limiting: user-guide/rate-limiting/index.md
       - Development: user-guide/development.md
       - Production: user-guide/production.md

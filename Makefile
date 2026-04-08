@@ -8,6 +8,7 @@ help:
 	@echo "  lint-fix          Fix ruff linting issues automatically"
 	@echo "  type              Run mypy type checking"
 	@echo "  test              Run pytest test suite"
+	@echo "  test-cov          Run tests with coverage report"
 	@echo "  test-quick        Run tests with minimal output"
 	@echo "  test-fail-fast    Run tests, stop on first failure"
 	@echo "  check             Run lint, type check, and tests (full quality gate)"
@@ -61,6 +62,10 @@ type:
 .PHONY: test
 test:
 	uv run pytest
+
+.PHONY: test-cov
+test-cov:
+	uv run pytest --cov=src --cov-report=term-missing --cov-report=html
 
 .PHONY: test-quick
 test-quick:
@@ -151,7 +156,8 @@ clean:
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 	find . -type f -name "*.pyo" -delete 2>/dev/null || true
 	find . -type f -name "*.egg-info" -delete 2>/dev/null || true
-	rm -rf .eggs dist build 2>/dev/null || true
+	rm -rf .eggs dist build htmlcov 2>/dev/null || true
+	rm -f coverage.xml 2>/dev/null || true
 	@echo "Cache and build artifacts cleaned"
 
 # ============================================================================

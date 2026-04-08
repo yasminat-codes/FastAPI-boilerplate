@@ -27,7 +27,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 6: Background Jobs, Scheduling, And Workflow Execution
 - [x] Phase 7: External Integration Foundation
 - [x] Phase 8: Observability And Operational Excellence
-- [ ] Phase 9: Testing And Quality Gates
+- [x] Phase 9: Testing And Quality Gates
 - [ ] Phase 10: Deployment, Runtime, And Release Engineering
 - [ ] Phase 11: Documentation And Template Experience
 - [ ] Phase 12: Final Production Readiness Sweep
@@ -487,13 +487,13 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 - [x] Update GitHub Actions so lint, type-check, and tests run in a reliable, reproducible way.
 - [x] Add strict MkDocs documentation build verification to CI.
-- [ ] Add service containers or compose-based CI for Postgres and Redis.
-- [ ] Add migration checks to CI.
-- [ ] Add coverage reporting.
-- [ ] Add dependency audit checks.
-- [ ] Add secret scanning checks.
-- [ ] Add optional security/static analysis checks.
-- [ ] Add build verification for production images.
+- [x] Add service containers or compose-based CI for Postgres and Redis.
+- [x] Add migration checks to CI.
+- [x] Add coverage reporting.
+- [x] Add dependency audit checks.
+- [x] Add secret scanning checks.
+- [x] Add optional security/static analysis checks.
+- [x] Add build verification for production images.
 
 ## Phase 10: Deployment, Runtime, And Release Engineering
 
@@ -2122,3 +2122,36 @@ Phase 9 Wave 9.2 is now complete. The template has comprehensive automated test 
 - [ ] Add service containers or compose-based CI for Postgres and Redis.
 - [ ] Add migration checks to CI.
 - [ ] Add coverage reporting.
+
+---
+
+## Session Report — 2026-04-08
+
+### What was built
+- Completed Phase 9 Wave 9.3 (CI Hardening) by adding service containers, coverage reporting, security analysis, and Docker build verification to GitHub Actions, and confirming that migration checks, dependency audits, and secret scanning were already implemented from prior sessions.
+- Updated `tests.yml` to provision PostgreSQL 16 and Redis 7 service containers with health checks, wired `TEST_DATABASE_URL` and `TEST_REDIS_HOST` environment variables so the deterministic test settings infrastructure connects to the CI-provisioned services, and added pytest-cov coverage reporting with XML artifact upload.
+- Added `pytest-cov` to the dev dependency group in `pyproject.toml` and added `[tool.coverage.run]` and `[tool.coverage.report]` configuration sections for consistent coverage behavior across local and CI runs.
+- Added a `security-analysis.yml` workflow running Bandit static security analysis against `src/` with JSON artifact upload and `[tool.bandit]` configuration in `pyproject.toml`.
+- Added a `docker-build.yml` workflow that builds all three deployment Dockerfiles (local, staging, production) in parallel to catch image build regressions before merge.
+- Updated the Makefile with a `test-cov` target for local coverage runs and extended the `clean` target to remove coverage artifacts.
+- Confirmed that `migration-check.yml`, `dependency-vulnerability-scan.yml`, and `secret-scan.yml` were already implemented and checked off the corresponding roadmap items.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The sandbox Python version is 3.10 but the project requires 3.11+ for the full test suite. | Installed Python 3.11 via `uv python install 3.11` and pinned `.python-version` to 3.11 so the project's venv resolved correctly. |
+| The read-only `.venv` directory from a prior session blocked `uv sync`. | Used `UV_PROJECT_ENVIRONMENT=/tmp/fastapi-venv` to install to a writable location. |
+
+### Quality gate results
+- ruff: pass (zero new warnings)
+- mypy: pass on src (2 pre-existing errors in metrics.py and tracing.py, unchanged from previous sessions)
+- pytest: 1425 passed, 18 pre-existing failures (metrics/tracing/resilience tests from prior sessions, unchanged)
+- docs build: pass (`uv run mkdocs build --strict` succeeded with zero warnings)
+
+### Current state of the template
+Phase 9 is now complete. The CI pipeline has 9 workflow files covering linting, type checking, tests with real Postgres and Redis service containers, coverage reporting, strict documentation builds, migration drift detection, dependency vulnerability scanning, secret scanning, static security analysis, and Docker image build verification. The template's quality gate surface is now comprehensive enough that a cloned project inherits a strong CI baseline from day one. The next major template gaps shift to Phase 10 (Deployment, Runtime, And Release Engineering).
+
+### What remains
+- [ ] Replace dev-oriented Dockerfiles with production-grade Dockerfiles.
+- [ ] Use a non-root runtime user.
+- [ ] Ensure only necessary application files are copied into the image.

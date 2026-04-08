@@ -1,0 +1,43 @@
+name: Docker Build Verification
+
+on: [push, pull_request]
+
+jobs:
+  build-local:
+    runs-on: ubuntu-latest
+    name: Build local Dockerfile
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build local development image
+      run: docker build -f scripts/local_with_uvicorn/Dockerfile -t fastapi-template:local-test .
+
+    - name: Verify image exists
+      run: docker image inspect fastapi-template:local-test > /dev/null
+
+  build-staging:
+    runs-on: ubuntu-latest
+    name: Build staging Dockerfile
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build staging image
+      run: docker build -f scripts/gunicorn_managing_uvicorn_workers/Dockerfile -t fastapi-template:staging-test .
+
+    - name: Verify image exists
+      run: docker image inspect fastapi-template:staging-test > /dev/null
+
+  build-production:
+    runs-on: ubuntu-latest
+    name: Build production Dockerfile
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build production image
+      run: docker build -f scripts/production_with_nginx/Dockerfile -t fastapi-template:prod-test .
+
+    - name: Verify image exists
+      run: docker image inspect fastapi-template:prod-test > /dev/null

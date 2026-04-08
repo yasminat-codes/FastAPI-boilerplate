@@ -23,12 +23,21 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # --------- Final Stage ---------
 FROM python:3.11-slim-bookworm
 
+# Add metadata labels
+LABEL maintainer="Benav Labs <contact@benav.io>"
+LABEL description="FastAPI application - Local development with uvicorn"
+
 # Create a non-root user for security
 RUN groupadd --gid 1000 app \
     && useradd --uid 1000 --gid app --shell /bin/bash --create-home app
 
 # Copy the virtual environment from the builder stage
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
+
+# Copy only necessary application files
+COPY --chown=app:app src /app/src
+COPY --chown=app:app pyproject.toml uv.lock /app/
+COPY --chown=app:app alembic.ini /app/
 
 # Ensure the virtual environment is in the PATH
 ENV PATH="/app/.venv/bin:$PATH"
@@ -37,8 +46,14 @@ ENV PATH="/app/.venv/bin:$PATH"
 USER app
 
 # Set the working directory
-WORKDIR /code
+WORKDIR /app
 
-# -------- replace with comment to run with gunicorn --------
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-# CMD ["gunicorn", "app.main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+# Expose the port
+EXPOSE 8000
+
+# Health check (uses python since curl is not installed in slim images)
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=10s \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+
+# Start the application with uvicorn in reload mode (development)
+CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

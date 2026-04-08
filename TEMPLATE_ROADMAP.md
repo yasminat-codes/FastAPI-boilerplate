@@ -28,7 +28,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 7: External Integration Foundation
 - [x] Phase 8: Observability And Operational Excellence
 - [x] Phase 9: Testing And Quality Gates
-- [ ] Phase 10: Deployment, Runtime, And Release Engineering
+- [x] Phase 10: Deployment, Runtime, And Release Engineering
 - [ ] Phase 11: Documentation And Template Experience
 - [ ] Phase 12: Final Production Readiness Sweep
 
@@ -499,39 +499,39 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 10.1: Container Hardening
 
-- [ ] Replace dev-oriented Dockerfiles with production-grade Dockerfiles.
-- [ ] Use a non-root runtime user.
-- [ ] Ensure only necessary application files are copied into the image.
-- [ ] Ensure migrations and scripts are available in the image where needed.
-- [ ] Add healthchecks to container definitions.
-- [ ] Add restart policies and stop-grace periods.
-- [ ] Add resource limit guidance.
-- [ ] Add image size optimization where reasonable.
+- [x] Replace dev-oriented Dockerfiles with production-grade Dockerfiles.
+- [x] Use a non-root runtime user.
+- [x] Ensure only necessary application files are copied into the image.
+- [x] Ensure migrations and scripts are available in the image where needed.
+- [x] Add healthchecks to container definitions.
+- [x] Add restart policies and stop-grace periods.
+- [x] Add resource limit guidance.
+- [x] Add image size optimization where reasonable.
 
 ### Wave 10.2: Runtime Topology
 
-- [ ] Define the standard deployable components: API, worker, optional scheduler, migrations job, reverse proxy.
-- [ ] Add deployment examples for container-only environments.
-- [ ] Add deployment examples for orchestrated environments if in scope.
-- [ ] Add a migration job pattern separate from app startup.
-- [ ] Add release promotion guidance across environments.
-- [ ] Add blue-green or rolling deploy considerations.
+- [x] Define the standard deployable components: API, worker, optional scheduler, migrations job, reverse proxy.
+- [x] Add deployment examples for container-only environments.
+- [x] Add deployment examples for orchestrated environments if in scope.
+- [x] Add a migration job pattern separate from app startup.
+- [x] Add release promotion guidance across environments.
+- [x] Add blue-green or rolling deploy considerations.
 
 ### Wave 10.3: Secrets And Environment Management
 
-- [ ] Remove unsafe example values from defaults where possible.
-- [ ] Add `.env.example` files that are safe and realistic.
-- [ ] Add guidance for secret manager integration.
-- [ ] Add secret rotation guidance for JWT keys and provider credentials.
-- [ ] Add release and environment variable documentation for every required setting.
+- [x] Remove unsafe example values from defaults where possible.
+- [x] Add `.env.example` files that are safe and realistic.
+- [x] Add guidance for secret manager integration.
+- [x] Add secret rotation guidance for JWT keys and provider credentials.
+- [x] Add release and environment variable documentation for every required setting.
 
 ### Wave 10.4: Backups, Recovery, And Maintenance
 
-- [ ] Add backup strategy guidance for Postgres.
-- [ ] Add restore validation guidance.
-- [ ] Add retention guidance for Redis-backed transient data versus durable database state.
-- [ ] Add maintenance tasks for token blacklists, event retention, dead-letter cleanup, and audit pruning.
-- [ ] Add disaster recovery notes for template adopters.
+- [x] Add backup strategy guidance for Postgres.
+- [x] Add restore validation guidance.
+- [x] Add retention guidance for Redis-backed transient data versus durable database state.
+- [x] Add maintenance tasks for token blacklists, event retention, dead-letter cleanup, and audit pruning.
+- [x] Add disaster recovery notes for template adopters.
 
 ## Phase 11: Documentation And Template Experience
 
@@ -2155,3 +2155,37 @@ Phase 9 is now complete. The CI pipeline has 9 workflow files covering linting, 
 - [ ] Replace dev-oriented Dockerfiles with production-grade Dockerfiles.
 - [ ] Use a non-root runtime user.
 - [ ] Ensure only necessary application files are copied into the image.
+
+---
+
+## Session Report — 2026-04-08
+
+### What was built
+- Completed Phase 10 (Deployment, Runtime, And Release Engineering) across all four waves in a single session.
+- Replaced all three Dockerfiles (local, staging, production) with production-grade multi-stage builds using `ghcr.io/astral-sh/uv:python3.11-bookworm-slim` as the builder and `python:3.11-slim-bookworm` as the final image, with non-root `app` user (UID 1000), minimal file copying, Python-based HEALTHCHECK directives (no curl dependency), STOPSIGNAL SIGTERM for graceful shutdown, and metadata labels.
+- Added a `.dockerignore` at the repo root to exclude .git, tests, docs, caches, and env files from the Docker build context.
+- Hardened all three docker-compose.yml files: upgraded to Postgres 16-alpine and Redis 7-alpine, added service healthchecks for all containers, added `restart: unless-stopped` policies, added `stop_grace_period` (30s for API, 60s for workers), fixed worker commands to use `src.app.workers.settings.WorkerSettings`, added `depends_on` with `condition: service_healthy`, added a `migrate` service for run-once migrations before app startup, added commented resource limit guidance in the production compose, pinned NGINX to `1.25-alpine`, and removed source volume mounts from staging and production profiles.
+- Created a `docs/user-guide/deployment/` documentation section with five pages: deployment overview, container hardening, runtime topology, secrets management, and backups and recovery.
+- Updated the MkDocs nav to include the new Deployment section and removed the old standalone Production page from the navigation.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The agent-generated Dockerfiles used `curl` in HEALTHCHECK directives, but `python:3.11-slim-bookworm` does not ship curl. | Replaced all HEALTHCHECK commands with `python -c "import urllib.request; urllib.request.urlopen(...)"` across all three Dockerfiles and all three docker-compose.yml files. |
+| The agent-generated docker-compose files kept old `app.main:app` command paths instead of `src.app.main:app`. | Fixed the web service commands in staging and production compose files to use `src.app.main:app`. |
+| The local docker-compose volume mounts referenced `/code/` but the Dockerfile uses `/app` as WORKDIR. | Updated volume mounts to map `./src:/app/src` instead of `./src/app:/code/app`. |
+| The sandbox `.venv` directory had permission issues from prior sessions. | Created a fresh venv at `/tmp/ft-venv` using `UV_PROJECT_ENVIRONMENT`. |
+
+### Quality gate results
+- ruff: pass (All checks passed)
+- mypy: pass (2 pre-existing errors in metrics.py and tracing.py, unchanged from previous sessions; 176 source files checked)
+- pytest: 1425 passed, 18 pre-existing failures (metrics/tracing/resilience tests from prior sessions requiring optional dependencies)
+- docs build: pass (`uv run mkdocs build --strict` succeeded with zero warnings)
+
+### Current state of the template
+Phase 10 is now complete. The deployment layer provides production-grade Dockerfiles with multi-stage uv builds, non-root users, and healthchecks across all three deployment profiles (local, staging, production). Docker Compose configurations are hardened with service healthchecks, dependency ordering, restart policies, graceful shutdown grace periods, and a dedicated migration job. Comprehensive deployment documentation covers container hardening, runtime topology with Kubernetes and ECS examples, secrets management with rotation procedures, and backup and disaster recovery guidance. The template is now deployable to production environments with documented operational procedures.
+
+### What remains
+- [ ] Rewrite the README around template adoption rather than generic boilerplate claims.
+- [ ] Add a clear "what this template is for" section.
+- [ ] Add a clear "what this template does not include" section.

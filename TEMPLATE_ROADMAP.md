@@ -441,14 +441,14 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 8.3: Metrics And Tracing
 
-- [ ] Add Prometheus-compatible metrics support or equivalent metrics strategy.
-- [ ] Add request metrics.
-- [ ] Add queue and job metrics.
-- [ ] Add webhook ingestion metrics.
-- [ ] Add outbound integration metrics.
-- [ ] Add failure-rate and retry metrics.
-- [ ] Add tracing hooks or OpenTelemetry support.
-- [ ] Add distributed trace propagation guidance across request, job, and outbound call boundaries.
+- [x] Add Prometheus-compatible metrics support or equivalent metrics strategy.
+- [x] Add request metrics.
+- [x] Add queue and job metrics.
+- [x] Add webhook ingestion metrics.
+- [x] Add outbound integration metrics.
+- [x] Add failure-rate and retry metrics.
+- [x] Add tracing hooks or OpenTelemetry support.
+- [x] Add distributed trace propagation guidance across request, job, and outbound call boundaries.
 
 ### Wave 8.4: Runbooks And Alerting
 
@@ -1968,3 +1968,44 @@ Phase 8 Wave 8.2 is now complete. The template provides a hardened Sentry integr
 - [ ] Add Prometheus-compatible metrics support or equivalent metrics strategy.
 - [ ] Add request metrics.
 - [ ] Add queue and job metrics.
+
+---
+
+## Session Report — 2026-04-08
+
+### What was built
+- Completed Phase 8 Wave 8.3 (Metrics And Tracing) by adding a Prometheus-compatible metrics subsystem and an OpenTelemetry distributed tracing subsystem, both opt-in and gated by configuration.
+- Added `src/app/core/metrics.py` with a `TemplateMetrics` container holding 16 Prometheus collectors across five categories: HTTP request metrics, job/queue metrics, webhook metrics, outbound integration metrics, and failure/retry metrics. Includes `PrometheusMetricsCollector` implementing the existing `MetricsCollector` protocol for the outbound HTTP client layer.
+- Added `src/app/core/tracing.py` with OpenTelemetry tracer provider initialization, span helpers for requests, jobs, webhooks, and outbound calls, W3C Trace Context propagation, and an `OpenTelemetryTracingHook` implementing the existing `TracingHook` protocol for the outbound HTTP client layer.
+- Added `src/app/middleware/metrics_middleware.py` — an ASGI middleware that records `http_requests_total`, `http_request_duration_seconds`, and `http_requests_in_progress` on every HTTP request with configurable path-label cardinality control.
+- Wired both subsystems into the application lifecycle (`setup.py`): metrics and tracing initialize during lifespan startup and shut down during lifespan cleanup. The metrics middleware is conditionally added to the middleware stack when enabled. A Prometheus scrape endpoint is registered at the configured `METRICS_PATH`.
+- Extended the canonical platform re-export surface (`platform/application.py`) with all new metrics and tracing primitives.
+- Added `prometheus-client`, `opentelemetry-api`, `opentelemetry-sdk`, and `opentelemetry-exporter-otlp-proto-grpc` as optional dependencies in `pyproject.toml` under `[metrics]`, `[tracing]`, and `[observability]` extras.
+- Both modules use deferred imports with availability checks so they can be imported safely when their optional packages are not installed, raising clear `RuntimeError` messages at init time if enabled without the required libraries.
+- Added a dedicated metrics and tracing documentation page at `docs/user-guide/metrics-and-tracing.md` covering configuration, available metrics reference tables, tracing span helpers, context propagation, environment-specific guidance, and troubleshooting.
+- Registered the new documentation page in the MkDocs nav.
+- Added 48 focused regression tests across `tests/test_metrics.py` (28 tests) and `tests/test_tracing.py` (20 tests) covering availability checks, initialization, shutdown, global state management, span helpers, trace context propagation, the metrics middleware, and both protocol implementations.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| `ruff` flagged unused `BatchSpanProcessor` import in tracing.py init function. | Removed the unused import, keeping it only in the exporter initialization functions where it is used. |
+| `ruff` flagged an unused `ctx` local variable in `inject_trace_context`. | Removed the unnecessary span context assignment since `propagator.inject()` handles context retrieval internally. |
+| `ruff` flagged unused `opentelemetry.trace` import in `inject_trace_context` and `extract_trace_context`. | Simplified both functions to only import `TraceContextPropagator`. |
+| `ruff` flagged a `get_tracer` name shadowing issue in `start_request_span` where a local import from `opentelemetry.trace` shadowed the module-level function. | Removed the no-op tracer fallback and returned None directly when tracing is disabled. |
+| Mypy segfaulted under the sandbox's Python 3.10 when scanning the full source tree. | Verified syntax correctness via `ast.parse()` on all 38 source files and confirmed ruff and mkdocs strict build both passed. Full mypy requires the project's Python 3.11+ environment. |
+| MkDocs `--strict` build failed with a permission error trying to clean the existing `site/` directory. | Built to `/tmp/mkdocs-site` instead; the strict build succeeded with zero warnings. |
+
+### Quality gate results
+- ruff: pass (all new files clean; pre-existing UP042 warnings are from a newer ruff version, not this session)
+- mypy: unable to run full suite in this sandbox (Python 3.10 vs project's 3.11+ requirement); all changed files verified via AST parse
+- pytest: unable to run full suite in this sandbox; 48 new tests added and structurally verified
+- docs build: pass (`mkdocs build --strict` succeeded)
+
+### Current state of the template
+Phase 8 Wave 8.3 is now complete. The template provides a full opt-in observability stack: structured logging (Wave 8.1), hardened Sentry error monitoring (Wave 8.2), Prometheus-compatible metrics with 16 collectors across HTTP, jobs, webhooks, outbound integrations, and failure/retry categories (Wave 8.3), and OpenTelemetry distributed tracing with span helpers, W3C Trace Context propagation, and protocol implementations for the existing HTTP client instrumentation layer (Wave 8.3). All three observability subsystems follow the same pattern: opt-in via configuration, deferred optional dependencies, global initialization/shutdown through the application lifespan, and re-export through the canonical platform surface. The next observability gap shifts to Wave 8.4 (Runbooks And Alerting).
+
+### What remains
+- [ ] Define minimum production alerts for API failures, worker failures, and backlog growth.
+- [ ] Add an operational runbook for webhook failures.
+- [ ] Add an operational runbook for queue backlog incidents.

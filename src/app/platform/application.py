@@ -1,5 +1,14 @@
 """Canonical application runtime surface."""
 
+from ..core.metrics import (
+    PrometheusMetricsCollector,
+    TemplateMetrics,
+    build_metrics_endpoint_response,
+    get_metrics,
+    get_path_template_label,
+    init_metrics,
+    shutdown_metrics,
+)
 from ..core.sentry import (
     SentryConfig,
     SentryEventFilter,
@@ -29,8 +38,32 @@ from ..core.setup import (
     set_threadpool_tokens,
     shutdown_sentry,
 )
+from ..core.tracing import (
+    OpenTelemetryTracingHook,
+    TemplateTracing,
+    extract_trace_context,
+    get_tracer,
+    init_tracing,
+    inject_trace_context,
+    is_tracing_enabled,
+    shutdown_tracing,
+    start_job_span,
+    start_outbound_span,
+    start_request_span,
+    start_webhook_span,
+    trace_span,
+)
 
 __all__ = [
+    # Metrics
+    "PrometheusMetricsCollector",
+    "TemplateMetrics",
+    "build_metrics_endpoint_response",
+    "get_metrics",
+    "get_path_template_label",
+    "init_metrics",
+    "shutdown_metrics",
+    # Sentry
     "SentryConfig",
     "SentryEventFilter",
     "capture_sentry_exception",
@@ -56,4 +89,18 @@ __all__ = [
     "set_threadpool_tokens",
     "shutdown_sentry",
     "traces_sampler",
+    # Tracing
+    "OpenTelemetryTracingHook",
+    "TemplateTracing",
+    "extract_trace_context",
+    "get_tracer",
+    "init_tracing",
+    "inject_trace_context",
+    "is_tracing_enabled",
+    "shutdown_tracing",
+    "start_job_span",
+    "start_outbound_span",
+    "start_request_span",
+    "start_webhook_span",
+    "trace_span",
 ]

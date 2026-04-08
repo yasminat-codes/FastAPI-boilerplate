@@ -36,6 +36,17 @@ dependencies = [
     "sentry-sdk>=2.0.0",
 ]
 
+[project.optional-dependencies]
+metrics = ["prometheus-client>=0.20.0"]
+tracing = [
+    "opentelemetry-api>=1.20.0",
+    "opentelemetry-sdk>=1.20.0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
+]
+observability = [
+    "fastapi-boilerplate[metrics,tracing]",
+]
+
 [project.scripts]
 db-migrate = "src.scripts.migrations:main"
 db-migrate-verify = "src.scripts.verify_migrations:main"

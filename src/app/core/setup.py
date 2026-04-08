@@ -23,6 +23,7 @@ from ..core.logger import logging
 from ..core.utils.rate_limit import rate_limiter
 from ..middleware.client_cache_middleware import ClientCacheMiddleware
 from ..middleware.logger_middleware import RequestContextMiddleware
+from ..middleware.metrics_middleware import MetricsMiddleware
 from ..middleware.request_body_limit_middleware import RequestBodyLimitMiddleware
 from ..middleware.request_timeout_middleware import RequestTimeoutMiddleware
 from ..middleware.security_headers_middleware import SecurityHeadersMiddleware, build_security_headers
@@ -34,6 +35,7 @@ from .config import (
     EnvironmentOption,
     EnvironmentSettings,
     FeatureFlagsSettings,
+    MetricsSettings,
     PostgresSettings,
     ProxyHeadersSettings,
     RedisCacheSettings,
@@ -43,12 +45,15 @@ from .config import (
     RequestTimeoutSettings,
     SecurityHeadersSettings,
     SentrySettings,
+    TracingSettings,
     TrustedHostSettings,
     settings,
 )
 from .db.database import async_engine
 from .db.database import initialize_database_engine as initialize_runtime_database_engine
+from .metrics import init_metrics, shutdown_metrics
 from .redis import build_arq_redis_settings, build_redis_pool_kwargs
+from .tracing import init_tracing, shutdown_tracing
 from .utils import cache, queue
 
 logger = logging.getLogger(__name__)
@@ -299,6 +304,8 @@ def lifespan_factory(
         | RedisQueueSettings
         | RedisRateLimiterSettings
         | EnvironmentSettings
+        | MetricsSettings
+        | TracingSettings
         | SentrySettings
         | SecurityHeadersSettings
         | TrustedHostSettings
@@ -336,6 +343,14 @@ def lifespan_factory(
                 init_sentry(settings)
                 resource_stack.push_async_callback(shutdown_sentry, settings)
 
+            if isinstance(settings, MetricsSettings) and settings.METRICS_ENABLED:
+                init_metrics(settings)
+                resource_stack.callback(shutdown_metrics)
+
+            if isinstance(settings, TracingSettings) and settings.TRACING_ENABLED:
+                init_tracing(settings)
+                resource_stack.push_async_callback(shutdown_tracing, settings)
+
             app.state.initialization_complete.set()
 
             try:
@@ -363,6 +378,8 @@ def create_application(
         | RedisQueueSettings
         | RedisRateLimiterSettings
         | EnvironmentSettings
+        | MetricsSettings
+        | TracingSettings
         | SentrySettings
         | SecurityHeadersSettings
         | TrustedHostSettings
@@ -446,6 +463,17 @@ def create_application(
 
     application.add_middleware(GracefulShutdownMiddleware)
 
+    if isinstance(settings, MetricsSettings) and settings.METRICS_ENABLED:
+        from .metrics import get_metrics
+
+        metrics = get_metrics()
+        if metrics is not None:
+            application.add_middleware(
+                MetricsMiddleware,
+                metrics=metrics,
+                include_path_labels=settings.METRICS_INCLUDE_REQUEST_PATH_LABELS,
+            )
+
     if isinstance(settings, CORSSettings) and settings.CORS_ORIGINS:
         application.add_middleware(
             CORSMiddleware,
@@ -511,5 +539,20 @@ def create_application(
                 return out
 
             application.include_router(docs_router)
+
+    # Metrics endpoint — Prometheus scrape target
+    if isinstance(settings, MetricsSettings) and settings.METRICS_ENABLED:
+        from .metrics import build_metrics_endpoint_response
+
+        metrics_router = APIRouter()
+
+        @metrics_router.get(settings.METRICS_PATH, include_in_schema=False)
+        async def metrics_endpoint() -> Response:
+            return Response(
+                content=build_metrics_endpoint_response(),
+                media_type="text/plain; version=0.0.4; charset=utf-8",
+            )
+
+        application.include_router(metrics_router)
 
     return application

@@ -43,6 +43,8 @@
 * 📨 Reusable webhook intake pipeline for receive, validate, persist, acknowledge, enqueue
 * ♻️ Replay-protection helpers for recent webhook deliveries
 * 🧊 Redis caching (server + client-side headers)
+* 📊 Opt-in Prometheus metrics (request, job, webhook, outbound, failure/retry)
+* 🔭 Opt-in OpenTelemetry tracing with W3C Trace Context propagation
 * 🌐 Configurable CORS middleware for frontend integration
 * 🐳 One-command Docker Compose
 * 🚀 NGINX & Gunicorn recipes for prod

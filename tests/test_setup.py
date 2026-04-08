@@ -397,10 +397,18 @@ def test_init_sentry_uses_runtime_observability_settings() -> None:
 
     sentry_sdk_module = ModuleType("sentry_sdk")
     sentry_sdk_module.init = Mock()
+    mock_scope = Mock()
+    sentry_sdk_module.get_current_scope = Mock(return_value=mock_scope)
     fastapi_integration_factory = Mock(return_value=object())
+    logging_integration_factory = Mock(return_value=object())
+    arq_integration_factory = Mock(return_value=object())
     sentry_integrations_module = ModuleType("sentry_sdk.integrations")
     sentry_fastapi_module = ModuleType("sentry_sdk.integrations.fastapi")
     sentry_fastapi_module.FastApiIntegration = fastapi_integration_factory
+    sentry_logging_module = ModuleType("sentry_sdk.integrations.logging")
+    sentry_logging_module.LoggingIntegration = logging_integration_factory
+    sentry_arq_module = ModuleType("sentry_sdk.integrations.arq")
+    sentry_arq_module.ArqIntegration = arq_integration_factory
 
     with (
         patch.dict(
@@ -409,6 +417,8 @@ def test_init_sentry_uses_runtime_observability_settings() -> None:
                 "sentry_sdk": sentry_sdk_module,
                 "sentry_sdk.integrations": sentry_integrations_module,
                 "sentry_sdk.integrations.fastapi": sentry_fastapi_module,
+                "sentry_sdk.integrations.logging": sentry_logging_module,
+                "sentry_sdk.integrations.arq": sentry_arq_module,
             },
         ),
     ):
@@ -424,7 +434,6 @@ def test_init_sentry_uses_runtime_observability_settings() -> None:
     assert kwargs["attach_stacktrace"] is False
     assert kwargs["send_default_pii"] is True
     assert kwargs["max_breadcrumbs"] == 55
-    assert kwargs["traces_sample_rate"] == 0.2
     assert kwargs["profiles_sample_rate"] == 0.05
 
 

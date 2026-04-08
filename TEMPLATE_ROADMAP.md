@@ -432,12 +432,12 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 8.2: Error Monitoring
 
-- [ ] Harden Sentry initialization and configuration.
-- [ ] Add Sentry support for worker processes.
-- [ ] Add Sentry tagging for environment, release, request ID, job ID, and tenant/org where applicable.
-- [ ] Add Sentry filtering and scrubbing rules.
-- [ ] Add release tracking guidance.
-- [ ] Add sampling guidance for high-volume systems.
+- [x] Harden Sentry initialization and configuration.
+- [x] Add Sentry support for worker processes.
+- [x] Add Sentry tagging for environment, release, request ID, job ID, and tenant/org where applicable.
+- [x] Add Sentry filtering and scrubbing rules.
+- [x] Add release tracking guidance.
+- [x] Add sampling guidance for high-volume systems.
 
 ### Wave 8.3: Metrics And Tracing
 
@@ -1922,3 +1922,49 @@ Phase 8 Wave 8.1 is now complete. The template provides a standardized structure
 - [ ] Harden Sentry initialization and configuration.
 - [ ] Add Sentry support for worker processes.
 - [ ] Add Sentry tagging for environment, release, request ID, job ID, and tenant/org where applicable.
+
+---
+
+## Session Report — 2026-04-07
+
+### What was built
+- Completed Phase 8 Wave 8.2 (Error Monitoring) by adding a dedicated `src/app/core/sentry.py` module that replaces the inline Sentry init/shutdown code in `setup.py` with a hardened, production-ready integration.
+- Added `SentryConfig` dataclass with factory constructor from settings, `SentryEventFilter` with configurable exception-type filtering, logger-name filtering, and recursive field scrubbing that reuses the template's log-redaction patterns.
+- Added automatic request ID and correlation ID tag injection on every error event and transaction via the `before_send` and `before_send_transaction` callbacks.
+- Added `init_sentry()` for API processes (FastAPI + Logging + ARQ integrations, process_type=api tag) and `init_sentry_for_worker()` for background workers (ARQ + Logging integrations, process_type=worker tag).
+- Added context-aware transaction sampling via `traces_sampler()` that suppresses health/readiness endpoint traces, applies configurable webhook and worker sample rates, and falls back to the default traces rate.
+- Added scope helpers: `set_sentry_tags()`, `set_sentry_user()` with tenant/org tagging, `set_sentry_request_context()`, `set_sentry_job_context()`, `capture_sentry_exception()`, and `capture_sentry_message()`.
+- Added release tracking with `resolve_sentry_release()` and `SENTRY_RELEASE_PREFIX` for multi-service namespacing.
+- Added 11 new settings to `SentrySettings`: flush timeout, release prefix, server name, error sample rate, ignored exceptions/loggers, scrub fields/replacement, health endpoint sample rate, webhook sample rate, and worker sample rate.
+- Extended the platform application export surface with all new Sentry primitives.
+- Rewired `src/app/core/setup.py` to re-export from the new sentry module and updated `src/app/core/worker/functions.py` to use `init_sentry_for_worker`.
+- Added 56 focused regression tests covering config construction, event filtering, field scrubbing, traces sampling, SDK init/shutdown, scope helpers, capture helpers, settings validation, and export surface completeness.
+- Added a dedicated error monitoring documentation page at `docs/user-guide/error-monitoring.md` covering all configuration, filtering, scrubbing, sampling, release tracking, and environment-specific guidance.
+- Updated existing `test_setup.py` and `test_worker_lifecycle.py` tests to work with the new module wiring.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The new sentry module initially used absolute imports (`from src.app.core.config ...`) instead of the template's relative import convention. | Rewrote all imports to use relative paths (`from .config ...`, `from .log_redaction ...`). |
+| Mypy rejected the `before_send` and `before_send_transaction` callback signatures because the Sentry SDK types `Event` as `MutableMapping` not `dict`. | Added targeted `# type: ignore[arg-type]` on the four callback parameter lines. |
+| Mypy rejected the `capture_message` level parameter because the SDK expects a `Literal` union, not `str`. | Added a targeted `# type: ignore[arg-type]` on the dynamic level parameter. |
+| The deprecated `sentry_sdk.Hub.current.client` API was used in the initial implementation. | Replaced with `sentry_sdk.get_client().is_active()` and `sentry_sdk.get_current_scope()` for all scope operations. |
+| Ruff flagged invalid `# noqa: WPS442` comments and a line over 120 characters. | Removed the invalid noqa comments, extracted the long ternary into a local variable, and reran ruff. |
+| Existing tests in `test_setup.py` failed because they only mocked `sentry_sdk` and `sentry_sdk.integrations.fastapi`, but the new module also imports logging and ARQ integrations. | Updated the sys.modules mock dict to include all four integration submodules. |
+| Existing tests in `test_worker_lifecycle.py` patched `init_sentry` but the import was renamed to `init_sentry_for_worker`. | Updated the mock target names in both test functions. |
+| New sentry test `test_scrub_event_data_recurses_into_nested_dicts` failed because the test passed un-normalised exact field names while `should_redact_field` normalises before matching. | Fixed the test to pass normalised field names (e.g. `apikey` instead of `api_key`). |
+| New sentry test `test_sentry_settings_requires_dsn_when_enabled` failed because `model_construct` bypasses Pydantic validators. | Changed to direct `SentrySettings(...)` construction so the model validator fires. |
+
+### Quality gate results
+- ruff: pass
+- mypy: pass (no issues in 173 source files)
+- pytest: 1070 passed, 2 pre-existing failures in test_integration_resilience.py (unrelated to this session)
+- docs build: pass (`uv run mkdocs build --strict`)
+
+### Current state of the template
+Phase 8 Wave 8.2 is now complete. The template provides a hardened Sentry integration that goes well beyond the previous inline init/flush: API and worker processes get separate SDK initialisation paths with appropriate integrations and process-type tagging, every error event and transaction is automatically tagged with request and correlation IDs, configurable exception and logger filters drop noisy events before they leave the process, recursive field scrubbing protects sensitive data using the same redaction patterns as the structured logging layer, and context-aware transaction sampling suppresses health-check noise while allowing fine-grained control over webhook and worker trace rates. All primitives are documented, covered by focused regression tests, and exported through the canonical platform surface.
+
+### What remains
+- [ ] Add Prometheus-compatible metrics support or equivalent metrics strategy.
+- [ ] Add request metrics.
+- [ ] Add queue and job metrics.

@@ -1,5 +1,19 @@
 """Canonical application runtime surface."""
 
+from ..core.sentry import (
+    SentryConfig,
+    SentryEventFilter,
+    capture_sentry_exception,
+    capture_sentry_message,
+    init_sentry_for_worker,
+    is_sentry_enabled,
+    resolve_sentry_release,
+    set_sentry_job_context,
+    set_sentry_request_context,
+    set_sentry_tags,
+    set_sentry_user,
+    traces_sampler,
+)
 from ..core.setup import (
     close_database_engine,
     close_redis_cache_pool,
@@ -17,6 +31,10 @@ from ..core.setup import (
 )
 
 __all__ = [
+    "SentryConfig",
+    "SentryEventFilter",
+    "capture_sentry_exception",
+    "capture_sentry_message",
     "close_database_engine",
     "close_redis_cache_pool",
     "close_redis_queue_pool",
@@ -26,8 +44,16 @@ __all__ = [
     "create_redis_queue_pool",
     "create_redis_rate_limit_pool",
     "init_sentry",
+    "init_sentry_for_worker",
     "initialize_database_engine",
+    "is_sentry_enabled",
     "lifespan_factory",
+    "resolve_sentry_release",
+    "set_sentry_job_context",
+    "set_sentry_request_context",
+    "set_sentry_tags",
+    "set_sentry_user",
     "set_threadpool_tokens",
     "shutdown_sentry",
+    "traces_sampler",
 ]

@@ -100,6 +100,7 @@ nav:
           - Resilience Patterns: user-guide/integrations/resilience.md
           - Runbooks: user-guide/integrations/runbooks.md
       - Logging: user-guide/logging.md
+      - Error Monitoring: user-guide/error-monitoring.md
       - Rate Limiting: user-guide/rate-limiting/index.md
       - Development: user-guide/development.md
       - Production: user-guide/production.md

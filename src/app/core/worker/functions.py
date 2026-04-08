@@ -7,15 +7,14 @@ from typing import Any
 import uvloop
 
 from ..config import SettingsProfile
+from ..sentry import init_sentry_for_worker, shutdown_sentry
 from ..setup import (
     close_database_engine,
     close_redis_cache_pool,
     close_redis_rate_limit_pool,
     create_redis_cache_pool,
     create_redis_rate_limit_pool,
-    init_sentry,
     initialize_database_engine,
-    shutdown_sentry,
 )
 from ..utils import queue
 from .logging import bind_job_log_context, clear_job_log_context, get_job_logger
@@ -64,7 +63,7 @@ async def startup(ctx: dict[str, Any]) -> None:
             resource_stack.push_async_callback(close_redis_rate_limit_pool)
 
             if settings.SENTRY_ENABLE:
-                init_sentry(settings)
+                init_sentry_for_worker(settings)
                 resource_stack.push_async_callback(shutdown_sentry, settings)
 
         get_job_logger().info("Worker started")

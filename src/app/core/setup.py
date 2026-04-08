@@ -276,38 +276,10 @@ async def close_redis_rate_limit_pool() -> None:
 
 
 # -------------- sentry --------------
-def init_sentry(sentry_settings: SentrySettings | None = None) -> None:
-    sentry_settings = settings if sentry_settings is None else sentry_settings
-
-    if not sentry_settings.SENTRY_ENABLE:
-        return
-    import sentry_sdk
-    from sentry_sdk.integrations.fastapi import FastApiIntegration
-
-    sentry_sdk.init(
-        dsn=sentry_settings.SENTRY_DSN.get_secret_value() if sentry_settings.SENTRY_DSN else None,
-        environment=sentry_settings.SENTRY_ENVIRONMENT,
-        release=sentry_settings.SENTRY_RELEASE,
-        debug=sentry_settings.SENTRY_DEBUG,
-        attach_stacktrace=sentry_settings.SENTRY_ATTACH_STACKTRACE,
-        send_default_pii=sentry_settings.SENTRY_SEND_DEFAULT_PII,
-        max_breadcrumbs=sentry_settings.SENTRY_MAX_BREADCRUMBS,
-        traces_sample_rate=sentry_settings.SENTRY_TRACES_SAMPLE_RATE,
-        profiles_sample_rate=sentry_settings.SENTRY_PROFILES_SAMPLE_RATE,
-        integrations=[
-            FastApiIntegration(transaction_style="endpoint"),
-        ],
-    )
-
-
-async def shutdown_sentry(sentry_settings: SentrySettings | None = None) -> None:
-    sentry_settings = settings if sentry_settings is None else sentry_settings
-
-    if not sentry_settings.SENTRY_ENABLE:
-        return
-    import sentry_sdk
-
-    sentry_sdk.flush()
+# Sentry initialisation and shutdown are now provided by the dedicated
+# ``src.app.core.sentry`` module.  The names are re-exported here so
+# existing callers continue to resolve without changes.
+from .sentry import init_sentry, shutdown_sentry  # noqa: E402
 
 
 # -------------- application --------------

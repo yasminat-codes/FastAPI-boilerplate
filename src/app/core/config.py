@@ -830,6 +830,31 @@ class SentrySettings(BaseSettings):
     SENTRY_MAX_BREADCRUMBS: int = Field(default=100, ge=0)
     SENTRY_TRACES_SAMPLE_RATE: float = Field(default=1.0, ge=0.0, le=1.0)
     SENTRY_PROFILES_SAMPLE_RATE: float = Field(default=1.0, ge=0.0, le=1.0)
+    SENTRY_FLUSH_TIMEOUT_SECONDS: int = Field(default=2, ge=0)
+    SENTRY_RELEASE_PREFIX: str = ""
+    SENTRY_SERVER_NAME: str | None = None
+    SENTRY_ERROR_SAMPLE_RATE: float = Field(default=1.0, ge=0.0, le=1.0)
+    SENTRY_IGNORED_EXCEPTIONS: list[str] = Field(default_factory=list)
+    SENTRY_IGNORED_LOGGERS: list[str] = Field(default_factory=list)
+    SENTRY_SCRUB_FIELDS: list[str] = Field(
+        default_factory=lambda: [
+            "password",
+            "secret",
+            "token",
+            "authorization",
+            "cookie",
+            "session",
+            "api_key",
+            "dsn",
+            "private_key",
+            "credit_card",
+            "ssn",
+        ]
+    )
+    SENTRY_SCRUB_REPLACEMENT: str = "[Filtered]"
+    SENTRY_HEALTH_ENDPOINT_SAMPLE_RATE: float = Field(default=0.0, ge=0.0, le=1.0)
+    SENTRY_WEBHOOK_SAMPLE_RATE: float | None = None
+    SENTRY_WORKER_SAMPLE_RATE: float | None = None
 
     @model_validator(mode="after")
     def validate_sentry_settings(self) -> Self:

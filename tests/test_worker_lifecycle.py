@@ -34,7 +34,7 @@ async def test_worker_startup_and_shutdown_manage_shared_resources() -> None:
     close_redis_cache_pool = AsyncMock()
     create_redis_rate_limit_pool = AsyncMock()
     close_redis_rate_limit_pool = AsyncMock()
-    init_sentry = Mock()
+    init_sentry_for_worker = Mock()
     shutdown_sentry = AsyncMock()
 
     with (
@@ -44,7 +44,7 @@ async def test_worker_startup_and_shutdown_manage_shared_resources() -> None:
         patch.object(worker_functions_module, "close_redis_cache_pool", close_redis_cache_pool),
         patch.object(worker_functions_module, "create_redis_rate_limit_pool", create_redis_rate_limit_pool),
         patch.object(worker_functions_module, "close_redis_rate_limit_pool", close_redis_rate_limit_pool),
-        patch.object(worker_functions_module, "init_sentry", init_sentry),
+        patch.object(worker_functions_module, "init_sentry_for_worker", init_sentry_for_worker),
         patch.object(worker_functions_module, "shutdown_sentry", shutdown_sentry),
     ):
         await worker_functions_module.startup(ctx)
@@ -57,7 +57,7 @@ async def test_worker_startup_and_shutdown_manage_shared_resources() -> None:
     initialize_database_engine.assert_awaited_once_with(settings)
     create_redis_cache_pool.assert_awaited_once_with(settings)
     create_redis_rate_limit_pool.assert_awaited_once_with(settings)
-    init_sentry.assert_called_once_with(settings)
+    init_sentry_for_worker.assert_called_once_with(settings)
     shutdown_sentry.assert_awaited_once_with(settings)
     close_redis_rate_limit_pool.assert_awaited_once_with()
     close_redis_cache_pool.assert_awaited_once_with()
@@ -82,7 +82,7 @@ async def test_worker_startup_cleans_up_already_initialized_resources_when_later
     close_redis_cache_pool = AsyncMock()
     create_redis_rate_limit_pool = AsyncMock(side_effect=RuntimeError("rate-limit startup failed"))
     close_redis_rate_limit_pool = AsyncMock()
-    init_sentry = Mock()
+    init_sentry_for_worker = Mock()
     shutdown_sentry = AsyncMock()
 
     with (
@@ -92,7 +92,7 @@ async def test_worker_startup_cleans_up_already_initialized_resources_when_later
         patch.object(worker_functions_module, "close_redis_cache_pool", close_redis_cache_pool),
         patch.object(worker_functions_module, "create_redis_rate_limit_pool", create_redis_rate_limit_pool),
         patch.object(worker_functions_module, "close_redis_rate_limit_pool", close_redis_rate_limit_pool),
-        patch.object(worker_functions_module, "init_sentry", init_sentry),
+        patch.object(worker_functions_module, "init_sentry_for_worker", init_sentry_for_worker),
         patch.object(worker_functions_module, "shutdown_sentry", shutdown_sentry),
         pytest.raises(RuntimeError, match="rate-limit startup failed"),
     ):

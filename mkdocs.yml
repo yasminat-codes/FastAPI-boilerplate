@@ -44,6 +44,8 @@ nav:
   - Getting Started:
       - Overview: getting-started/index.md
       - Installation: getting-started/installation.md
+      - Local Development Quickstart: getting-started/quickstart-local.md
+      - Production Deployment Quickstart: getting-started/quickstart-production.md
       - Configuration: getting-started/configuration.md
       - First Run: getting-started/first-run.md
   - User Guide:
@@ -99,9 +101,18 @@ nav:
           - Integration Contracts: user-guide/integrations/contracts.md
           - Resilience Patterns: user-guide/integrations/resilience.md
           - Runbooks: user-guide/integrations/runbooks.md
+      - Extension Guides:
+          - Overview: user-guide/guides/index.md
+          - Adding a Background Job: user-guide/guides/adding-background-job.md
+          - Adding a Workflow: user-guide/guides/adding-workflow.md
+          - Adding a Client Integration: user-guide/guides/adding-integration.md
+      - Architecture Diagrams: user-guide/architecture-diagrams.md
+      - Sequence Diagrams: user-guide/sequence-diagrams.md
+      - Deployment Diagrams: user-guide/deployment-diagrams.md
       - Logging: user-guide/logging.md
       - Error Monitoring: user-guide/error-monitoring.md
       - Metrics and Tracing: user-guide/metrics-and-tracing.md
+      - Observability Setup: user-guide/observability-setup.md
       - Runbooks and Alerting:
           - Overview: user-guide/runbooks/index.md
           - Webhook Failures: user-guide/runbooks/webhook-failures.md
@@ -116,6 +127,7 @@ nav:
           - Runtime Topology: user-guide/deployment/runtime-topology.md
           - Secrets Management: user-guide/deployment/secrets.md
           - Backups and Recovery: user-guide/deployment/backups.md
+      - Troubleshooting: user-guide/troubleshooting.md
       - Development: user-guide/development.md
       - Testing: user-guide/testing.md
   - Community: community.md
@@ -157,7 +169,11 @@ markdown_extensions:
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.tasklist:

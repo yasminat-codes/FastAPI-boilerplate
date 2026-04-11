@@ -1,7 +1,6 @@
-site_name: FastAPI Boilerplate
-site_description: A production-ready FastAPI boilerplate with async support, JWT authentication, Redis caching, and more.
-site_author: Benav Labs
-site_url: https://github.com/benavlabs/fastapi-boilerplate
+site_name: FastAPI Template
+site_description: Reusable production-ready FastAPI backend template with Postgres, Redis, jobs, webhooks, and observability.
+site_author: Template Maintainers
 
 theme:
   name: material
@@ -131,7 +130,7 @@ nav:
       - Development: user-guide/development.md
       - Testing: user-guide/testing.md
       - Versioning and Releases: user-guide/versioning.md
-  - Community: community.md
+  - Support: community.md
   # - Examples:
   #   - Overview: examples/index.md
   #   - Basic CRUD: examples/basic-crud.md
@@ -184,8 +183,6 @@ markdown_extensions:
 
 extra:
   social:
-    - icon: fontawesome/brands/github
-      link: https://github.com/benavlabs/fastapi-boilerplate
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/fastapi/
   version:
@@ -196,7 +193,3 @@ extra:
 
 extra_css:
   - stylesheets/extra.css
-
-repo_name: benavlabs/fastapi-boilerplate
-repo_url: https://github.com/benavlabs/fastapi-boilerplate
-edit_uri: edit/main/docs/

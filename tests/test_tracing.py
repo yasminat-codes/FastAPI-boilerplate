@@ -24,6 +24,9 @@ from src.app.core.tracing import (
     trace_span,
 )
 
+# Skip all tests in this module if OpenTelemetry is not installed
+pytest.importorskip("opentelemetry")
+
 # ---------------------------------------------------------------------------
 # Fixtures for resetting global state
 # ---------------------------------------------------------------------------

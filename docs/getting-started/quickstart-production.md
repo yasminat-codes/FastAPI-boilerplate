@@ -19,7 +19,7 @@ Get the template deployed to a production-like environment.
 ## Step 1: Clone and configure
 
 ```bash
-git clone https://github.com/benavlabs/fastapi-boilerplate myproject
+git clone https://github.com/<your-org>/<your-repo> myproject
 cd myproject
 
 # Use the production setup profile

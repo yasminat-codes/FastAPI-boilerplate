@@ -1,6 +1,6 @@
 # Getting Started
 
-Welcome to the FastAPI Boilerplate! This guide will have you up and running with a production-ready API in just a few minutes.
+Welcome to the FastAPI Template. This guide gets a derived repository running quickly while keeping the shared platform conventions intact.
 
 ## Quick Start (5 minutes)
 
@@ -17,7 +17,7 @@ Make sure you have installed:
 
 Start by using this template for your new project:
 
-1. Click **"Use this template"** on the [GitHub repository](https://github.com/benavlabs/fastapi-boilerplate)
+1. Click **"Use this template"** on the repository you want to derive from
 2. Create a new repository with your project name
 3. Clone your new repository:
 
@@ -95,9 +95,9 @@ This will start:
 Once the containers are running, you should see output like:
 
 ```
-fastapi-boilerplate-web-1     | INFO:     Application startup complete.
-fastapi-boilerplate-db-1      | database system is ready to accept connections
-fastapi-boilerplate-worker-1  | redis_version=7.x.x mem_usage=1MB clients_connected=1
+your-repo-web-1     | INFO:     Application startup complete.
+your-repo-db-1      | database system is ready to accept connections
+your-repo-worker-1  | redis_version=7.x.x mem_usage=1MB clients_connected=1
 ```
 
 Visit these URLs to confirm everything is working:
@@ -175,7 +175,7 @@ Now that you have the basics running, explore these guides to learn more:
 - **[Rate Limiting](../user-guide/rate-limiting/index.md)** - Protect your API from abuse
 
 ### Development & Deployment
-- **[Development Guide](../user-guide/development.md)** - Extend and customize the boilerplate
+- **[Development Guide](../user-guide/development.md)** - Extend and customize the template
 - **[Testing](../user-guide/testing.md)** - Write tests for your API
 - **[Production Deployment](../user-guide/production.md)** - Deploy to production
 
@@ -187,8 +187,8 @@ Not using Docker? No problem!
 
 ## Need Help?
 
-- Join our **[Discord Community](../community.md)** - Get help from other developers
-- Report issues on **[GitHub](https://github.com/benavlabs/fastapi-boilerplate/issues)**
+- Read the **[Support guide](../community.md)** to define maintainer and contributor channels
+- Use the issue tracker configured in the repository you cloned
 
 ---
 

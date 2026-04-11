@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide covers different ways to install and set up the FastAPI Boilerplate depending on your needs and environment.
+This guide covers different ways to install and set up the FastAPI Template depending on your needs and environment.
 
 ## System Requirements
 
@@ -27,8 +27,8 @@ Install these tools on your system:
 1. **Get the template**:
 
    ```bash
-   git clone https://github.com/benavlabs/fastapi-boilerplate
-   cd fastapi-boilerplate
+   git clone https://github.com/<your-org>/<your-repo>
+   cd <your-repo>
    ```
 
 1. **Quick setup** (recommended):
@@ -133,8 +133,8 @@ For more control or development purposes, you can install everything manually.
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/benavlabs/fastapi-boilerplate
-   cd fastapi-boilerplate
+   git clone https://github.com/<your-org>/<your-repo>
+   cd <your-repo>
    ```
 
 1. **Install Python dependencies**:
@@ -187,7 +187,7 @@ For more control or development purposes, you can install everything manually.
 
 ## Method 3: Development Setup
 
-For contributors and advanced users who want to modify the boilerplate.
+For contributors and advanced users who want to modify the template.
 
 ### Additional Prerequisites
 
@@ -199,8 +199,8 @@ For contributors and advanced users who want to modify the boilerplate.
 
    ```bash
    # Fork the repository on GitHub first
-   git clone https://github.com/yourusername/fastapi-boilerplate
-   cd fastapi-boilerplate
+   git clone https://github.com/<your-org>/<your-repo>
+   cd <your-repo>
    ```
 
 1. **Install development dependencies**:
@@ -411,6 +411,6 @@ After successful installation:
 
 If you encounter issues:
 
-- Check the [GitHub Issues](https://github.com/benavlabs/fastapi-boilerplate/issues) for common problems
-- Search [existing issues](https://github.com/benavlabs/fastapi-boilerplate/issues)
-- Create a [new issue](https://github.com/benavlabs/fastapi-boilerplate/issues/new) with details
+- Check your repository issue tracker for common problems
+- Search existing issues in the repository you cloned
+- Open a new issue using the templates configured for that repository

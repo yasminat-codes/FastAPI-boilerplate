@@ -1,6 +1,6 @@
 # First Run Guide
 
-Congratulations on setting up the FastAPI Boilerplate! This guide will walk you through testing your installation, understanding the basics, and making your first customizations.
+Congratulations on setting up the FastAPI Template. This guide walks through verification, basic orientation, and safe first customizations.
 
 ## Verification Checklist
 
@@ -16,10 +16,10 @@ docker compose ps
 
 # Expected output:
 # NAME                          COMMAND                  SERVICE   STATUS
-# fastapi-boilerplate-web-1     "uvicorn app.main:app…"  web       running
-# fastapi-boilerplate-db-1      "docker-entrypoint.s…"  db        running
-# fastapi-boilerplate-redis-1   "docker-entrypoint.s…"  redis     running
-# fastapi-boilerplate-worker-1  "arq src.app.core.wo…"  worker    running
+# your-repo-web-1     "uvicorn app.main:app…"  web       running
+# your-repo-db-1      "docker-entrypoint.s…"  db        running
+# your-repo-redis-1   "docker-entrypoint.s…"  redis     running
+# your-repo-worker-1  "arq src.app.core.wo…"  worker    running
 ```
 
 ### 2. Test API Endpoints
@@ -302,7 +302,7 @@ curl -X GET "http://localhost:8000/api/v1/users/johndoe" \
 
 ## Your First Customization
 
-Let's create a simple custom endpoint to see how easy it is to extend the boilerplate.
+Let's create a simple custom endpoint to see how easy it is to extend the template.
 
 ### 1. Create a Simple Model
 
@@ -609,7 +609,7 @@ Now that you've verified everything works and created your first custom endpoint
 
 ### Development Workflow
 
-1. **[Development Guide](../user-guide/development.md)** - Best practices for extending the boilerplate
+1. **[Development Guide](../user-guide/development.md)** - Best practices for extending the template
 2. **[Testing](../user-guide/testing.md)** - Write tests for your new features
 3. **[Production](../user-guide/production.md)** - Deploy your API to production
 
@@ -619,9 +619,9 @@ If you encounter any issues:
 
 1. **Check the logs** for error messages
 2. **Verify your configuration** in the `.env` file
-3. **Review the [GitHub Issues](https://github.com/benavlabs/fastapi-boilerplate/issues)** for common solutions
-4. **Search [existing issues](https://github.com/benavlabs/fastapi-boilerplate/issues)** on GitHub
-5. **Create a [new issue](https://github.com/benavlabs/fastapi-boilerplate/issues/new)** with detailed information
+3. **Review your repository issue tracker** for common solutions
+4. **Search existing issues** in the repository you cloned
+5. **Open a new issue** using the templates configured for that repository
 
 ## Congratulations!
 

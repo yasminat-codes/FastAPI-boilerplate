@@ -1,96 +1,40 @@
-# Community
+# Support And Collaboration
 
-Join our vibrant Discord community to connect with other developers, get help, share your projects, and stay updated with the latest developments!
+This template is intentionally neutral. Once you adopt it for your own repository, decide where contributors and operators should ask questions, report bugs, and coordinate maintenance.
 
-## 🚀 Discord Server
+## Recommended Support Surface
 
-**[Join our Discord community](https://discord.com/invite/TEmPs22gqB)**
+Set up these channels in the repository you publish from this template:
 
-Welcome to the **Benav Labs** community! Our Discord server is the central hub where developers using our FastAPI boilerplate and other products can connect, collaborate, and grow together.
+- **Issue tracker** for bug reports, regressions, and scoped enhancement requests.
+- **Pull request workflow** for implementation discussion and review history.
+- **Discussions, chat, or internal team channel** for usage questions and design exploration.
+- **Runbooks and operational docs** for incident response, deployment guidance, and ownership handoffs.
 
-## 🏠 What to Expect
+## Suggested Maintainer Policy
 
-When you join our Discord server, you'll find an organized space designed for productive discussions and community building. Here's what you can expect:
+Document who owns the template and how changes are reviewed:
 
-### Community Guidelines
+- Name the maintainer team responsible for releases and dependency upgrades.
+- Define how client-specific requests are converted into reusable template patterns.
+- State which requests belong in the shared template versus downstream product repositories.
+- Publish response expectations for security reports, bug triage, and roadmap changes.
 
-Our community is built on respect and collaboration. We maintain:
+## Suggested Repository Links
 
-- A welcoming environment for developers of all skill levels
-- Clear guidelines to keep discussions productive and on-topic
-- Direct feedback channels to the Benav Labs team
-- A safe space for sharing projects and asking questions
+Before publishing a derived repository, replace the defaults in `README.md`, `mkdocs.yml`, and your repository settings with links to:
 
----
+- Your canonical Git hosting URL
+- Your issue tracker
+- Your discussion or chat space
+- Your release notes or changelog
+- Your maintainer contact or team alias
 
-### 📚 Channel Overview
+## Internal Adoption Checklist
 
-- **🤝 Networking**
+If you use this template inside an organization, add:
 
-    Connect with fellow developers, share your background, and explore collaboration opportunities. Perfect for introductions and finding project partners.
-
-- **📚 Products**
-
-    Learn about the Benav Labs ecosystem, including FastroAI and other tools. Get updates on new features and product roadmaps.
-
-- **📸 Showcase**
-
-    Share what you've built using our tools! From quick prototypes to full production applications, the community loves seeing your creations. Projects may be featured in our blog or community highlights.
-
-- **🗒️ Blog**
-
-    Stay updated with our latest technical blog posts, tutorials, and insights about FastAPI, AI development, and best practices.
-
-- **📣 Announcements**
-
-    Official updates from the Benav Labs team about new releases, important changes, and community events.
-
-- **💬 General**
-
-    Open discussions about development, troubleshooting, and general chat. Great for quick questions and casual conversations.
-
-- **🎤 Community Voice**
-
-    Join live voice conversations, community calls, and interactive discussions with other members and the team.
-
----
-
-## 🌟 Community Benefits
-
-By joining our Discord community, you get:
-
-- **Direct support** from the Benav Labs team and experienced community members
-- **Early insights** into new features and product developments
-- **Networking opportunities** with developers building similar projects
-- **Project showcase** opportunities for visibility and feedback
-- **Real-time help** with FastAPI boilerplate and development questions
-
-## 🎯 Getting Started
-
-1. **Join the server** using the invite link above
-2. **Read the welcome message** and community guidelines
-3. **Introduce yourself** in the networking channel
-4. **Explore the channels** to see ongoing discussions
-5. **Ask questions** - the community is here to help!
-
-## 💬 Feedback & Support
-
-We actively encourage feedback and suggestions! The community provides multiple ways to share your thoughts:
-
-- Direct messages to team members for product feedback
-- Public discussions for feature requests and improvements
-- Bug reports and technical issues
-- General suggestions for the community and products
-
----
-
-## 🔗 Quick Links
-
-- **Discord Server:** [discord.gg/TEmPs22gqB](https://discord.com/invite/TEmPs22gqB)
-- **FastroAI:** [benav.io/fastroai](https://benav.io/fastroai)
-- **Blog:** [fastro.ai/blog](https://fastro.ai/blog)
-- **Benav Labs:** [benav.io](https://benav.io)
-
----
-
-We're excited to have you as part of our community! 🚀
+- An onboarding note for new service owners
+- A definition of done for template changes
+- A policy for dependency updates and security patches
+- A support escalation path for production incidents

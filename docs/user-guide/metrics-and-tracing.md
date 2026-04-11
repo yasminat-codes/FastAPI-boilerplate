@@ -10,13 +10,13 @@ Metrics and tracing are available as optional dependencies:
 
 ```bash
 # Metrics only (Prometheus)
-pip install fastapi-boilerplate[metrics]
+pip install fastapi-template[metrics]
 
 # Tracing only (OpenTelemetry)
-pip install fastapi-boilerplate[tracing]
+pip install fastapi-template[tracing]
 
 # Both (recommended for production)
-pip install fastapi-boilerplate[observability]
+pip install fastapi-template[observability]
 ```
 
 ## Metrics

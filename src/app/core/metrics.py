@@ -363,7 +363,8 @@ def build_metrics_endpoint_response() -> bytes:
 
     from prometheus_client import REGISTRY, generate_latest
 
-    return generate_latest(REGISTRY)
+    result: bytes = generate_latest(REGISTRY)
+    return result
 
 
 # ---------------------------------------------------------------------------

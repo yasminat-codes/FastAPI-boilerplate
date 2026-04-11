@@ -1,5 +1,8 @@
 # Production Deployment
 
+!!! note "Moved"
+    This page has been replaced by the [Deployment Guide](deployment/index.md), which covers container hardening, runtime topology, secrets management, and backup and recovery in detail.
+
 This guide covers deploying the FastAPI boilerplate to production with proper performance, security, and reliability configurations.
 
 ## Production Architecture
@@ -197,7 +200,7 @@ loglevel = "info"
 access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
 
 # Process naming
-proc_name = "fastapi-boilerplate"
+proc_name = "fastapi-template"
 
 # Server mechanics
 daemon = False

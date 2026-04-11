@@ -1,17 +1,15 @@
-# Benav Labs FastAPI Boilerplate
+# FastAPI Template
 
 <p align="center">
-  <img src="assets/FastAPI-boilerplate.png" alt="Purple Rocket with FastAPI Logo as its window." width="35%" height="auto">
+  <img src="assets/FastAPI-boilerplate.png" alt="Rocket illustration for the FastAPI template." width="35%" height="auto">
 </p>
 
 <p align="center">
-  <i>A production-ready FastAPI boilerplate to speed up your development.</i>
+  <i>A reusable FastAPI backend template with production-ready defaults.</i>
 </p>
 
-!!! warning "Documentation Status"
-    This is our first version of the documentation. While functional, we acknowledge it's rough around the edges - there's a huge amount to document and we needed to start somewhere! We built this foundation (with a lot of AI assistance) so we can improve upon it. 
-    
-    Better documentation, examples, and guides are actively being developed. Contributions and feedback are greatly appreciated!
+!!! note "Template customization"
+    If you cloned this repository for a new product, replace the default repository metadata, package name, support links, and docs branding before publishing your derived project internally or externally.
 
 <p align="center">
   <a href="https://fastapi.tiangolo.com">
@@ -31,16 +29,16 @@
   </a>
 </p>
 
-## What is FastAPI Boilerplate?
+## What is FastAPI Template?
 
-FastAPI Boilerplate is a comprehensive, production-ready template that provides everything you need to build scalable, async APIs using modern Python technologies. It combines the power of FastAPI with industry best practices to give you a solid foundation for your next project.
+FastAPI Template is a production-ready backend foundation for teams that want a strong FastAPI starting point without inheriting client-specific code. It combines hardened platform primitives with clear extension points for domain logic, integrations, webhooks, workflows, and operations.
 
 ## Core Technologies
 
-This boilerplate leverages cutting-edge Python technologies:
+This template uses modern Python infrastructure and keeps the defaults close to production:
 
 - **[FastAPI](https://fastapi.tiangolo.com)** - Modern, fast web framework for building APIs with Python 3.7+
-- **[Pydantic V2](https://docs.pydantic.dev/2.4/)** - Data validation library rewritten in Rust (5x-50x faster)
+- **[Pydantic V2](https://docs.pydantic.dev/2.4/)** - Data validation and settings management
 - **[SQLAlchemy 2.0](https://docs.sqlalchemy.org/en/20/)** - Python SQL toolkit and Object Relational Mapper
 - **[PostgreSQL](https://www.postgresql.org)** - Advanced open source relational database
 - **[Redis](https://redis.io)** - In-memory data store for caching and message brokering
@@ -82,12 +80,12 @@ This boilerplate leverages cutting-edge Python technologies:
 
 ## Quick Start
 
-Get up and running in less than 5 minutes:
+Get up and running with your own derived repository:
 
 ```bash
-# Clone the repository
-git clone https://github.com/benavlabs/fastapi-boilerplate
-cd fastapi-boilerplate
+# Clone your template-derived repository
+git clone https://github.com/<your-org>/<your-repo>
+cd <your-repo>
 
 # Start with Docker Compose
 docker compose up
@@ -104,7 +102,7 @@ That's it! Your API will be available at `http://localhost:8000/docs`
 - **[User Guide](user-guide/index.md)** - Comprehensive feature documentation
 
 ### For Developers
-- **[Development](user-guide/development.md)** - Extending and customizing the boilerplate
+- **[Development](user-guide/development.md)** - Extending and customizing the template
 - **[Testing](user-guide/testing.md)** - Testing strategies and best practices
 - **[Production](user-guide/production.md)** - Production deployment guides
 
@@ -115,12 +113,7 @@ That's it! Your API will be available at `http://localhost:8000/docs`
 - **SaaS Applications** - Multi-tenant applications with user tiers
 - **Data APIs** - APIs for data processing and analytics
 
-## Community & Support
+## Support & Maintenance
 
-- **[Discord Community](community.md)** - Join our Discord server to connect with other developers
-- **[GitHub Issues](https://github.com/benavlabs/fastapi-boilerplate/issues)** - Bug reports and feature requests
-
-<hr>
-<a href="https://benav.io">
-  <img src="https://github.com/benavlabs/fastcrud/raw/main/docs/assets/benav_labs_banner.png" alt="Powered by Benav Labs - benav.io"/>
-</a>
+- **[Support guide](community.md)** - Decide how maintainers, adopters, and contributors should collaborate
+- **Your repository issue tracker** - Use the issue templates configured in the repo you cloned

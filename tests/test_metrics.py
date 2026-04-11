@@ -20,6 +20,9 @@ from src.app.core.metrics import (
 )
 from src.app.middleware.metrics_middleware import MetricsMiddleware
 
+# Skip all tests if prometheus_client is not installed
+pytest.importorskip("prometheus_client", reason="prometheus_client not installed")
+
 # ---------------------------------------------------------------------------
 # Fixtures for resetting global state
 # ---------------------------------------------------------------------------

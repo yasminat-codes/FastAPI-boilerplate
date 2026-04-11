@@ -598,7 +598,7 @@ wheels = [
 ]
 
 [[package]]
-name = "fastapi-boilerplate"
+name = "fastapi-template"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
@@ -673,7 +673,7 @@ requires-dist = [
     { name = "bcrypt", specifier = ">=4.1.1" },
     { name = "crudadmin", specifier = ">=0.4.2" },
     { name = "fastapi", specifier = ">=0.109.1" },
-    { name = "fastapi-boilerplate", extras = ["metrics", "tracing"], marker = "extra == 'observability'" },
+    { name = "fastapi-template", extras = ["metrics", "tracing"], marker = "extra == 'observability'" },
     { name = "fastcrud", specifier = ">=0.19.2" },
     { name = "greenlet", specifier = ">=2.0.2" },
     { name = "gunicorn", specifier = ">=23.0.0" },

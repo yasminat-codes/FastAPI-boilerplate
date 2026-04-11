@@ -1,8 +1,8 @@
 [project]
-name = "fastapi-boilerplate"
+name = "fastapi-template"
 version = "0.1.0"
-description = "Batteries-included FastAPI starter with production-ready defaults, optional modules, and clear docs."
-authors = [{ name = "Benav Labs", email = "contact@benav.io" }]
+description = "Reusable production-ready FastAPI template with hardened platform defaults and extension guides."
+authors = [{ name = "Template Maintainers" }]
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11, <4"
@@ -44,7 +44,7 @@ tracing = [
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
 ]
 observability = [
-    "fastapi-boilerplate[metrics,tracing]",
+    "fastapi-template[metrics,tracing]",
 ]
 
 [project.scripts]

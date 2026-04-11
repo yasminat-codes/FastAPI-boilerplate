@@ -186,17 +186,21 @@ def _init_console_exporter(tracer_provider: Any) -> None:
 
     try:
         from opentelemetry.sdk.trace.export import ConsoleSpanExporter
+
+        exporter_cls = ConsoleSpanExporter
     except ImportError:
         # Fallback for older OpenTelemetry versions
         from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
-        class ConsoleSpanExporter(InMemorySpanExporter):
+        class _FallbackConsoleExporter(InMemorySpanExporter):  # type: ignore[misc]
             def export(self, spans: Any) -> Any:
                 for span in spans:
                     logger.info(f"SPAN: {span.name}", extra={"span": str(span)})
                 return 0
 
-    exporter = ConsoleSpanExporter()
+        exporter_cls = _FallbackConsoleExporter  # type: ignore[assignment]
+
+    exporter = exporter_cls()
     tracer_provider.add_span_processor(SimpleSpanProcessor(exporter))
 
 

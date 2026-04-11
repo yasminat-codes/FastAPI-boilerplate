@@ -11,7 +11,7 @@ Get the template running locally in under five minutes.
 ## Option A: Docker Compose (fastest)
 
 ```bash
-git clone https://github.com/benavlabs/fastapi-boilerplate myproject
+git clone https://github.com/<your-org>/<your-repo> myproject
 cd myproject
 
 # Interactive setup — choose "local"
@@ -43,7 +43,7 @@ Use this when you want to run the Python process directly and manage Postgres
 and Redis yourself (or point at remote instances).
 
 ```bash
-git clone https://github.com/benavlabs/fastapi-boilerplate myproject
+git clone https://github.com/<your-org>/<your-repo> myproject
 cd myproject
 
 # Install dependencies

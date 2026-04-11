@@ -335,9 +335,12 @@ class TestExecuteWithPartialFailure:
         error = IntegrationError("Error", provider_name="test")
         operation = AsyncMock(side_effect=error)
 
+        # Use max_failure_ratio=1.0 to allow all items to fail without aborting
+        policy = PartialFailurePolicy(max_failure_ratio=1.0)
         result = await execute_with_partial_failure(
             items,
             operation,
+            policy=policy,
             provider_name="test",
         )
 
@@ -607,8 +610,18 @@ class TestWithCompensation:
 
         comp2 = MagicMock(spec=CompensatingAction)
         comp2.description = "comp2"
+        comp2.can_compensate = AsyncMock(return_value=True)
+        comp2.execute = AsyncMock(
+            return_value=CompensatingActionResult(
+                success=True,
+                action_description="comp2",
+            )
+        )
 
-        compensations = [comp1, comp2]
+        comp3 = MagicMock(spec=CompensatingAction)
+        comp3.description = "comp3"
+
+        compensations = [comp1, comp2, comp3]
 
         outcome = await with_compensation(
             steps,
@@ -619,7 +632,7 @@ class TestWithCompensation:
         assert outcome.success is False
         assert outcome.completed_steps == 1
         assert outcome.failure_error is error
-        # Only comp1 should be executed (comp2 was never registered)
+        # Only comp1 should be executed (comp2 and comp3 were never registered)
         assert len(outcome.compensation_results) == 1
         comp1.execute.assert_called_once()
 

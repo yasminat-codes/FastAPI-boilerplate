@@ -29,7 +29,7 @@ Read [EXECUTION_SYSTEM.md](/Users/yasmineseidu/coding/fastapi-template/EXECUTION
 - [x] Phase 8: Observability And Operational Excellence
 - [x] Phase 9: Testing And Quality Gates
 - [x] Phase 10: Deployment, Runtime, And Release Engineering
-- [ ] Phase 11: Documentation And Template Experience (Wave 11.1 and 11.2 complete, Wave 11.3 remaining)
+- [x] Phase 11: Documentation And Template Experience
 - [ ] Phase 12: Final Production Readiness Sweep
 
 ## How We Will Use This Document
@@ -558,12 +558,12 @@ The template now includes two shared automation persistence ledgers: inbound web
 
 ### Wave 11.3: GitHub Template Readiness
 
-- [ ] Clean up repository branding for template reuse.
-- [ ] Add template-friendly issue and PR templates if desired.
-- [ ] Add release/versioning guidance for the template itself.
-- [ ] Add a changelog strategy.
-- [ ] Add contribution guidance for maintaining the shared template.
-- [ ] Confirm the repo is ready to be marked as a GitHub template repository.
+- [x] Clean up repository branding for template reuse.
+- [x] Add template-friendly issue and PR templates if desired.
+- [x] Add release/versioning guidance for the template itself.
+- [x] Add a changelog strategy.
+- [x] Add contribution guidance for maintaining the shared template.
+- [x] Confirm the repo is ready to be marked as a GitHub template repository.
 
 ## Phase 12: Final Production Readiness Sweep
 
@@ -2256,3 +2256,35 @@ Phase 11 Wave 11.2 is now complete. The template documentation now includes comp
 - [ ] Clean up repository branding for template reuse.
 - [ ] Add template-friendly issue and PR templates if desired.
 - [ ] Add release/versioning guidance for the template itself.
+
+---
+
+## Session Report — 2026-04-10
+
+### What was built
+- Completed Phase 11 Wave 11.3 (GitHub Template Readiness) by cleaning up repository branding, adding template-friendly issue and PR templates, establishing versioning and changelog strategy, and rewriting contribution guidance.
+- Replaced the old branded issue templates (`fastapi-boilerplate-feature-request.md`, `fastapi-boilerplate-issue.md`) with generic `feature-request.md` and `bug-report.md` templates, moved the PR template to the correct `.github/PULL_REQUEST_TEMPLATE.md` location with updated quality gate checklist, and added `.github/ISSUE_TEMPLATE/config.yml`.
+- Created `CHANGELOG.md` following Keep a Changelog format with the initial 0.1.0 release entry documenting all major template features.
+- Created `docs/user-guide/versioning.md` with semantic versioning guidance, release process, changelog maintenance rules, and GitHub Releases best practices, then added it to the MkDocs nav.
+- Rewrote `CONTRIBUTING.md` to reflect the template's actual quality gates, branch workflow, commit conventions, pre-commit hooks, template scope guidance, and PR process.
+- Verified the repository has all files expected of a GitHub template: README, LICENSE, CONTRIBUTING, CHANGELOG, issue/PR templates, CI workflows, Dockerfiles, env examples, docs site, pre-commit config, Makefile, and secret scanning config.
+
+### Issues encountered
+| Issue | How it was fixed |
+|-------|-----------------|
+| The CONTRIBUTING.md created by the agent initially pointed the PR template link to the old `.github/ISSUE_TEMPLATE/PULL_REQUEST_TEMPLATE.md` location. | Fixed the link to point to the correct `.github/PULL_REQUEST_TEMPLATE.md` path. |
+| `uv run mkdocs build --strict` failed on first attempt because the docs dependency group was not synced in the fresh venv. | Ran `uv sync --group docs` to install mkdocs and its dependencies, then the strict build succeeded. |
+
+### Quality gate results
+- ruff: pass (zero warnings)
+- mypy: pass (2 pre-existing errors in metrics.py and tracing.py, unchanged from previous sessions; 176 source files checked)
+- pytest: 1425 passed, 18 pre-existing failures (metrics/tracing/resilience tests from prior sessions requiring optional dependencies)
+- docs build: pass (`uv run mkdocs build --strict` succeeded with zero warnings)
+
+### Current state of the template
+Phase 11 is now complete. The template documentation and GitHub template experience are fully in place: the README is adoption-oriented, quickstart guides cover local and production paths, extension guides cover the four main customization patterns, operational docs include architecture/sequence/deployment diagrams plus observability setup and troubleshooting, and the repository now has generic issue/PR templates, a Keep a Changelog file, semantic versioning guidance, and a practical contribution guide that matches the actual quality gate workflow. The repository is ready to be marked as a GitHub template on the repository settings page. The only remaining work is Phase 12 (Final Production Readiness Sweep).
+
+### What remains
+- [ ] Run a full local bootstrap from scratch and document every required step.
+- [ ] Run a full staging-style deployment from scratch and validate the happy path.
+- [ ] Validate migrations-only startup.

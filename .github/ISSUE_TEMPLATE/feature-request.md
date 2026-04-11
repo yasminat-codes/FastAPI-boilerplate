@@ -1,5 +1,5 @@
 ---
-name: FastAPI-boilerplate Feature request
+name: Feature request
 about: Suggest an idea for this project
 title: ''
 labels: enhancement

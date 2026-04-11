@@ -130,6 +130,7 @@ nav:
       - Troubleshooting: user-guide/troubleshooting.md
       - Development: user-guide/development.md
       - Testing: user-guide/testing.md
+      - Versioning and Releases: user-guide/versioning.md
   - Community: community.md
   # - Examples:
   #   - Overview: examples/index.md

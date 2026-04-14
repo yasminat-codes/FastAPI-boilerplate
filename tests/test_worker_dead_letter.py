@@ -113,7 +113,7 @@ class TestBuildDeadLetterRequestFromJob:
 class TestJobDeadLetterStore:
     @pytest.mark.asyncio
     async def test_dead_letter_creates_record(self) -> None:
-        session = AsyncMock()
+        session = MagicMock()
         session.flush = AsyncMock()
 
         mock_record = MagicMock()
@@ -141,7 +141,7 @@ class TestJobDeadLetterStore:
 
     @pytest.mark.asyncio
     async def test_mark_resolved_sets_status_and_timestamp(self) -> None:
-        session = AsyncMock()
+        session = MagicMock()
         session.flush = AsyncMock()
 
         record = MagicMock()
@@ -158,7 +158,7 @@ class TestJobDeadLetterStore:
 
     @pytest.mark.asyncio
     async def test_mark_archived_sets_status_and_timestamp(self) -> None:
-        session = AsyncMock()
+        session = MagicMock()
         session.flush = AsyncMock()
 
         record = MagicMock()
@@ -175,7 +175,7 @@ class TestJobDeadLetterStore:
 
     @pytest.mark.asyncio
     async def test_mark_retrying_sets_status_and_retry_time(self) -> None:
-        session = AsyncMock()
+        session = MagicMock()
         session.flush = AsyncMock()
 
         record = MagicMock()
@@ -192,7 +192,7 @@ class TestJobDeadLetterStore:
 
     @pytest.mark.asyncio
     async def test_mark_retrying_without_explicit_time(self) -> None:
-        session = AsyncMock()
+        session = MagicMock()
         session.flush = AsyncMock()
 
         record = MagicMock()

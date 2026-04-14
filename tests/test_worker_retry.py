@@ -4,7 +4,7 @@ Tests cover backoff delay calculations, backoff policies, error categorization,
 and job failure alerting hooks.
 """
 
-from unittest.mock import AsyncMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -393,7 +393,7 @@ class TestLoggingAlertHook:
 
     def test_accepts_optional_logger(self) -> None:
         """Should accept optional logger in constructor."""
-        mock_logger = AsyncMock()
+        mock_logger = MagicMock()
         hook = LoggingAlertHook(logger=mock_logger)
 
         assert hook.logger is mock_logger
@@ -407,7 +407,7 @@ class TestLoggingAlertHook:
     @pytest.mark.asyncio
     async def test_on_job_failure_logs_error_for_final_attempt(self) -> None:
         """Should log error for final attempt."""
-        mock_logger = AsyncMock()
+        mock_logger = MagicMock()
         hook = LoggingAlertHook(logger=mock_logger)
 
         await hook.on_job_failure(
@@ -428,7 +428,7 @@ class TestLoggingAlertHook:
     @pytest.mark.asyncio
     async def test_on_job_failure_logs_warning_for_non_final_attempt(self) -> None:
         """Should log warning for non-final attempt."""
-        mock_logger = AsyncMock()
+        mock_logger = MagicMock()
         hook = LoggingAlertHook(logger=mock_logger)
 
         await hook.on_job_failure(
@@ -449,7 +449,7 @@ class TestLoggingAlertHook:
     @pytest.mark.asyncio
     async def test_on_job_failure_includes_all_context(self) -> None:
         """Should include all context in log call."""
-        mock_logger = AsyncMock()
+        mock_logger = MagicMock()
         hook = LoggingAlertHook(logger=mock_logger)
 
         envelope_data = {"id": "123", "action": "process"}
@@ -478,7 +478,7 @@ class TestLoggingAlertHook:
     @pytest.mark.asyncio
     async def test_on_job_failure_distinguishes_attempts_correctly(self) -> None:
         """Should use correct log level based on is_final_attempt."""
-        mock_logger = AsyncMock()
+        mock_logger = MagicMock()
         hook = LoggingAlertHook(logger=mock_logger)
 
         # Not final

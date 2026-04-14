@@ -29,6 +29,20 @@
 
 A production-ready FastAPI backend foundation for client projects. It provides auth, database, webhooks, background jobs, observability, and deployment assets out of the box. Clone it, extend it with your domain logic, deploy it. It's proven in production across SaaS platforms and internal tools.
 
+## Template Identity
+
+This repository's canonical template name is `FastAPI Template`, and the source repository/package baseline is `fastapi-template`. Maintain the source repository as a neutrally branded GitHub Template repository so adopters can use **Use this template** to create their own product-specific repositories, then replace the package metadata, support links, maintainer contacts, and visual branding before publishing their derived project.
+
+## Template Philosophy
+
+- **Extension over modification** — add webhook providers, integrations, and jobs by implementing contracts, not by editing platform internals.
+- **Migrations only** — no `create_all()` at startup. Every schema change goes through Alembic.
+- **Observable by default** — structured logging, Sentry, Prometheus metrics, and OpenTelemetry tracing are wired in. Metrics and tracing are opt-in via extras so they add zero overhead when not needed.
+- **Async-safe, failure-aware** — pool hardening, bounded retries, circuit breakers, dead-letter handling, and replay protection are built into the platform layer.
+- **Local dev stays easy** — `uv sync && uv run uvicorn src.app.main:app --reload` gets you running.
+
+For the full philosophy, version policy, and architecture decisions, see the [Template Philosophy](docs/getting-started/template-philosophy.md) and [Architecture Decisions](docs/getting-started/architecture-decisions.md) docs.
+
 ## What This Template Does Not Include
 
 - **No client-specific business logic, integrations, or dashboards** — this is a foundation, not a finished product.

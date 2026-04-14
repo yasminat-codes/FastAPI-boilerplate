@@ -77,7 +77,7 @@ class TestBuildDeadLetterRequestFromOutcome:
 class TestWebhookDeadLetterStore:
     @pytest.mark.asyncio
     async def test_dead_letter_creates_record(self) -> None:
-        session = AsyncMock()
+        session = MagicMock()
         session.flush = AsyncMock()
 
         mock_record = MagicMock()

@@ -17,7 +17,7 @@ Make sure you have installed:
 
 Start by using this template for your new project:
 
-1. Click **"Use this template"** on the repository you want to derive from
+1. Click **"Use this template"** on the source repository instead of forking it, so your project starts with its own repository history and branding surface
 2. Create a new repository with your project name
 3. Clone your new repository:
 
@@ -164,6 +164,8 @@ curl -X POST "http://localhost:8000/api/v1/login" \
 Now that you have the basics running, explore these guides to learn more:
 
 ### Essential Reading
+- **[Template Philosophy](template-philosophy.md)** - Design principles, version policy, core vs optional features
+- **[Architecture Decisions](architecture-decisions.md)** - Why the template is built the way it is
 - **[Configuration Guide](configuration.md)** - Understand all configuration options
 - **[Project Structure](../user-guide/project-structure.md)** - Learn how the code is organized
 - **[Authentication](../user-guide/authentication/index.md)** - Set up user management

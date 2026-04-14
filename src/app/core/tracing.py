@@ -38,8 +38,8 @@ def _check_otel_availability() -> bool:
         return _OTEL_AVAILABLE
 
     try:
-        import opentelemetry.api  # noqa: F401
         import opentelemetry.sdk  # noqa: F401
+        import opentelemetry.trace  # noqa: F401
 
         _OTEL_AVAILABLE = True
         return True
@@ -260,11 +260,11 @@ def inject_trace_context(headers: dict[str, str]) -> dict[str, str]:
         return headers
 
     try:
-        from opentelemetry.trace.propagation.tracecontext import TraceContextPropagator
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
     except ImportError:
         return headers
 
-    propagator = TraceContextPropagator()
+    propagator = TraceContextTextMapPropagator()
 
     # Inject W3C Trace Context
     headers = dict(headers or {})
@@ -298,11 +298,11 @@ def extract_trace_context(headers: dict[str, str]) -> None:
         return
 
     try:
-        from opentelemetry.trace.propagation.tracecontext import TraceContextPropagator
+        from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
     except ImportError:
         return
 
-    propagator = TraceContextPropagator()
+    propagator = TraceContextTextMapPropagator()
     propagator.extract(headers)
 
 

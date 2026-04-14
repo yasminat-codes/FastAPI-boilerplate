@@ -33,6 +33,10 @@
 
 FastAPI Template is a production-ready backend foundation for teams that want a strong FastAPI starting point without inheriting client-specific code. It combines hardened platform primitives with clear extension points for domain logic, integrations, webhooks, workflows, and operations.
 
+## Repository Identity
+
+The source repository should be presented as `FastAPI Template` and kept generically branded under the package baseline `fastapi-template`. Its intended GitHub positioning is a reusable template repository: teams should create a derived repository via **Use this template**, then replace the default metadata, branding, and support ownership in the copy they publish.
+
 ## Core Technologies
 
 This template uses modern Python infrastructure and keeps the defaults close to production:

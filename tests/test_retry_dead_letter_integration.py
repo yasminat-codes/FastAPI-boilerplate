@@ -202,7 +202,7 @@ class TestFullDeadLetterFlow:
     @pytest.mark.asyncio
     async def test_job_exhausts_retries_then_dead_letter_stored(self) -> None:
         """After max retries exhausted, job can be dead-lettered."""
-        mock_session = AsyncMock()
+        mock_session = MagicMock()
         mock_session.flush = AsyncMock()
         mock_record = MagicMock()
         mock_record.id = 42
@@ -328,7 +328,7 @@ class TestFullDeadLetterFlow:
     async def test_full_workflow_failure_alert_storage_replay(self) -> None:
         """Full integration: job fails, alerts fire, stored in dead-letter, replayed."""
         mock_alert = AsyncMock(spec=JobAlertHook)
-        mock_session = AsyncMock()
+        mock_session = MagicMock()
         mock_session.flush = AsyncMock()
         mock_pool = AsyncMock()
         mock_pool.enqueue_job = AsyncMock()
@@ -646,7 +646,7 @@ class TestDeadLetterRecordCreation:
     @pytest.mark.asyncio
     async def test_dead_letter_record_stores_job_metadata(self) -> None:
         """Dead letter record should store complete job metadata."""
-        mock_session = AsyncMock()
+        mock_session = MagicMock()
         mock_session.flush = AsyncMock()
         mock_record = MagicMock()
         mock_record.id = 55

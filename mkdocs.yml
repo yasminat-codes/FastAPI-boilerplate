@@ -42,6 +42,8 @@ nav:
   - Home: index.md
   - Getting Started:
       - Overview: getting-started/index.md
+      - Template Philosophy: getting-started/template-philosophy.md
+      - Architecture Decisions: getting-started/architecture-decisions.md
       - Installation: getting-started/installation.md
       - Local Development Quickstart: getting-started/quickstart-local.md
       - Production Deployment Quickstart: getting-started/quickstart-production.md
